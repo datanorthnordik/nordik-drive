@@ -1,0 +1,46 @@
+@import "../../scss/variables.scss";
+
+.apptoolbar {
+    background-color: $color_white !important;
+    max-height: $header-height !important;
+    display: flex !important;
+    justify-content: center !important;
+
+    @media screen and (max-width: 600px) {
+        max-height: $header-mobile-height !important;
+    }
+}
+
+.toolbar {
+    
+    @media screen and (max-width:600px) {
+        flex-wrap: wrap !important;
+    }
+    &_icon{
+        color: $primary_color !important;
+        @media screen and (max-width: 600px) {
+            order:2;
+            width: 50%;
+            display: flex !important;
+            justify-content: flex-start !important;
+        }
+    }
+
+    &_brand{
+        max-width: 15%;
+        @media screen and (max-width:900px) {
+            max-width: 30%;
+        }
+
+        @media screen and (max-width:600px) {
+            max-width: 25%;
+            max-height: 2rem;
+            order:1;
+            padding-top: 10px;
+        }
+
+        max-height: 3.2rem;
+
+       
+    }
+}
