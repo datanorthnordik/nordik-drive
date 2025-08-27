@@ -1,33 +1,79 @@
+"use client";
 import styled from 'styled-components'
 import { color_primary, color_secondary } from '../constants/colors'
 import { NavLink } from 'react-router-dom';
 
-export const LinkButton = styled.a`
+export const LinkButton = styled.button`
     color: ${color_secondary};
     cursor: pointer;
-    font-weight: 700;
-    margin: 1rem 0px
-`
+    font-weight: 600;
+    font-size: 16px; /* Larger text for better readability */
+    background: none;
+    border: none;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    padding: 8px 0;
+    transition: all 0.2s ease;
+
+    &:hover {
+        color: ${color_primary};
+        text-decoration-thickness: 2px;
+        transform: translateY(-1px);
+    }
+
+    &:focus {
+        outline: 2px solid ${color_primary};
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+`;
+
+export const SecondaryButton = styled.button`
+    background: transparent;
+    border: 2px solid ${color_primary};
+    color: ${color_primary};
+    padding: 12px 32px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 48px; /* Minimum touch target for accessibility */
+
+    &:hover {
+        background: ${color_primary};
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+    }
+
+    &:focus {
+        outline: 2px solid ${color_primary};
+        outline-offset: 2px;
+    }
+`;
+
 
 
 export const HeaderLink = styled(NavLink)`
-  color: ${color_secondary};
+  color: #003366;  // ✅ dark text for readability
+  font-size: 1.1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
   text-decoration: none;
-
-  
+  padding: 6px 12px;
+  border-radius: 6px;
 
   &:hover {
-    text-decoration: underline;
-    text-decoration-thickness: 4px;
-    text-underline-offset: 1rem;   
-    color: ${color_primary}
+    background-color: ${color_secondary};
+    color: white;
   }
 
-   &.active {
-    text-decoration: underline;
-    text-decoration-thickness: 4px;
-    text-underline-offset: 1rem;   
-    color: ${color_primary};
+  &.active {
+    background-color: ${color_primary};
+    color: white;
     font-weight: 600;
   }
 `;

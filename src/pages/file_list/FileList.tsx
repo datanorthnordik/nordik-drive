@@ -1,59 +1,126 @@
-import { useEffect } from "react"
-import useFetch from "../../hooks/useFetch"
-import { FileListWrapper } from "../../components/Wrappers"
-import { FileButton } from "../../components/buttons/Button"
-import { color_primary, color_secondary } from "../../constants/colors"
-import { Button, Typography } from "@mui/material"
-import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
-import { useNavigate } from "react-router-dom"
-import { useDispatch, useSelector } from "react-redux"
-import { AppDispatch } from "../../store/store"
-import { setSelectedFile } from "../../store/auth/fileSlice"
-import { setRoles } from "../../store/auth/roleSlice"
+'use client';
+import React, { useEffect, useState } from "react";
+import useFetch from "../../hooks/useFetch";
+import { FileListWrapper } from "../../components/Wrappers";
+import { Typography, Card, CardContent, Switch, Box} from "@mui/material"
+import LockIcon from "@mui/icons-material/Lock";
+import FolderIcon from "@mui/icons-material/Folder";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch } from "../../store/store";
+import { setSelectedFile } from "../../store/auth/fileSlice";
+import { color_primary, color_secondary } from "../../constants/colors";
+import PasswordModal from "../../components/models/PasswordModal";
 
-const FileList = ()=>{
-    const navigate = useNavigate()
-    const dispatch = useDispatch<AppDispatch>();
-    const {loading, error, fetchData, data: files} = useFetch("http://127.0.0.1:8080/requests/user", "GET", false)
-    const {loading: rloading, error:rerror, data: roles, fetchData: rFetch} = useFetch("http://127.0.0.1:8080/role/user", "GET", true)
-    const {selectedFile} = useSelector((state:any)=> state.file)
-    useEffect(()=>{
-        fetchData(null)
-    }, [])
+const FileList = () => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
+  const { loading, error, fetchData, data: files } = useFetch("https://127.0.0.1:8080/file", "GET", false);
+  const { selectedFile } = useSelector((state: any) => state.file);
 
-    useEffect(()=>{
-        if(roles){
-            dispatch(setRoles({"roles": (roles as any).roles }))
-        }
-    }, [roles])
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
-    const onSelectFile = (file:any)=>{
-        dispatch(setSelectedFile({selected:{filename: file.filename, community: file.community}}))
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  
+
+  useEffect(() => { fetchData(null); }, []);
+
+  const speak = (text: string) => {
+    if (voiceEnabled && window.speechSynthesis) {
+      const msg = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.speak(msg);
     }
+  };
 
-    return(
-        
-        <FileListWrapper>
-            <div style={{width: "100%", display: "flex", alignItems:"center", gap: "20px"}}>
-                <h2 style={{color: color_primary}}>Access Files</h2>
-                <Typography style={
-                    {display: "flex", alignItems:"center", justifyContent: "center", color: color_secondary}
-                    }>
-                    <InfoOutlineIcon style={{color: color_secondary}}/>
-                    Please select the file to view data
-                </Typography>
-            </div>
-            
-            {(files as any)?.access.map((file:any)=>(
-                <FileButton className={file.filename == selectedFile?.filename ? "active_button": ""} onClick={()=>onSelectFile(file)}>
-                    {file.filename}
-                </FileButton>
-            ))}
-            <div style={{width:"100%", display:"flex", justifyContent:"flex-end"}}>
-                <Button onClick={()=>navigate("/dataview")}>Proceed</Button>
-            </div>
-        </FileListWrapper>
-    )
-}
+  const openPasswordModal = (file: any) => {
+    setPasswordModalOpen(true);
+  };
 
-export default FileList
+  const closePasswordModal = (success: boolean) => {
+    if(success) {
+      setPasswordModalOpen(false);
+      navigate("/dataview")
+      speak(`Selected file ${selectedFile.filename}`)
+    } else {
+      dispatch(setSelectedFile({ selected: null }));
+      setPasswordModalOpen(false);
+    }
+  };
+
+  
+
+  const onSelectFile = (file: any) => {
+    if (file.private) {
+      openPasswordModal(file);
+      dispatch(setSelectedFile({ selected: { filename: file.filename, version: file.version } }));
+    } else {
+      dispatch(setSelectedFile({ selected: { filename: file.filename, version: file.version } }));
+      speak(`Selected file ${file.filename}`);
+      navigate("/dataview");
+    }
+  };
+
+  const confidentialFiles = (files as any)?.files?.filter((file: any) => file.private) || [];
+  const publicFiles = (files as any)?.files?.filter((file: any) => !file.private) || [];
+
+  const renderFileCard = (file: any, isConfidential: boolean) => {
+    const isSelected = file.filename === selectedFile?.filename;
+    return (
+      <Card
+        key={file.filename}
+        onClick={() => onSelectFile(file)}
+        sx={{
+          cursor: "pointer",
+          border: isSelected ? `2px solid ${color_primary}` : "1px solid #ddd",
+          borderRadius: "12px",
+          boxShadow: isSelected ? "0 0 10px rgba(0,0,0,0.3)" : "0 2px 6px rgba(0,0,0,0.1)",
+          backgroundColor: isConfidential ? "#ffeaea" : "#f0f7ff",
+          transition: "all 0.2s ease",
+          "&:hover": { boxShadow: "0 4px 12px rgba(0,0,0,0.2)" },
+        }}
+      >
+        <CardContent style={{ display: "flex", alignItems: "center", gap: "16px" }} tabIndex={0} onFocus={() => speak(`${file.filename}, ${isConfidential ? "Confidential" : "Public"}`)}>
+          {isConfidential ? <LockIcon style={{ fontSize: 36, color: "red" }} /> : <FolderIcon style={{ fontSize: 36, color: color_primary }} />}
+          <Typography variant="h6" style={{ fontWeight: "bold" }}>{file.filename}</Typography>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <FileListWrapper style={{ position: "relative" }}>
+      {/* Voice Toggle */}
+      <Box style={{ position: "absolute", top: 10, right: 10, zIndex: 10, backgroundColor: "#ffffffcc", padding: "6px 10px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+        <Switch checked={voiceEnabled} onChange={(e) => setVoiceEnabled(e.target.checked)} color="primary" size="small" />
+        <Typography variant="body2">Voice</Typography>
+      </Box>
+
+      {/* Confidential Files */}
+      {confidentialFiles.length > 0 && (
+        <div style={{ width: "100%", marginTop: "30px" }}>
+          <Typography variant="h5" style={{ marginBottom: "10px", color: "red" }}>🔒 Confidential Files</Typography>
+          <Typography variant="body2" style={{ marginBottom: "15px", color: "#666" }}>Only authorized users can view these files.</Typography>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "20px" }}>
+            {confidentialFiles.map((file: any) => renderFileCard(file, true))}
+          </div>
+        </div>
+      )}
+
+      {/* Public Files */}
+      {publicFiles.length > 0 && (
+        <div style={{ width: "100%", marginTop: "40px" }}>
+          <Typography variant="h5" style={{ marginBottom: "10px", color: color_primary }}>📂 Public Files</Typography>
+          <Typography variant="body2" style={{ marginBottom: "15px", color: "#666" }}>These files are available to all users.</Typography>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "20px" }}>
+            {publicFiles.map((file: any) => renderFileCard(file, false))}
+          </div>
+        </div>
+      )}
+
+      {passwordModalOpen && <PasswordModal open={passwordModalOpen} closePasswordModal={closePasswordModal}/>}
+      
+    </FileListWrapper>
+  );
+};
+
+export default FileList;

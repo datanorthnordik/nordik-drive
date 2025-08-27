@@ -15,7 +15,7 @@ const AdminPanel = ()=>{
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     };
-    const {loading, error, data: files} = useFetch("http://127.0.0.1:8080/file", "GET", true)
+    const {loading, error, data: files} = useFetch("https://127.0.0.1:8080/file", "GET", true)
     const dispatch = useDispatch<AppDispatch>()
     const {isAdmin, isManager} = useSelector((state:any)=> state.role)
     useEffect(()=>{
@@ -28,13 +28,13 @@ const AdminPanel = ()=>{
             <Loader loading={loading}/>
             <AdminPanelWrapper>
             <AdminTabs handleChange={handleChange} value={value}/>
-            {value==0 && isAdmin &&
+            {value==0 &&
                 <>
                     <FileUploader/>
                     <UploadedFiles/>
                 </>
             }
-            {(value ==1 || isManager) && <RequestTable/>}
+            {value ==1  && <RequestTable/>}
             </AdminPanelWrapper>
         </>
         

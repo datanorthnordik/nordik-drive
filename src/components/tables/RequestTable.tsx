@@ -23,7 +23,7 @@ type RequestTableProps = {
 };
 
 const RequestTable: React.FC<RequestTableProps> = () => {
-    const { loading, error, data: rows, fetchData } = useFetch("http://127.0.0.1:8080/requests", "GET", false)
+    const { loading, error, data: rows, fetchData } = useFetch("https://127.0.0.1:8080/requests", "GET", false)
     const [isOpen, setIsOpen]= useState(false)
     const [selectedRequest, setSelectedRequest] = useState(null)
     useEffect(()=>{

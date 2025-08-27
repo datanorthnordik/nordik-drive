@@ -14,8 +14,8 @@ export default function AdminTabs(props: AdminTabsProps) {
 
   return (
     <AdminTabWrapper value={props.value} onChange={props.handleChange} aria-label="icon tabs example">
-      {isAdmin && <AdminTab icon={<FolderIcon />} aria-label="files" label="Files" />}
-      {(isAdmin || isManager) && <AdminTab icon={<AccountCircleIcon />} aria-label="User Access" label="User Access" />}
+      <AdminTab icon={<FolderIcon />} aria-label="files" label="Files" />
+      <AdminTab icon={<AccountCircleIcon />} aria-label="User Access" label="User Access" />
     </AdminTabWrapper>
   );
 }

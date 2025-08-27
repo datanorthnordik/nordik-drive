@@ -8,7 +8,7 @@ interface UseApiResponse<T> {
     data : T | null;
     error: string | null;
     loading: boolean;
-    fetchData : (body?: any,queryParams?: Record<string, string>)=> void
+    fetchData : (body?: any, queryParams?: Record<string, string>)=> void
 }
 
 const appendQueryParams = (url: string, queryParams?: Record<string, string>) => {
@@ -17,7 +17,7 @@ const appendQueryParams = (url: string, queryParams?: Record<string, string>) =>
     return `${url}?${queryString}`;
 };
 
-const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = true): UseApiResponse<T>=> {
+const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = false): UseApiResponse<T>=> {
     const [data, setData] = useState<T | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -25,48 +25,38 @@ const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = tru
     const { token } = useSelector((state:any) => state.auth);
 
     useEffect(() => {
-        if (autoFetch) {
-            fetchData();
-        }
+        if (autoFetch) fetchData();
     }, [autoFetch, method, url]);
+
     const fetchData = useCallback(async (body?: any, queryParams?: Record<string, string>) => {
+        const finalUrl = appendQueryParams(url, queryParams);
+        const config: AxiosRequestConfig = { method, url: finalUrl, withCredentials: true };
         try {
             setLoading(true);
-            const finalUrl = appendQueryParams(url, queryParams);
-
-            const headers: Record<string, string> = { };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const config: AxiosRequestConfig = {
-                method,
-                url: finalUrl,
-                headers: headers
-            }
-
-            if (body) {
-                config.data = body;
-            }
-
+            if (body) config.data = body;
 
             const response = await axios(config);
             setData(response.data);
-
+            setError("")
         } catch (err: any) {
-            setError(err.response ? err.response.data.message : err.message);
+            if (err.response?.status === 401) {
+                try {
+                    await axios.post("https://127.0.0.1:8080/user/refresh", {}, { withCredentials: true });
+                    const retryResponse = await axios({ ...config });
+                    setData(retryResponse.data);
+                    setError("")
+                } catch (refreshErr: any) {
+                    setError(refreshErr.response?.data?.error || refreshErr.message);
+                }
+            } else {
+                setError(err.response?.data?.error || err.message);
+            }
         } finally {
             setLoading(false);
         }
+    }, [url, method]);
 
-    }, [url, method, autoFetch])
+    return { data, loading, error, fetchData };
+};
 
-    return {
-        data,
-        loading,
-        error,
-        fetchData
-    }
-}
-
-export default useFetch
+export default useFetch;

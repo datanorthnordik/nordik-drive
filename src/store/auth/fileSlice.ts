@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface SelectedFile {
     filename: string
-    community: string[]
+    version: string
 }
 
 
@@ -28,7 +28,7 @@ const fileSlice = createSlice({
   name: 'file',
   initialState,
   reducers: {
-    setSelectedFile: (state, action: PayloadAction<{ selected: SelectedFile }>) => {
+    setSelectedFile: (state, action: PayloadAction<{ selected: SelectedFile | null }>) => {
       state.selectedFile = action.payload.selected
     },
     clearSelectedFile: (state) => {

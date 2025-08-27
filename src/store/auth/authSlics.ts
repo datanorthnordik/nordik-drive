@@ -1,24 +1,28 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface User {
   id: number;
   firstname: string;
   lastname: string;
   email?: string;
+  phonenumber?:string;
+  role?:string;
 }
 
 interface AuthState {
   token: string | null;
   user: User | null;
+  checked: boolean; 
 }
 
 const initialState: AuthState = {
   token: null,
   user: null,
+  checked: false,
 };
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     setAuth: (state, action: PayloadAction<{ token: string; user?: User }>) => {
@@ -29,8 +33,11 @@ const authSlice = createSlice({
       state.token = null;
       state.user = null;
     },
+    setChecked: (state, action: PayloadAction<boolean>) => {
+      state.checked = action.payload;
+    },
   },
 });
 
-export const { setAuth, clearAuth } = authSlice.actions;
+export const { setAuth, clearAuth, setChecked } = authSlice.actions;
 export default authSlice.reducer;

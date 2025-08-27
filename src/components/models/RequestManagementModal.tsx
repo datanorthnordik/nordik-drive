@@ -32,9 +32,9 @@ function RequestManagementModal(props: RequestManagementModalProps) {
     const { selectedRequest, onClose, onProcess } = props
     console.log(selectedRequest)
 
-    const { data: roles, loading, error, fetchData } = useFetch("http://127.0.0.1:8080/role", "GET", false)
-    const { data: files, loading: cloading, error: cerror, fetchData: cFetchData } = useFetch("http://127.0.0.1:8080/file", "GET", true)
-    const { data: updateRequest, loading: uloading, fetchData: ufetchData } = useFetch("http://127.0.0.1:8080/requests/update", "PUT", false)
+    const { data: roles, loading, error, fetchData } = useFetch("https://127.0.0.1:8080/role", "GET", false)
+    const { data: files, loading: cloading, error: cerror, fetchData: cFetchData } = useFetch("https://127.0.0.1:8080/file", "GET", true)
+    const { data: updateRequest, loading: uloading, fetchData: ufetchData } = useFetch("https://127.0.0.1:8080/requests/update", "PUT", false)
 
     const navigate = useNavigate()
 
