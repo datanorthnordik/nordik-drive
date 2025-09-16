@@ -2,6 +2,9 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Typograph
 import { useEffect, useState } from "react";
 import useFetch from "../../hooks/useFetch";
 import { useNavigate } from "react-router-dom";
+import Loader from "../Loader";
+import toast from "react-hot-toast";
+import { password_validation_success } from "../../constants/messages";
 
 interface PasswordModalProps {
     open: boolean;
@@ -20,7 +23,7 @@ const PasswordModal = (props: PasswordModalProps) => {
         closePasswordModal(false)
     }
 
-    const { loading, error, fetchData, data } = useFetch("https://127.0.0.1:8080/user/verify-password", "POST")
+    const { loading, error, fetchData, data } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/user/verify-password", "POST")
 
     const verifyPassword = () => {
         if( passwordInput.length > 0){
@@ -32,6 +35,7 @@ const PasswordModal = (props: PasswordModalProps) => {
         if (data || error) {
             try {
                 if (data && !error) {
+                    toast.success(password_validation_success)
                     closePasswordModal(true);
                     setPasswordError("")
                 } else if (error) {
@@ -44,7 +48,9 @@ const PasswordModal = (props: PasswordModalProps) => {
     }, [data, error])
 
     return (
-        <Dialog open={open} onClose={onCloseModal}>
+        <>
+            <Loader loading={loading}/>
+            <Dialog open={open} onClose={onCloseModal}>
             <DialogTitle>Enter Password</DialogTitle>
             <DialogContent>
                 <TextField
@@ -64,6 +70,8 @@ const PasswordModal = (props: PasswordModalProps) => {
                 <Button onClick={()=>{verifyPassword()}} variant="contained" color="primary">Submit</Button>
             </DialogActions>
         </Dialog>
+        </>
+        
     )
 }
 

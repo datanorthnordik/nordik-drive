@@ -12,7 +12,7 @@ export default function Layout(props: LayoutProps) {
   return (
     <LayoutWrapper>
       {showHeader && <Header />}
-      <main>{children}</main>
+      <main style={{boxSizing:'border-box'}}>{children}</main>
     </LayoutWrapper>
   );
 }

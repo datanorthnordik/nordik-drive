@@ -3,7 +3,8 @@ export const color_primary = "#A61D33"; // Red/burgundy primary color
 export const color_secondary = "#004B9C"; // Blue secondary color
 export const color_primary_dark = "#821427"; // Darker red
 export const color_border = "#DADDE1"; // Light gray border
-export const header_height = "4rem"; // Header height constant
+export const header_height = "8rem"; // Header height constant
+export const header_mobile_height = "8rem"
 
 // Additional colors for better accessibility and senior-friendly design
 export const color_text_primary = "#2c3e50"; // Darker text for better contrast

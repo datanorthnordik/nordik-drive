@@ -8,7 +8,7 @@ interface UseApiResponse<T> {
     data : T | null;
     error: string | null;
     loading: boolean;
-    fetchData : (body?: any, queryParams?: Record<string, string>)=> void
+    fetchData : (body?: any, queryParams?: Record<string, string>, skipRefresh?: boolean)=> void
 }
 
 const appendQueryParams = (url: string, queryParams?: Record<string, string>) => {
@@ -28,9 +28,11 @@ const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = fal
         if (autoFetch) fetchData();
     }, [autoFetch, method, url]);
 
-    const fetchData = useCallback(async (body?: any, queryParams?: Record<string, string>) => {
+    const fetchData = useCallback(async (body?: any, queryParams?: Record<string, string>, skipRefresh: boolean = false) => {
         const finalUrl = appendQueryParams(url, queryParams);
         const config: AxiosRequestConfig = { method, url: finalUrl, withCredentials: true };
+        setData(null);
+        setError(null)
         try {
             setLoading(true);
             if (body) config.data = body;
@@ -39,9 +41,9 @@ const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = fal
             setData(response.data);
             setError("")
         } catch (err: any) {
-            if (err.response?.status === 401) {
+            if (err.response?.status === 401 && !skipRefresh) {
                 try {
-                    await axios.post("https://127.0.0.1:8080/user/refresh", {}, { withCredentials: true });
+                    await axios.post("https://nordikdriveapi-724838782318.us-west1.run.app/user/refresh", {}, { withCredentials: true });
                     const retryResponse = await axios({ ...config });
                     setData(retryResponse.data);
                     setError("")
@@ -55,7 +57,6 @@ const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = fal
             setLoading(false);
         }
     }, [url, method]);
-
     return { data, loading, error, fetchData };
 };
 

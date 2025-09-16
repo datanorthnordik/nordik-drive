@@ -16,10 +16,20 @@ import {
   Paper,
   TextField,
   Autocomplete,
+  Checkbox,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import useFetch from "../../hooks/useFetch";
 import ConfirmationModal from "./ConfirmModal";
+import Loader from "../Loader";
+
+import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import toast from "react-hot-toast";
+import { access } from "fs";
+
+const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
+const checkedIcon = <CheckBoxIcon fontSize="small" />;
 
 interface User {
   id: number;
@@ -50,14 +60,18 @@ const AccessModal: React.FC<AccessModalProps> = ({ open, onClose, file: { fileId
   const [selectedId, seteSelectedId] = useState(null)
 
   const { loading: uloading, error, data: user, fetchData } = useFetch(
-    "https://127.0.0.1:8080/user",
+    "https://nordikdriveapi-724838782318.us-west1.run.app/user",
     "GET"
   );
 
-  const { loading: aloading, data: newAccess, fetchData: assignAccess } = useFetch("https://127.0.0.1:8080/file/access", "POST")
+  const { loading: aloading, data: newAccess, fetchData: assignAccess, error:aerror } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/access", "POST")
 
-  const { loading: galoading, data: accesses, fetchData: getAccess } = useFetch("https://127.0.0.1:8080/file/access", "GET")
-  const { loading: daloading, data: deletedAccess, fetchData: deleteAccess } = useFetch("https://127.0.0.1:8080/file/access", "DELETE")
+  const { loading: galoading, data: accesses, fetchData: getAccess } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/access", "GET")
+  const { loading: daloading, data: deletedAccess, fetchData: deleteAccess, error:derror } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/access", "DELETE")
+
+  const loading = aloading || galoading || daloading || uloading
+
+  const [users, setUsers] = useState([])
 
   useEffect(() => {
     fetchData();
@@ -78,7 +92,41 @@ const AccessModal: React.FC<AccessModalProps> = ({ open, onClose, file: { fileId
     }
   }, [fileId])
 
-  const users: User[] = (user as any)?.users || [];
+  useEffect(()=>{
+    if(aerror){
+      toast.error(aerror)
+    }
+  },[aerror])
+
+  useEffect(()=>{
+    if(newAccess){
+      toast.success((newAccess as any).message)
+    }
+  },[newAccess])
+
+  useEffect(()=>{
+    if(deletedAccess){
+      toast.success((deletedAccess as any).message)
+    }
+  },[deletedAccess])
+
+  useEffect(()=>{
+    if(derror){
+      toast.error(derror)
+    }
+  },[derror])
+
+
+  useEffect(()=>{
+    if(accesses && user){
+       const accesUsers = (accesses as any)?.access.map((item:any)=> item.user_id)
+       const userList: User[] = ((user as any)?.users || []).filter((item:any)=> !accesUsers.includes(item.id));
+       setUsers(userList as any)
+    } else if (user){
+       setUsers((user as any)?.users)
+    }
+
+  }, [accesses, user])
 
   const handleAssign = () => {
     const body: any = []
@@ -93,18 +141,18 @@ const AccessModal: React.FC<AccessModalProps> = ({ open, onClose, file: { fileId
     deleteAccess(null, { id: (selectedId as any) })
   }
 
-  const openRevokeModal = (id:any) => {
-     seteSelectedId(id)
+  const openRevokeModal = (id: any) => {
+    seteSelectedId(id)
     setOpenRevokeConfirm(true)
   }
 
   const closeRevokeModal = () => {
-   
+
     setOpenRevokeConfirm(false)
   }
 
   const openAssignModal = () => {
-    
+
     setOpenAssignConfirm(true)
   }
 
@@ -116,12 +164,14 @@ const AccessModal: React.FC<AccessModalProps> = ({ open, onClose, file: { fileId
     (a.firstname + " " + a.lastname).toLowerCase().includes(searchQuery.toLowerCase())
   ) : [];
 
-  const loading = uloading || aloading
 
   return (
     <>
-      {openAssingnConfirm && <ConfirmationModal text="Do you want to give access to?" open={openAssingnConfirm} onConfirm={handleAssign} onCancel={closeAssignModal} />}
-      {openRevokeConfirm && <ConfirmationModal text="Do you want to give revoke to?" open={openRevokeConfirm} onConfirm={handleRevoke} onCancel={closeRevokeModal}/>}
+      <Loader loading={loading} />
+      {openAssingnConfirm && <ConfirmationModal 
+      text={`Do you want to give access to ${selectedUsers.map(user => user.firstname + " " + user.lastname).join(",")} ?`} 
+      open={openAssingnConfirm} onConfirm={handleAssign} onCancel={closeAssignModal} />}
+      {openRevokeConfirm && <ConfirmationModal text="Do you want to give revoke to?" open={openRevokeConfirm} onConfirm={handleRevoke} onCancel={closeRevokeModal} />}
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>🔐 Manage File Access</DialogTitle>
         <DialogContent>
@@ -133,15 +183,78 @@ const AccessModal: React.FC<AccessModalProps> = ({ open, onClose, file: { fileId
 
             <Autocomplete
               multiple
+              disableCloseOnSelect
               options={users}
               value={selectedUsers}
-              getOptionLabel={(option) => `${option.firstname} ${option.lastname}`}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
               onChange={(e, newValue) => setSelectedUsers(newValue)}
+              filterOptions={(options, state) => {
+                const term = state.inputValue.toLowerCase();
+                return options
+                  .filter(u => !selectedUsers.some(s => s.id === u.id)) // remove already selected
+                  .filter(
+                    u =>
+                      `${u.firstname} ${u.lastname}`.toLowerCase().includes(term) ||
+                      u.email.toLowerCase().includes(term) ||
+                      u.phonenumber.toString().includes(term)
+                  );
+              }}
+              renderOption={(props, option, { selected }) => (
+                <li
+                  {...props}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "6px 10px",
+                    fontSize: "1rem",
+                  }}
+                >
+                  <Checkbox
+                    icon={<CheckBoxOutlineBlankIcon fontSize="small" />}
+                    checkedIcon={<CheckBoxIcon fontSize="small" />}
+                    style={{ marginRight: 8 }}
+                    checked={selected}
+                  />
+                  <div>
+                    <div style={{ fontWeight: "bold" }}>
+                      {option.firstname} {option.lastname}
+                    </div>
+                    <div style={{ fontSize: "0.85rem", color: "#555" }}>
+                      {option.email} | {option.phonenumber}
+                    </div>
+                  </div>
+                </li>
+              )}
+              renderTags={(selected, getTagProps) =>
+                selected.map((option, index) => (
+                  <span
+                    {...getTagProps({ index })}
+                    style={{
+                      margin: "2px",
+                      padding: "4px 8px",
+                      backgroundColor: "#e0f7fa",
+                      borderRadius: "6px",
+                      fontSize: "0.95rem",
+                      display: "inline-block",
+                    }}
+                  >
+                    {option.firstname} {option.lastname} ({option.email})
+                  </span>
+                ))
+              }
               renderInput={(params) => (
-                <TextField {...params} label="Search users" size="small" />
+                <TextField
+                  {...params}
+                  label="Search Users"
+                  size="medium"
+                  placeholder="Type name, email, or phone"
+                  variant="outlined"
+                />
               )}
               loading={loading}
             />
+
+
 
             <Box mt={2}>
               <Button

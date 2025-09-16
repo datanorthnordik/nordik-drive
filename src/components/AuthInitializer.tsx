@@ -6,7 +6,7 @@ import useFetch from "../hooks/useFetch";
 
 const AuthInitializer = () => {
   const dispatch = useDispatch();
-  const {fetchData, data, error} = useFetch("https://127.0.0.1:8080/user/me", "GET")
+  const {fetchData, data, error} = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/user/me", "GET")
 
   useEffect(() => {
     fetchData()

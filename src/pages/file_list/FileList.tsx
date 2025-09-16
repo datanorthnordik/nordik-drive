@@ -1,29 +1,47 @@
-'use client';
-import React, { useEffect, useState } from "react";
-import useFetch from "../../hooks/useFetch";
-import { FileListWrapper } from "../../components/Wrappers";
-import { Typography, Card, CardContent, Switch, Box} from "@mui/material"
-import LockIcon from "@mui/icons-material/Lock";
-import FolderIcon from "@mui/icons-material/Folder";
-import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch } from "../../store/store";
-import { setSelectedFile } from "../../store/auth/fileSlice";
-import { color_primary, color_secondary } from "../../constants/colors";
-import PasswordModal from "../../components/models/PasswordModal";
+import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Container,
+  Chip,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import LockIcon from '@mui/icons-material/Lock';
+import FolderIcon from '@mui/icons-material/Folder';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '../../store/store';
+import { setSelectedFile } from '../../store/auth/fileSlice';
+import { color_primary, color_secondary, header_height, header_mobile_height } from '../../constants/colors';
+
+import useFetch from '../../hooks/useFetch';
+import Loader from '../../components/Loader';
+import PasswordModal from '../../components/models/PasswordModal';
+
+interface FileType {
+  filename: string;
+  version: string;
+  private: boolean;
+}
 
 const FileList = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
-  const { loading, error, fetchData, data: files } = useFetch("https://127.0.0.1:8080/file", "GET", false);
-  const { selectedFile } = useSelector((state: any) => state.file);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const { loading, error, fetchData, data: files } = useFetch<{ files: FileType[] }>("https://nordikdriveapi-724838782318.us-west1.run.app/file", "GET", false);
+  const { selectedFile } = useSelector((state: RootState) => state.file);
 
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
-  
-
-  useEffect(() => { fetchData(null); }, []);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const speak = (text: string) => {
     if (voiceEnabled && window.speechSynthesis) {
@@ -32,94 +50,267 @@ const FileList = () => {
     }
   };
 
-  const openPasswordModal = (file: any) => {
+  const openPasswordModal = (file: FileType) => {
     setPasswordModalOpen(true);
   };
 
   const closePasswordModal = (success: boolean) => {
-    if(success) {
+    if (success) {
       setPasswordModalOpen(false);
-      navigate("/dataview")
-      speak(`Selected file ${selectedFile.filename}`)
+      navigate('/dataview');
+      speak(`Selected file ${selectedFile?.filename}`);
     } else {
       dispatch(setSelectedFile({ selected: null }));
       setPasswordModalOpen(false);
     }
   };
 
-  
-
-  const onSelectFile = (file: any) => {
+  const onSelectFile = (file: FileType) => {
     if (file.private) {
       openPasswordModal(file);
       dispatch(setSelectedFile({ selected: { filename: file.filename, version: file.version } }));
     } else {
       dispatch(setSelectedFile({ selected: { filename: file.filename, version: file.version } }));
       speak(`Selected file ${file.filename}`);
-      navigate("/dataview");
+      navigate('/dataview');
     }
   };
 
-  const confidentialFiles = (files as any)?.files?.filter((file: any) => file.private) || [];
-  const publicFiles = (files as any)?.files?.filter((file: any) => !file.private) || [];
+  const confidentialFiles = files?.files?.filter((file: FileType) => file.private) || [];
+  const publicFiles = files?.files?.filter((file: FileType) => !file.private) || [];
 
-  const renderFileCard = (file: any, isConfidential: boolean) => {
+  const renderFileCard = (file: FileType, isConfidential: boolean) => {
     const isSelected = file.filename === selectedFile?.filename;
     return (
       <Card
-        key={file.filename}
         onClick={() => onSelectFile(file)}
         sx={{
-          cursor: "pointer",
-          border: isSelected ? `2px solid ${color_primary}` : "1px solid #ddd",
-          borderRadius: "12px",
-          boxShadow: isSelected ? "0 0 10px rgba(0,0,0,0.3)" : "0 2px 6px rgba(0,0,0,0.1)",
-          backgroundColor: isConfidential ? "#ffeaea" : "#f0f7ff",
-          transition: "all 0.2s ease",
-          "&:hover": { boxShadow: "0 4px 12px rgba(0,0,0,0.2)" },
+          cursor: 'pointer',
+          border: isSelected ? `3px solid ${color_primary}` : '1px solid rgba(255,255,255,0.2)',
+          borderRadius: 3,
+          background: isConfidential
+            ? 'linear-gradient(135deg, rgba(255,234,234,0.95) 0%, rgba(255,245,245,0.9) 100%)'
+            : 'linear-gradient(135deg, rgba(240,247,255,0.95) 0%, rgba(248,250,255,0.9) 100%)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: isSelected
+            ? '0 15px 35px rgba(166,29,51,0.4)'
+            : '0 8px 32px rgba(0,0,0,0.1)',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            transform: 'translateY(-8px)',
+            boxShadow: isConfidential
+              ? '0 20px 40px rgba(220,53,69,0.3)'
+              : '0 20px 40px rgba(0,75,156,0.3)',
+          },
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: isConfidential
+              ? `linear-gradient(90deg, #dc3545 0%, ${color_primary} 100%)`
+              : `linear-gradient(90deg, ${color_secondary} 0%, ${color_primary} 100%)`,
+          },
         }}
       >
-        <CardContent style={{ display: "flex", alignItems: "center", gap: "16px" }} tabIndex={0} onFocus={() => speak(`${file.filename}, ${isConfidential ? "Confidential" : "Public"}`)}>
-          {isConfidential ? <LockIcon style={{ fontSize: 36, color: "red" }} /> : <FolderIcon style={{ fontSize: 36, color: color_primary }} />}
-          <Typography variant="h6" style={{ fontWeight: "bold" }}>{file.filename}</Typography>
+        <CardContent
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            p: 3,
+            '&:last-child': { pb: 3 },
+          }}
+          tabIndex={0}
+          onFocus={() => speak(`${file.filename}, ${isConfidential ? 'Confidential' : 'Public'}`)}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 56,
+              height: 56,
+              borderRadius: 2,
+              background: isConfidential
+                ? 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)'
+                : `linear-gradient(135deg, ${color_secondary} 0%, ${color_primary} 100%)`,
+              color: 'white',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+            }}
+          >
+            {isConfidential ? <LockIcon sx={{ fontSize: 28 }} /> : <FolderIcon sx={{ fontSize: 28 }} />}
+          </Box>
+
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                color: isConfidential ? '#721c24' : color_primary,
+                mb: 0.5,
+                wordBreak: 'break-word',
+              }}
+            >
+              {file.filename}
+            </Typography>
+            <Chip
+              label={isConfidential ? 'Confidential' : 'Public'}
+              size="small"
+              sx={{
+                backgroundColor: isConfidential ? 'rgba(220,53,69,0.1)' : 'rgba(0,75,156,0.1)',
+                color: isConfidential ? '#721c24' : color_secondary,
+                fontWeight: 500,
+                border: `1px solid ${isConfidential ? 'rgba(220,53,69,0.3)' : 'rgba(0,75,156,0.3)'}`,
+              }}
+            />
+          </Box>
         </CardContent>
       </Card>
     );
   };
 
   return (
-    <FileListWrapper style={{ position: "relative" }}>
-      {/* Voice Toggle */}
-      <Box style={{ position: "absolute", top: 10, right: 10, zIndex: 10, backgroundColor: "#ffffffcc", padding: "6px 10px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-        <Switch checked={voiceEnabled} onChange={(e) => setVoiceEnabled(e.target.checked)} color="primary" size="small" />
-        <Typography variant="body2">Voice</Typography>
+    <>
+      <Loader loading={loading} />
+
+      <Box
+        sx={{
+          minHeight: "100vh",
+          position: 'relative',
+          overflow: 'hidden',
+
+          // Background layers: gradient on top of image
+          backgroundImage: `
+      linear-gradient(
+        135deg,
+        rgba(0, 75, 156, 0.1) 0%,
+        rgba(166, 29, 51, 0.06) 25%,
+        rgba(0, 75, 156, 0.04) 50%,
+        rgba(166, 29, 51, 0.08) 75%,
+        rgba(0, 75, 156, 0.05) 100%
+      ),
+      url("https://images.pexels.com/photos/3184430/pexels-photo-3184430.jpeg")
+    `,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center',
+          backgroundAttachment: 'fixed',
+
+          // Semi-transparent white overlay using ::after
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.8)', // white transparent overlay
+            zIndex: 0,
+          },
+
+          // Content above everything
+          '& > *': {
+            position: 'relative',
+            zIndex: 1,
+          },
+        }}
+      >
+
+        <Container
+          maxWidth="xl"
+          sx={{
+            pt: { xs: `calc(${header_mobile_height} + 2rem)`, md: `calc(${header_height} + 2rem)` },
+            pb: 4,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
+          {/* Public Files */}
+          {publicFiles.length > 0 && (
+            <Box sx={{ mb: 6 }}>
+              <Typography
+                variant="h4"
+                sx={{
+                  mb: 3,
+                  color: color_primary,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  background: `linear-gradient(135deg, ${color_primary} 0%, ${color_secondary} 100%)`,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                📂 Community Records
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: 'repeat(3, 1fr)',
+                  },
+                  gap: 3,
+                }}
+              >
+                {publicFiles.map((file: FileType) => renderFileCard(file, false))}
+              </Box>
+            </Box>
+          )}
+
+          {/* Confidential Files */}
+          {confidentialFiles.length > 0 && (
+            <Box>
+              <Typography
+                variant="h4"
+                sx={{
+                  mb: 3,
+                  color: '#721c24',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  background: 'linear-gradient(135deg, #dc3545 0%, #A61D33 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                🔒 Community Records (Confidential)
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: 'repeat(3, 1fr)',
+                  },
+                  gap: 3,
+                }}
+              >
+                {confidentialFiles.map((file: FileType) => renderFileCard(file, true))}
+              </Box>
+            </Box>
+          )}
+
+          {passwordModalOpen && (
+            <PasswordModal
+              open={passwordModalOpen}
+              closePasswordModal={closePasswordModal}
+            />
+          )}
+        </Container>
       </Box>
-
-      {/* Confidential Files */}
-      {confidentialFiles.length > 0 && (
-        <div style={{ width: "100%", marginTop: "30px" }}>
-          <Typography variant="h5" style={{ marginBottom: "10px", color: "red" }}>🔒 Confidential Files</Typography>
-          <Typography variant="body2" style={{ marginBottom: "15px", color: "#666" }}>Only authorized users can view these files.</Typography>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "20px" }}>
-            {confidentialFiles.map((file: any) => renderFileCard(file, true))}
-          </div>
-        </div>
-      )}
-
-      {/* Public Files */}
-      {publicFiles.length > 0 && (
-        <div style={{ width: "100%", marginTop: "40px" }}>
-          <Typography variant="h5" style={{ marginBottom: "10px", color: color_primary }}>📂 Public Files</Typography>
-          <Typography variant="body2" style={{ marginBottom: "15px", color: "#666" }}>These files are available to all users.</Typography>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "20px" }}>
-            {publicFiles.map((file: any) => renderFileCard(file, false))}
-          </div>
-        </div>
-      )}
-
-      {passwordModalOpen && <PasswordModal open={passwordModalOpen} closePasswordModal={closePasswordModal}/>}
-      
-    </FileListWrapper>
+    </>
   );
 };
 

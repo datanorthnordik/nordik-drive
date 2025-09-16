@@ -37,3 +37,9 @@
   color: white !important;
   background-color: #A61D33 !important;
 }
+
+
+.App{
+  box-sizing: border-box !important;
+}
+

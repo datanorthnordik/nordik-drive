@@ -29,35 +29,57 @@ import AccessModal from "./models/AccessManagementModal";
 import FileVersionHistoryModal from "./models/FileHistoryModal";
 import ReplaceFileModal from "./models/ReplaceFileModal";
 import ConfirmModal from "./models/ConfirmModal";
+import Loader from "./Loader";
+import toast from "react-hot-toast";
 
-const UploadedFiles = () => {
+interface UploadedFilesProps {
+    newFile: string
+}
+
+const UploadedFiles: React.FC<UploadedFilesProps> = ({newFile}) => {
     const { files: rows } = useSelector((state: any) => state.file);
     const dispatch = useDispatch<AppDispatch>();
-    const { data:deletedFile, fetchData: deleteFile } = useFetch(
-        "https://127.0.0.1:8080/file",
+    const { data:deletedFile, fetchData: deleteFile, loading:dloading } = useFetch(
+        "https://nordikdriveapi-724838782318.us-west1.run.app/file",
         "DELETE",
         false
     );
-    const { data: newFiles, fetchData: getFile } = useFetch(
-        "https://127.0.0.1:8080/file",
+    const { data: newFiles, fetchData: getFile, loading: galoading } = useFetch(
+        "https://nordikdriveapi-724838782318.us-west1.run.app/file",
         "GET",
         false
     );
 
-    const { data: updatedFiles, fetchData: resetFile } = useFetch(
-        "https://127.0.0.1:8080/file/reset",
+    const { data: updatedFiles, fetchData: resetFile, loading: ploading } = useFetch(
+        "https://nordikdriveapi-724838782318.us-west1.run.app/file/reset",
         "PUT",
         false
     );
 
     useEffect(()=>{
-        if(deletedFile || updatedFiles) {
+        if(deletedFile){
+            toast.success((deletedFile as any).message)
+        }
+    }, [deletedFile])
+
+    useEffect(()=>{
+
+        if(updatedFiles){
+            toast.success((updatedFiles as any).message)
+        }
+
+    }, [ updatedFiles])
+
+    const loading = dloading || galoading || ploading
+
+    useEffect(()=>{
+        if(deletedFile || updatedFiles || newFile) {
             closeOpenDeleteModal()
             closeRestoreConfirmModal()
             getFile()
         }
 
-    },[deletedFile, updatedFiles])
+    },[deletedFile, updatedFiles, newFile])
 
     const [searchText, setSearchText] = useState("");
     const [openAccess, setOpenAccess] = useState(false)
@@ -149,10 +171,11 @@ const UploadedFiles = () => {
     }, [rows, searchText]);
 
     return (
-        <>
+        <>  
+            <Loader loading={loading}/>
             {openAccess && <AccessModal file={{fileId:(selectedFile as any)?.id, fileName: (selectedFile as any)?.fileName}} open={openAccess} onClose={closeAccessModal} />}
             {openHisory && <FileVersionHistoryModal open={openHisory} onClose={closeHistory} file={{id: (selectedFile as any)?.id, filename: (selectedFile as any)?.filename}}/> }
-            {openReplaceFile && <ReplaceFileModal open={openReplaceFile} onClose={closeReplaceFile} file={{id: (selectedFile as any)?.id, filename: (selectedFile as any)?.filename, version: (selectedFile as any)?.version}}/>}
+            {openReplaceFile && <ReplaceFileModal refresh={getFile} open={openReplaceFile} onClose={closeReplaceFile} file={{id: (selectedFile as any)?.id, filename: (selectedFile as any)?.filename, version: (selectedFile as any)?.version}}/>}
             {openDeleteConfirm && <ConfirmModal open={openDeleteConfirm} text="Delete this file? Customers won’t be able to access it until you restore it." onConfirm={onDelete} onCancel={closeOpenDeleteModal}/>} 
             {openRestoreConfirm && <ConfirmModal open={openRestoreConfirm} text="Are you sure you want to restore this file? Customers will be able to view it again." onConfirm={onRestore} onCancel={closeRestoreConfirmModal}/>} 
             <Paper elevation={3} sx={{ borderRadius: "12px", overflow: "hidden" }}></Paper>
@@ -170,7 +193,7 @@ const UploadedFiles = () => {
                     />
                 </Box>
 
-                <TableContainer sx={{ maxHeight: 500 }}>
+                <TableContainer sx={{ maxHeight: "60vh" }}>
                     <Table stickyHeader>
                         <TableHead>
                             <TableRow sx={{ backgroundColor: "#e8f1fb" }}>
@@ -204,7 +227,7 @@ const UploadedFiles = () => {
                                         <TableCell>{highlightMatch(String(row.version || ""), searchText)}</TableCell>
                                         <TableCell>{highlightMatch(String(row.size || ""), searchText)}</TableCell>
                                         <TableCell>{highlightMatch(String(row.rows || ""), searchText)}</TableCell>
-                                        <TableCell>{highlightMatch(String(row.inserted_by || ""), searchText)}</TableCell>
+                                        <TableCell>{highlightMatch(String(row.firstname + " " + row.lastname || ""), searchText)}</TableCell>
                                         <TableCell>{highlightMatch(String(row.created_at || ""), searchText)}</TableCell>
 
                                         {/* Type Column */}

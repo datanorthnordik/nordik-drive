@@ -11,6 +11,7 @@ import { FileWrapper } from "./Wrappers";
 import useFetch from "../hooks/useFetch";
 import Loader from "./Loader";
 import { InsertDriveFile } from "@mui/icons-material";
+import toast from "react-hot-toast";
 
 const UploadWrapper = styled(Paper)`
   border: 2px dashed ${color_secondary};
@@ -92,7 +93,11 @@ const getSchema = (files: File[]) =>
       .default([]),
   });
 
-const FileUploader: React.FC = () => {
+interface FileUploaderProps {
+  setNewFile: (filename: string)=> void
+}
+
+const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
   const [files, setFiles] = useState<File[]>([]);
 
   const {
@@ -107,7 +112,7 @@ const FileUploader: React.FC = () => {
     reValidateMode: "onChange",
   });
 
-  const { loading, error, fetchData, data } = useFetch("https://127.0.0.1:8080/file/upload", "POST", false);
+  const { loading, error, fetchData, data } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/upload", "POST", false);
 
   const handleFiles = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -121,6 +126,21 @@ const FileUploader: React.FC = () => {
       { shouldValidate: false }
     );
   };
+
+  useEffect(()=>{
+    if(data){
+      toast.success((data as any)?.message)
+      const random = Math.floor(Math.random() * (1000 - 1 + 1)) + 1;
+      setNewFile("newfile"+ random)
+    }
+  },[data])
+
+  useEffect(()=>{
+    if(error){
+      toast.error(error)
+    }
+
+  },[error])
 
   const handleRemove = (index: number) => {
     const updatedFiles = files.filter((_, i) => i !== index);

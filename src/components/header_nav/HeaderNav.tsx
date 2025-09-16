@@ -1,29 +1,53 @@
-// HeaderNav.tsx
 import { NavWrapper } from "../Wrappers";
 import { HeaderLink } from "../Links";
 import { useSelector } from "react-redux";
 import FolderIcon from "@mui/icons-material/Folder";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-import { Stack } from "@mui/material";
+import HistoryIcon from '@mui/icons-material/History';
+import PhoneIcon from '@mui/icons-material/Phone';
+import { Stack, useMediaQuery, useTheme } from "@mui/material";
 
-function HeaderNav() {
-  const { isAdmin, isManager } = useSelector((state: any) => state.role);
+interface HeaderNavProps {
+  onLinkClick?: () => void; // called when a nav link is clicked
+}
+
+function HeaderNav({ onLinkClick }: HeaderNavProps) {
+  const { user } = useSelector((state: any) => state.auth);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   return (
     <NavWrapper>
-      <Stack direction="row" spacing={3} alignItems="stretch">
-        <HeaderLink to="/files">
-          <FolderIcon sx={{ verticalAlign: "middle", marginRight: "6px" }} />
+      <Stack
+        direction={isMobile ? "column" : "row"} // vertical on mobile
+        spacing={isMobile ? 1.5 : 3}
+        alignItems={isMobile ? "flex-start" : "stretch"}
+      >
+        <HeaderLink to="/files" onClick={onLinkClick}>
+          <FolderIcon sx={{ verticalAlign: "middle", mr: 1 }} />
           Files
         </HeaderLink>
 
-       
-          <HeaderLink to="/adminpanel">
-            <AdminPanelSettingsIcon
-              sx={{ verticalAlign: "middle", marginRight: "6px" }}
-            />
+        {user.role === 'Admin' && (
+          <HeaderLink to="/adminpanel" onClick={onLinkClick}>
+            <AdminPanelSettingsIcon sx={{ verticalAlign: "middle", mr: 1 }} />
             Admin View
           </HeaderLink>
-        
+        )}
+
+        {user.role === 'Admin' && (
+          <HeaderLink to="/useractivity" onClick={onLinkClick}>
+            <HistoryIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            User Activity
+          </HeaderLink>
+        )}
+
+        {user.role === 'User' && (
+          <HeaderLink to="/contact-us" onClick={onLinkClick}>
+            <PhoneIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            Contact Us
+          </HeaderLink>
+        )}
       </Stack>
     </NavWrapper>
   );

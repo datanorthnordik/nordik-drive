@@ -55,16 +55,17 @@ export const SecondaryButton = styled.button`
 `;
 
 
-
-export const HeaderLink = styled(NavLink)`
-  color: #003366;  // ✅ dark text for readability
+export const HeaderLink = styled(NavLink)<{ fullWidth?: boolean }>`
+  color: #003366;
   font-size: 1.1rem;
   font-weight: 500;
   display: flex;
   align-items: center;
   text-decoration: none;
-  padding: 6px 12px;
+  padding: 12px 16px;
   border-radius: 6px;
+  width: ${(props) => (props.fullWidth ? "100%" : "auto")};
+  transition: background-color 0.2s ease;
 
   &:hover {
     background-color: ${color_secondary};
@@ -76,5 +77,15 @@ export const HeaderLink = styled(NavLink)`
     color: white;
     font-weight: 600;
   }
+
+  @media screen and (max-width: 600px){
+        width: 100%
+  }
 `;
+
+export const WebLink  = styled.a`
+  text-decoration: underline;
+  cursor: pointer
+`
+
 

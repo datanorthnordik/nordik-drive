@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Button, TextField, } from '@mui/material';
+import { Button, TextField, Box } from '@mui/material';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { AuthWrapper, FormWrapper } from '../../components/Wrappers';
@@ -11,20 +11,20 @@ import useFetch from '../../hooks/useFetch';
 import Loader from '../../components/Loader';
 import { AuthContainer } from '../../components/containers/Containers';
 import BorderLine from '../../components/BorderLine';
+import toast from "react-hot-toast";
+import { signup_success } from '../../constants/messages';
 
 const schema = yup.object().shape({
-    firstname: yup.string().required('Firstname is required'),
-    lastname: yup.string().required('Lastname is required'),
+    firstname: yup.string().required('First name is required'),
+    lastname: yup.string().required('Last name is required'),
     email: yup.string().email('Invalid email').required('Email is required'),
     password: yup.string().required('Password is required').min(
-        6,
+        4,
         "Password must be at least 6 characters",
     ),
     confirmPassword: yup.string()
         .required("Confirm Password is required")
-        .oneOf([yup.ref("password")], "Passwords must match"),
-    phonenumber: yup.string().required('Phone number is required')
-        .matches(/^\d{10}$/, "Enter a valid phone number")
+        .oneOf([yup.ref("password")], "Passwords must match")
 });
 
 function Signup() {
@@ -32,37 +32,75 @@ function Signup() {
         resolver: yupResolver(schema),
     });
 
-    const { data, loading, error, fetchData } = useFetch("https://127.0.0.1:8080/user/signup", "POST", false)
+    const { data, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/user/signup", "POST", false)
 
     const navigate = useNavigate()
 
-    const isLoading = loading
-
     const onSubmit = (data: any) => {
-        fetchData(data)
+        fetchData(data, {}, true)
     };
 
     useEffect(() => {
         if (data) {
+            toast.success(signup_success)
             navigate("/")
         }
     }, [data])
 
+    useEffect(() => {
+        if (error) {
+            toast.error(error)
+        }
+    }, [error])
+
 
     return (
         <AuthContainer>
-            <Loader loading={isLoading} />
+            <Loader loading={loading} />
             <AuthWrapper>
+
+                {/* Logos Section */}
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "2rem",
+                        flexWrap: "wrap",
+                        marginBottom: "1.5rem",
+                    }}
+                >
+                    {/* Left Logo (Shingwauk) */}
+                    <Box sx={{ height: "120px", maxWidth: "200px" }}>
+                        <img
+                            src="/logo-1.png"
+                            alt="Children of Shingwauk Alumni Association"
+                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                        />
+                    </Box>
+
+                    {/* Right Logo (Nordik) */}
+                    <Box sx={{ height: "60px", maxWidth: "220px" }}>
+                        <img
+                            src="https://nordikinstitute.com/wp-content/uploads/2020/04/NordikFinalLogo-640x160.png"
+                            alt="Nordik Institute"
+                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                        />
+                    </Box>
+                </Box>
+
                 <h2>Create a new account</h2>
+
                 <FormWrapper onSubmit={handleSubmit(onSubmit)}>
                     <TextGroup>
                         <Controller
                             name="firstname"
                             control={control}
                             render={({ field }) => (
-                                <TextField style={{ width: "50%" }}
+                                <TextField
+                                    style={{ width: "50%" }}
                                     {...field}
-                                    label="Firstname"
+                                    label="First name"
                                     variant="outlined"
                                     fullWidth
                                     margin="normal"
@@ -75,9 +113,10 @@ function Signup() {
                             name="lastname"
                             control={control}
                             render={({ field }) => (
-                                <TextField style={{ width: "50%" }}
+                                <TextField
+                                    style={{ width: "50%" }}
                                     {...field}
-                                    label="Lastname"
+                                    label="Last name"
                                     variant="outlined"
                                     fullWidth
                                     margin="normal"
@@ -87,6 +126,7 @@ function Signup() {
                             )}
                         />
                     </TextGroup>
+
                     <Controller
                         name="email"
                         control={control}
@@ -102,22 +142,7 @@ function Signup() {
                             />
                         )}
                     />
-                    <Controller
-                        name="phonenumber"
-                        control={control}
-                        render={({ field }) => (
-                            <TextField
-                                {...field}
-                                label="Phone number"
-                                variant="outlined"
-                                fullWidth
-                                margin="normal"
-                                error={!!errors.phonenumber}
-                                helperText={errors.phonenumber?.message}
-                                inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 10 }}
-                            />
-                        )}
-                    />
+
                     <TextGroup>
                         <Controller
                             name="password"
@@ -151,17 +176,25 @@ function Signup() {
                                 />
                             )}
                         />
-
                     </TextGroup>
-                    <Button style={{ width: "100%", margin: "1rem 0" }} type="submit" variant="contained" color="primary">
+
+                    <Button
+                        style={{ width: "100%", margin: "1rem 0" }}
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                    >
                         SIGN UP
                     </Button>
+
                     <BorderLine />
-                    <LinkButton role="button" onClick={() => navigate("/")}>Already have an account</LinkButton>
+
+                    <LinkButton role="button" onClick={() => navigate("/")}>
+                        Already have an account
+                    </LinkButton>
                 </FormWrapper>
             </AuthWrapper>
         </AuthContainer>
-
     );
 }
 

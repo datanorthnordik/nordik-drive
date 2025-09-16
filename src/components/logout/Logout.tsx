@@ -14,7 +14,7 @@ const initialSession: Session = {
 export default function Logout() {
   const { user } = useSelector((state: any) => state.auth);
   const [session, setSession] = useState<Session | null>(initialSession);
-  const { data, loading, fetchData } = useFetch("https://127.0.0.1:8080/user/logout", "POST", false);
+  const { data, loading, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/user/logout", "POST", false);
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {

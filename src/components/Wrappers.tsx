@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import {header_height} from "../constants/colors"
+import {header_height, header_mobile_height} from "../constants/colors"
 
 export const GridWrapper = styled.div`
     display: flex;
@@ -22,13 +22,14 @@ export const FileListWrapper = styled.div`
 
 
     @media screen and (max-width: 400px){
-        margin-top: 6rem;
+        margin-top: ${header_mobile_height};
     }
 `
 
 export const LayoutWrapper = styled.div`
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
 `
 
 export const NavWrapper = styled.nav`
@@ -43,6 +44,10 @@ export const NavWrapper = styled.nav`
         }
     }
 
+    @media screen and (max-width: 600px){
+        padding-top: 2rem;
+    }
+
 `
 
 
@@ -54,7 +59,7 @@ export const AdminPanelWrapper = styled.div`
     padding: 30px 5%;
 
     @media screen and (max-width: 600px){
-        margin-top: 6rem;
+        margin-top: ${header_mobile_height};
     };
 
     @media screen and (max-width: 400px){
@@ -125,3 +130,29 @@ export const FormWrapper = styled.form`
         align-items: center;
     }
 `;
+
+export const DataTableWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - ${header_height});
+    padding: 8px;
+    box-sizing: border-box;
+    @media screen and (max-width: 600px){
+        height: calc(100vh - ${header_mobile_height});
+    };
+`
+
+export const ActivityTableWrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - ${header_height});
+    padding: 8px;
+    box-sizing: border-box;
+    margin-top: ${header_height};
+    padding: 10px 5%;
+
+    @media screen and (max-width: 600px){
+        margin-top: ${header_mobile_height};
+        height: calc(100vh - ${header_mobile_height});
+    };
+` 

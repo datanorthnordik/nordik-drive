@@ -10,12 +10,12 @@ interface AdminTabsProps {
 }
 
 export default function AdminTabs(props: AdminTabsProps) {
-  const {isAdmin, isManager} = useSelector((state:any)=> state.role)
+  const {user} = useSelector((state:any)=> state.auth)
 
   return (
     <AdminTabWrapper value={props.value} onChange={props.handleChange} aria-label="icon tabs example">
       <AdminTab icon={<FolderIcon />} aria-label="files" label="Files" />
-      <AdminTab icon={<AccountCircleIcon />} aria-label="User Access" label="User Access" />
+      {user.role == 'Admin' && <AdminTab icon={<AccountCircleIcon />} aria-label="User Activity" label="User Activity" />}
     </AdminTabWrapper>
   );
 }
