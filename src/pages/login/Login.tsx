@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { Button, Checkbox, FormControlLabel, TextField, } from '@mui/material';
 import * as yup from 'yup';
@@ -17,6 +17,7 @@ import { setAuth } from '../../store/auth/authSlics';
 import { AuthContainer } from '../../components/containers/Containers';
 import { CheckBoxWrapper } from '../../components/TextGroup';
 import toast from 'react-hot-toast';
+import PasswordResetModal from '../../components/PasswordReset';
 
 const schema = yup.object().shape({
   email: yup.string().email('Invalid email').required('Email is required'),
@@ -29,15 +30,17 @@ function Login() {
     resolver: yupResolver(schema),
   });
 
+  const [openReset, setOpenReset] = useState(false);
+
   const { token } = useSelector((state: any) => state.auth)
   const dispatch = useDispatch<AppDispatch>();
 
   const navigate = useNavigate()
 
-  const { data, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/user/login", "POST", false)
+  const { data, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/login", "POST", false)
 
   const onSubmit = (data: any) => {
-    fetchData(data, {}, true)
+    fetchData(data, null, true)
   };
 
   useEffect(() => {
@@ -63,6 +66,7 @@ function Login() {
   return (
     <AuthContainer>
       <Loader loading={loading} />
+      <PasswordResetModal open={openReset} onClose={() => setOpenReset(false)} />
       <AuthWrapper>
         {/* Logos Section */}
         {/* Logos Section */}
@@ -161,7 +165,7 @@ function Login() {
           >
             SIGN IN
           </Button>
-          <LinkButton role="button">Forgot password</LinkButton>
+          <LinkButton type="button"   onClick={() => setOpenReset(true)} role="button">Forgot password</LinkButton>
           <BorderLine />
           <Button
             style={{ margin: "1rem" }}

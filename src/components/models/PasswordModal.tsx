@@ -23,7 +23,7 @@ const PasswordModal = (props: PasswordModalProps) => {
         closePasswordModal(false)
     }
 
-    const { loading, error, fetchData, data } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/user/verify-password", "POST")
+    const { loading, error, fetchData, data } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/verify-password", "POST")
 
     const verifyPassword = () => {
         if( passwordInput.length > 0){

@@ -5,6 +5,7 @@ import FolderIcon from "@mui/icons-material/Folder";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import HistoryIcon from '@mui/icons-material/History';
 import PhoneIcon from '@mui/icons-material/Phone';
+import DoneIcon from '@mui/icons-material/Done';
 import { Stack, useMediaQuery, useTheme } from "@mui/material";
 
 interface HeaderNavProps {
@@ -48,6 +49,13 @@ function HeaderNav({ onLinkClick }: HeaderNavProps) {
             Contact Us
           </HeaderLink>
         )}
+        {user.role === 'User' && (
+          <HeaderLink to="/acknowledgement" onClick={onLinkClick}>
+            <DoneIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            Acknowledgement
+          </HeaderLink>
+        )}
+        
       </Stack>
     </NavWrapper>
   );

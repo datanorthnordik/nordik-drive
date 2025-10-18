@@ -40,18 +40,18 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({newFile}) => {
     const { files: rows } = useSelector((state: any) => state.file);
     const dispatch = useDispatch<AppDispatch>();
     const { data:deletedFile, fetchData: deleteFile, loading:dloading } = useFetch(
-        "https://nordikdriveapi-724838782318.us-west1.run.app/file",
+        "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
         "DELETE",
         false
     );
     const { data: newFiles, fetchData: getFile, loading: galoading } = useFetch(
-        "https://nordikdriveapi-724838782318.us-west1.run.app/file",
+        "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
         "GET",
         false
     );
 
     const { data: updatedFiles, fetchData: resetFile, loading: ploading } = useFetch(
-        "https://nordikdriveapi-724838782318.us-west1.run.app/file/reset",
+        "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/reset",
         "PUT",
         false
     );

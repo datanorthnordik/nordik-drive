@@ -26,7 +26,7 @@ interface ReplaceFileModalProps {
 
 const ReplaceFileModal: React.FC<ReplaceFileModalProps> = ({ open, onClose, file, refresh }) => {
     const dispatch = useDispatch<AppDispatch>();
-    const { loading, fetchData, data, error } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/replace", "POST")
+    const { loading, fetchData, data, error } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file/replace", "POST")
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 

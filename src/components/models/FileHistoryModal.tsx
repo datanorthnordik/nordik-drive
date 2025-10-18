@@ -41,13 +41,13 @@ const FileVersionHistoryModal: React.FC<FileVersionHistoryModalProps> = ({
 }) => {
 
   const { loading: gloading, data, fetchData, error } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/file/history",
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/history",
     "GET",
     false
   )
 
   const { loading: rloading, data: rdata, fetchData: revertFile, error: rerror } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/file/revert",
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/revert",
     "POST",
     false
   )

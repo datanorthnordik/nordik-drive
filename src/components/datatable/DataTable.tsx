@@ -6,7 +6,8 @@ import {
     themeQuartz,
     colorSchemeLightWarm,
     GridReadyEvent,
-    RowNode
+    RowNode,
+    IRowNode
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
@@ -17,6 +18,9 @@ import NIAChat, { NIAChatTrigger } from "../NIAChat";
 import { MicIcon, MicOffIcon, SearchIcon } from "lucide-react";
 import { IconButton, InputAdornment, TextField } from "@mui/material";
 import styled, { keyframes } from "styled-components";
+import { colorSources } from "../../constants/constants";
+import { LegendItem, LegendWrapper } from "../Legent";
+
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 const themeLightWarm = themeQuartz.withPart(colorSchemeLightWarm);
@@ -24,11 +28,6 @@ const themeLightWarm = themeQuartz.withPart(colorSchemeLightWarm);
 interface DataGridProps {
     rowData: any[];
 }
-
-
-
-
-
 
 // Overlay container
 const RecorderOverlay = styled.div<{ $recording: boolean }>`
@@ -115,6 +114,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
     const [isRecording, setIsRecording] = useState(false);
     const recognitionRef = useRef<any>(null);
     const [niaOpen, setNiaOpen] = useState(false);
+    const [sourceFilter, setSourceFilter] = useState<string | null>(null);
 
     const columnDefs = useMemo(() => {
         if (!rowData || rowData.length === 0) return [];
@@ -126,46 +126,57 @@ export default function DataGrid({ rowData }: DataGridProps) {
                 if (!params.value) return null;
 
                 const value = params.value.toString();
-                const safeSearch = escapeRegExp(searchText || '');
-                const regexSearch = safeSearch ? new RegExp(`(${safeSearch})`, 'gi') : null;
+                const safeSearch = escapeRegExp(searchText || "");
+                const regexSearch = safeSearch ? new RegExp(`(${safeSearch})`, "gi") : null;
 
-                // Split main text and bracket
-                const match = value.match(/^(.*?)\s*(\([^)]*\))?$/);
+                const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
                 const mainText = (match?.[1] || "").trim();
-                const bracketText = (match?.[2] || "").trim();
 
                 const renderHighlighted = (text: string) => {
                     if (!regexSearch) return text;
                     return text.split(regexSearch).map((part, idx) =>
-                        regexSearch.test(part) ? <span key={idx} style={{ backgroundColor: 'yellow' }}>{part}</span> : part
+                        regexSearch.test(part) ? (
+                            <span key={idx} style={{ backgroundColor: "yellow" }}>
+                                {part}
+                            </span>
+                        ) : (
+                            part
+                        )
                     );
                 };
 
-                return (
-                    <div style={{ lineHeight: "1.4" }}>
-                        <span>{renderHighlighted(mainText)}</span>
-                        {bracketText && (
-                            <div style={{ fontWeight: "bold" }}>
-                                {renderHighlighted(bracketText)}
-                            </div>
-                        )}
-                    </div>
-                );
+                // ✅ Use params.fontSize
+                return <span style={{ fontSize: `${params.fontSize}px` }}>{renderHighlighted(mainText)}</span>;
             },
-
-            cellStyle: { padding: '8px', color: '#1a1a1a' }
+            cellRendererParams: { fontSize }, // Pass dynamically
+            cellStyle: (params: any) => {
+                const value = params.value?.toString() || "";
+                const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
+                const bracketText = (match?.[3] || "").trim();
+                const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
+                return {
+                    backgroundColor: bgColor,
+                    padding: '8px',
+                    color: '#1a1a1a',
+                };
+            }
         }));
-    }, [rowData, searchText]);
+    }, [rowData, searchText, fontSize]); // ✅ include fontSize as dependency
 
-    const defaultColDef = {
+
+    const defaultColDef = useMemo(() => ({
         editable: false,
         minWidth: 100,
         filter: true,
         sortable: true,
         resizable: true,
-        cellStyle: { textAlign: 'left', fontSize: `${fontSize}px`, padding: '8px', color: '#1a1a1a' },
+        cellStyle: {
+            textAlign: 'left',
+            padding: '8px',
+            color: '#1a1a1a'
+        },
         headerClass: 'bold-header',
-    };
+    }), []);
 
 
     const getRowStyle = (params: any) => ({
@@ -179,7 +190,11 @@ export default function DataGrid({ rowData }: DataGridProps) {
     const onZoomChange = (newSize: number) => {
         setFontSize(newSize);
         gridApi?.refreshCells({ force: true });
+
+        gridApi.resetRowHeights();
     };
+
+
 
     const handleSearch = () => {
         const term = searchText.trim();
@@ -218,6 +233,43 @@ export default function DataGrid({ rowData }: DataGridProps) {
             scrollToMatch(allMatches[0]);
         }
     };
+
+
+    const isExternalFilterPresent = () => sourceFilter !== null;
+
+    const doesExternalFilterPass = (node: IRowNode<any>) => {
+        if (!sourceFilter) return true; // "All" selected → no filter
+        const values = Object.values(node.data || {});
+        return values.some((val: any) => {
+            if (!val) return false;
+            const match = val.toString().match(/\(([^)]*)\)/);
+            const bracketText = match?.[1]?.trim();
+            return bracketText === sourceFilter;
+        });
+    };
+
+    // Find which sources are actually used in rowData
+    const availableSources = useMemo(() => {
+        if (!rowData || rowData.length === 0) return [];
+
+        const found = new Set<string>();
+
+        rowData.forEach((row) => {
+            Object.values(row).forEach((val) => {
+                if (typeof val === "string") {
+                    const match = val.match(/\(([^)]*)\)/);
+                    if (match?.[1]) {
+                        const src = match[1].trim();
+                        if (colorSources[src]) {
+                            found.add(src);
+                        }
+                    }
+                }
+            });
+        });
+
+        return Array.from(found);
+    }, [rowData]);
 
 
 
@@ -416,7 +468,21 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
                     {/* Download */}
                     <button
-                        onClick={() => {/* same download logic */ }}
+                        onClick={() => {
+                            if (!gridApi) return;
+
+                            // Detect if filters or quick filter are active
+                            const filterModel = gridApi.getFilterModel();
+                            const quickFilter = gridApi.getQuickFilter();
+                            const isFiltered =
+                                Object.keys(filterModel).length > 0 || (quickFilter && quickFilter.trim() !== "");
+
+                            // Export as CSV (built-in, no modules needed)
+                            gridApi.exportDataAsCsv({
+                                onlyFiltered: isFiltered, // if filtered → export only those rows
+                                fileName: isFiltered ? "filtered_data.csv" : "all_data.csv",
+                            });
+                        }}
                         style={{
                             height: "56px",
                             padding: "0 20px",
@@ -434,6 +500,63 @@ export default function DataGrid({ rowData }: DataGridProps) {
                     </button>
                 </div>
 
+                {availableSources.length > 0 && (
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: "12px",
+                            alignItems: "center",
+                            marginBottom: "12px",
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <span style={{ fontWeight: "bold" }}>Filter by Source:</span>
+
+                        {/* "All" button */}
+                        <button
+                            onClick={() => {
+                                setSourceFilter(null);
+                                gridApi?.onFilterChanged();
+                            }}
+                            style={{
+                                padding: "6px 14px",
+                                borderRadius: "6px",
+                                border: sourceFilter === null ? "3px solid #000" : "1px solid #ccc",
+                                background: "#f5f5f5",
+                                color: "#333",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                boxShadow: sourceFilter === null ? "0 0 6px rgba(0,0,0,0.3)" : "none",
+                            }}
+                        >
+                            All
+                        </button>
+
+                        {/* Only show available sources */}
+                        {availableSources.map((key) => (
+                            <button
+                                key={key}
+                                onClick={() => {
+                                    setSourceFilter(key);
+                                    gridApi?.onFilterChanged();
+                                }}
+                                style={{
+                                    padding: "6px 14px",
+                                    borderRadius: "6px",
+                                    border: sourceFilter === key ? "3px solid #000" : "1px solid #ccc",
+                                    background: colorSources[key],
+                                    color: "#fff",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    boxShadow: sourceFilter === key ? "0 0 6px rgba(0,0,0,0.4)" : "none",
+                                    textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                                }}
+                            >
+                                {key}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 <div
                     className="ag-theme-quartz"
@@ -444,12 +567,9 @@ export default function DataGrid({ rowData }: DataGridProps) {
                         columnDefs={columnDefs}
                         rowData={rowData}
                         defaultColDef={defaultColDef}
-                        rowHeight={40}
+
                         getRowHeight={(params) => {
-                            const hasBracket = Object.values(params.data).some((val: any) =>
-                                typeof val === "string" && /\(.*\)/.test(val)
-                            );
-                            return hasBracket ? 60 : 40;
+                            return fontSize + 16; // 16px padding (8px top + 8px bottom)
                         }}
                         headerHeight={45}
                         domLayout="normal"
@@ -460,6 +580,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
                         suppressPaginationPanel={true}
                         enableBrowserTooltips={true}
                         rowModelType="clientSide"
+                        isExternalFilterPresent={() => !!sourceFilter}
+                        doesExternalFilterPass={doesExternalFilterPass}
                     />
 
                 </div>

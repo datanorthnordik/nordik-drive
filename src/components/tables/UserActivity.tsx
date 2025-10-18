@@ -44,7 +44,7 @@ export default function UserActivity() {
   const [totalPages, setTotalPages] = useState(1);
 
   const ref = useRef<any>(null);
-  const { loading, fetchData, data: logs, error } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/logs", "POST");
+  const { loading, fetchData, data: logs, error } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/logs", "POST");
 
   const columnDefs = useMemo(
     () => [

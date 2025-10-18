@@ -60,14 +60,14 @@ const AccessModal: React.FC<AccessModalProps> = ({ open, onClose, file: { fileId
   const [selectedId, seteSelectedId] = useState(null)
 
   const { loading: uloading, error, data: user, fetchData } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/user",
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/user",
     "GET"
   );
 
-  const { loading: aloading, data: newAccess, fetchData: assignAccess, error:aerror } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/access", "POST")
+  const { loading: aloading, data: newAccess, fetchData: assignAccess, error:aerror } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file/access", "POST")
 
-  const { loading: galoading, data: accesses, fetchData: getAccess } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/access", "GET")
-  const { loading: daloading, data: deletedAccess, fetchData: deleteAccess, error:derror } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/access", "DELETE")
+  const { loading: galoading, data: accesses, fetchData: getAccess } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file/access", "GET")
+  const { loading: daloading, data: deletedAccess, fetchData: deleteAccess, error:derror } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file/access", "DELETE")
 
   const loading = aloading || galoading || daloading || uloading
 

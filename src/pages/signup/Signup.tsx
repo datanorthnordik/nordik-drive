@@ -32,7 +32,7 @@ function Signup() {
         resolver: yupResolver(schema),
     });
 
-    const { data, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/user/signup", "POST", false)
+    const { data, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/signup", "POST", false)
 
     const navigate = useNavigate()
 

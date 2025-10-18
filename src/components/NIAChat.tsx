@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { Mic, Send, X } from "lucide-react";
+import { Mic, Send, X, Bot } from "lucide-react";
 import { color_primary, color_secondary } from "../constants/colors";
 import { useSelector } from "react-redux";
 import useFetch from "../hooks/useFetch";
@@ -13,7 +13,6 @@ import PauseIcon from "@mui/icons-material/Pause";
 import { marked } from "marked";
 import { decode } from "he";
 import { motion } from "framer-motion";
-import { Bot } from "lucide-react";
 import Loader from "./Loader";
 
 type Message = {
@@ -41,13 +40,16 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const { loading, fetchData, data } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/chat",
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat",
     "POST"
   );
   const { selectedFile } = useSelector((state: any) => state.file);
   const { speak, voices, cancel, speaking } = useSpeechSynthesis();
   const [selectedVoice, setSelectedVoice] = useState<any>(null);
   const [selectedIndex, setSelectedIndex] = useState<any>(null);
+
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // --- Detect mobile ---
   useEffect(() => {
@@ -56,6 +58,25 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // --- Scroll so the last user message is at the top ---
+  const scrollLastUserToTop = () => {
+    if (!messagesContainerRef.current) return;
+    const container = messagesContainerRef.current;
+    // Find last user message element
+    const lastUserIndex = [...messages].map((m, i) => m.from === "user" ? i : -1)
+      .filter((i) => i !== -1)
+      .pop();
+    if (lastUserIndex !== undefined) {
+      const el = messageRefs.current.get(lastUserIndex);
+      if (el) {
+        container.scrollTo({
+          top: el.offsetTop,
+          behavior: "smooth",
+        });
+      }
+    }
+  };
 
   const startAudioRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -71,7 +92,8 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setRecordingState("recording");
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Speech recognition is not supported in this browser");
@@ -81,7 +103,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
 
     finalTranscriptRef.current = "";
 
@@ -104,19 +125,14 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
     recognition.onerror = (err: any) => console.error(err);
 
-    // When user pauses speaking or recognition ends, reset button state
-    recognition.onend = () => {
-      setRecordingState("idle"); // Mic button appears again
-      mediaRecorderRef.current?.stop(); // stop recording if still active
-    };
-
     recognitionRef.current = recognition;
     recognition.start();
   };
 
-
   const stopAudioRecording = () => {
     mediaRecorderRef.current?.stop();
+    recognitionRef.current?.stop();
+    setRecordingState("idle");
   };
 
   const handleAudio = async (answer: any, index: number) => {
@@ -127,8 +143,11 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setSelectedIndex(index);
   };
 
+  // --- Add user question and send to API ---
   const addUserAndNIAResponse = (msg: Message) => {
     setMessages((msgs) => [...msgs, msg]);
+    setTimeout(() => scrollLastUserToTop(), 50); // scroll after rendering
+
     const formData = new FormData();
     formData.append("filename", selectedFile.filename);
     if (msg.text) formData.append("question", msg.text);
@@ -136,12 +155,11 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     fetchData(formData);
   };
 
+  // --- When API returns data (NIA's answer) ---
   useEffect(() => {
     if (data) {
-      setMessages((msgs) => [
-        ...msgs,
-        { from: "nia", text: (data as any).answer },
-      ]);
+      setMessages((msgs) => [...msgs, { from: "nia", text: (data as any).answer }]);
+      setTimeout(() => scrollLastUserToTop(), 50);
     }
   }, [data]);
 
@@ -168,6 +186,9 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
       messages.map((msg, idx) => (
         <div
           key={idx}
+          ref={(el) => {
+            if (el) messageRefs.current.set(idx, el);
+          }}
           style={{
             display: "flex",
             gap: "20px",
@@ -197,10 +218,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
             {msg.text && msg.from !== "user" && (
               <>
                 {selectedIndex === idx && speaking ? (
-                  <PauseIcon
-                    style={{ cursor: "pointer" }}
-                    onClick={cancel}
-                  />
+                  <PauseIcon style={{ cursor: "pointer" }} onClick={cancel} />
                 ) : (
                   <VolumeUpIcon
                     style={{ cursor: "pointer" }}
@@ -268,15 +286,13 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                   {fullscreen ? "🗗" : "🗖"}
                 </button>
               )}
-              <X
-                onClick={() => setOpen(false)}
-                style={{ cursor: "pointer" }}
-              />
+              <X onClick={() => setOpen(false)} style={{ cursor: "pointer" }} />
             </div>
           </div>
 
           {/* Messages */}
           <div
+            ref={messagesContainerRef}
             style={{
               flex: 1,
               padding: "20px",
@@ -303,7 +319,11 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={recordingState === "recording" ? "🎙️ Listening..." : "Ask NIA..."}
+              placeholder={
+                recordingState === "recording"
+                  ? "🎙️ Listening..."
+                  : "Ask NIA..."
+              }
               style={{
                 flex: 1,
                 padding: "12px 16px",
@@ -376,6 +396,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     </>
   );
 }
+
 
 export function NIAChatTrigger({ setOpen }: { setOpen: (v: boolean) => void }) {
   return (

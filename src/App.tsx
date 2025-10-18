@@ -20,6 +20,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import UserActivity from "./components/tables/UserActivity";
 import ContactUs from "./pages/contact_us/ContactUs";
+import Acknowledgement from "./pages/Acknowledgement/Acknowledgement";
 
 
 function App() {
@@ -76,6 +77,16 @@ function App() {
             <ProtectedRoute>
               <Layout showHeader={true}>
                 <ContactUs />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/acknowledgement"
+          element={
+            <ProtectedRoute>
+              <Layout showHeader={true}>
+                <Acknowledgement />
               </Layout>
             </ProtectedRoute>
           }

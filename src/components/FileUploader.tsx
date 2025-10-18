@@ -112,7 +112,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
     reValidateMode: "onChange",
   });
 
-  const { loading, error, fetchData, data } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file/upload", "POST", false);
+  const { loading, error, fetchData, data } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file/upload", "POST", false);
 
   const handleFiles = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;

@@ -19,3 +19,12 @@ export const actions = [
     {"name": "File replaced", "value": "REPLACE_FILE"},
     {"name": "File reverted to old version", "value": "REVERT_FILE"}
 ]
+
+export const colorSources: Record<string, string> = {
+  "FURTHER INVESTIGATION REQUIRED": "#FFFF00",
+  "NCTR SOURCE": "#FFC000",
+  "CORONER'S OFFICE SOURCE": "#FF0000",
+  "BAND DOCUMENTS": "#00B0F0",
+  "CIRNAC SOURCE": "#7030A0",
+  "OFFICE OF THE REGISTRAR GENERAL": "#00B050",
+};

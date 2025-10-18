@@ -10,7 +10,7 @@ import { setFiles } from "../../store/auth/fileSlice";
 
 const AdminPanel = () => {
     const [newFile, setNewFile] = useState("")
-    const { loading, error, data: files } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/file", "GET", true)
+    const { loading, error, data: files } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file", "GET", true)
     const dispatch = useDispatch<AppDispatch>()
     useEffect(() => {
         if (files) {

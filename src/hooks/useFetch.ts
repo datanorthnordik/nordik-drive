@@ -8,10 +8,10 @@ interface UseApiResponse<T> {
     data : T | null;
     error: string | null;
     loading: boolean;
-    fetchData : (body?: any, queryParams?: Record<string, string>, skipRefresh?: boolean)=> void
+    fetchData : (body?: any, queryParams?: any, skipRefresh?: boolean)=> void
 }
 
-const appendQueryParams = (url: string, queryParams?: Record<string, string>) => {
+const appendQueryParams = (url: string, queryParams?: any) => {
     if (!queryParams) return url;
     const queryString = new URLSearchParams(queryParams).toString();
     return `${url}?${queryString}`;
@@ -28,7 +28,7 @@ const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = fal
         if (autoFetch) fetchData();
     }, [autoFetch, method, url]);
 
-    const fetchData = useCallback(async (body?: any, queryParams?: Record<string, string>, skipRefresh: boolean = false) => {
+    const fetchData = useCallback(async (body?: any, queryParams?: any, skipRefresh: boolean = false) => {
         const finalUrl = appendQueryParams(url, queryParams);
         const config: AxiosRequestConfig = { method, url: finalUrl, withCredentials: true };
         setData(null);
@@ -43,7 +43,7 @@ const useFetch = <T> (url: string, method: FetchMethod, autoFetch: boolean = fal
         } catch (err: any) {
             if (err.response?.status === 401 && !skipRefresh) {
                 try {
-                    await axios.post("https://nordikdriveapi-724838782318.us-west1.run.app/user/refresh", {}, { withCredentials: true });
+                    await axios.post("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/refresh", {}, { withCredentials: true });
                     const retryResponse = await axios({ ...config });
                     setData(retryResponse.data);
                     setError("")

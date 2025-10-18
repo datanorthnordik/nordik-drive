@@ -33,7 +33,7 @@ const FileList = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const { loading, error, fetchData, data: files } = useFetch<{ files: FileType[] }>("https://nordikdriveapi-724838782318.us-west1.run.app/file", "GET", false);
+  const { loading, error, fetchData, data: files } = useFetch<{ files: FileType[] }>("https://nordikdriveapi-724838782318.us-west1.run.app/api/file", "GET", false);
   const { selectedFile } = useSelector((state: RootState) => state.file);
 
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -194,7 +194,7 @@ const FileList = () => {
         rgba(166, 29, 51, 0.08) 75%,
         rgba(0, 75, 156, 0.05) 100%
       ),
-      url("https://images.pexels.com/photos/3184430/pexels-photo-3184430.jpeg")
+      url("Copy of 2018 Reunion.jpg")
     `,
           backgroundRepeat: 'no-repeat',
           backgroundSize: 'cover',
