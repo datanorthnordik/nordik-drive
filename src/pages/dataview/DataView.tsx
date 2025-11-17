@@ -13,7 +13,7 @@ export default function(){
         }
     }, [selectedFile])
 
-    const rowData = data ? (data as any).map((item:any)=> item.row_data) : []
+    const rowData = data ? (data as any).map((item:any)=> ({...item.row_data, "id": item.id})) : []
     
     return (
         <>

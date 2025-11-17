@@ -10,6 +10,7 @@ import "./Header.scss";
 import HeaderNav from "../header_nav/HeaderNav";
 import Logout from "../logout/Logout";
 import { NavContainer } from "../NavContainer";
+import { Link } from "react-router-dom";
 
 const AppToolbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -64,6 +65,7 @@ const AppToolbar = () => {
               alignItems: "center",
               flexShrink: 0,
               px: 1,
+              gap: 2,
               maxWidth: { xs: 180, sm: 220, md: 260 },
               "& img": {
                 width: "100%",
@@ -81,6 +83,14 @@ const AppToolbar = () => {
                 alt="Children of Shingwauk Alumni Association"
               />
             </a>
+            <Link to="/coroner">   
+              <img
+                src="/image001.png"   
+                alt="Ontario Office of the Chief Coroner"
+                style={{ height: "6.5rem" }}
+              />
+            </Link>
+
           </Box>
 
           {/* CENTER (Desktop Navigation) */}

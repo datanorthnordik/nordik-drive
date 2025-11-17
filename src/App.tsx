@@ -21,6 +21,8 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import UserActivity from "./components/tables/UserActivity";
 import ContactUs from "./pages/contact_us/ContactUs";
 import Acknowledgement from "./pages/Acknowledgement/Acknowledgement";
+import CoronerPage from "./pages/CoronerPage/CoronerPage";
+import PendingRequests from "./pages/pending-requests/PendingRequests";
 
 
 function App() {
@@ -92,6 +94,16 @@ function App() {
           }
         />
         <Route
+          path="/coroner"
+          element={
+            <ProtectedRoute>
+              <Layout showHeader={true}>
+                <CoronerPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/files"
           element={
             <ProtectedRoute>
@@ -117,6 +129,17 @@ function App() {
             <ProtectedRoute>
               <Layout showHeader={true}>
                 <AdminPanel />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/requests"
+          element={
+            <ProtectedRoute>
+              <Layout showHeader={true}>
+                <PendingRequests />
               </Layout>
             </ProtectedRoute>
           }

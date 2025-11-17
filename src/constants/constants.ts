@@ -21,7 +21,7 @@ export const actions = [
 ]
 
 export const colorSources: Record<string, string> = {
-  "FURTHER INVESTIGATION REQUIRED": "#FFFF00",
+  "FURTHER INVESTIGATION REQUIRED": "#baba58",
   "NCTR SOURCE": "#FFC000",
   "CORONER'S OFFICE SOURCE": "#FF0000",
   "BAND DOCUMENTS": "#00B0F0",

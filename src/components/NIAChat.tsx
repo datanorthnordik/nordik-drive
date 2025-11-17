@@ -31,7 +31,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const recognitionRef = useRef<any>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-
+  const [minimized, setMinimized] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [recordingState, setRecordingState] = useState<"idle" | "recording">(
@@ -43,7 +43,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat",
     "POST"
   );
-  const { selectedFile } = useSelector((state: any) => state.file);
+  const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
   const { speak, voices, cancel, speaking } = useSpeechSynthesis();
   const [selectedVoice, setSelectedVoice] = useState<any>(null);
   const [selectedIndex, setSelectedIndex] = useState<any>(null);
@@ -151,6 +151,9 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     const formData = new FormData();
     formData.append("filename", selectedFile.filename);
     if (msg.text) formData.append("question", msg.text);
+    if(selectedFile?.community_filter){
+      formData.append("communities", selectedCommunities);
+    }
     if (msg.audio) formData.append("audio", new File([msg.audio], "audio.webm"));
     fetchData(formData);
   };
@@ -239,13 +242,19 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
         <div
           style={{
             position: "fixed",
-            bottom: isMobile ? "0" : fullscreen ? "0" : "8px",
-            top: isMobile ? "0" : fullscreen ? "0" : "8px",
-            right: isMobile ? "0" : fullscreen ? "0" : "8px",
-            left: isMobile ? "0" : fullscreen ? "0" : "auto",
-            width: isMobile ? "100%" : fullscreen ? "100%" : "50%",
-            height: isMobile ? "100%" : fullscreen ? "100%" : "auto",
-            borderRadius: isMobile ? "0" : fullscreen ? "0" : "16px",
+            top: minimized ? "auto" : isMobile ? "0" : fullscreen ? "0" : "8px",
+            right: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
+            left: minimized ? "auto" : isMobile ? "0" : fullscreen ? "0" : "auto",
+            bottom: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
+            width: minimized ? "100px" : isMobile ? "100%" : fullscreen ? "100%" : "50%",
+            height: minimized
+              ? "60px"
+              : isMobile
+                ? "100%"
+                : fullscreen
+                  ? "100%"
+                  : "auto",
+            borderRadius: "16px",
             backdropFilter: "blur(40px) saturate(180%)",
             background:
               "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.06))",
@@ -270,9 +279,9 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
               fontSize: "1.1rem",
             }}
           >
-            <span>🤖 NIA – NORDIK Intelligent Assistant</span>
+            {!minimized && <span>🤖 NIA – NORDIK Intelligent Assistant</span>}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              {!isMobile && (
+              {!isMobile && !minimized && (
                 <button
                   onClick={() => setFullscreen((prev) => !prev)}
                   style={{
@@ -286,6 +295,18 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                   {fullscreen ? "🗗" : "🗖"}
                 </button>
               )}
+              <button
+                onClick={() => setMinimized(prev => !prev)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "white",
+                  cursor: "pointer",
+                  fontSize: "1.2rem",
+                }}
+              >
+                {minimized ? "🔼" : "🔽"}  {/* 🔽 = minimize, 🔼 = restore */}
+              </button>
               <X onClick={() => setOpen(false)} style={{ cursor: "pointer" }} />
             </div>
           </div>

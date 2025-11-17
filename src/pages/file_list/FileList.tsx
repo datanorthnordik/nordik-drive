@@ -25,6 +25,8 @@ interface FileType {
   filename: string;
   version: string;
   private: boolean;
+  community_filter: boolean;
+  id: number;
 }
 
 const FileList = () => {
@@ -68,9 +70,9 @@ const FileList = () => {
   const onSelectFile = (file: FileType) => {
     if (file.private) {
       openPasswordModal(file);
-      dispatch(setSelectedFile({ selected: { filename: file.filename, version: file.version } }));
+      dispatch(setSelectedFile({ selected: { filename: file.filename,id: file.id, version: file.version, community_filter: file.community_filter } }));
     } else {
-      dispatch(setSelectedFile({ selected: { filename: file.filename, version: file.version } }));
+      dispatch(setSelectedFile({ selected: { filename: file.filename, id: file.id, version: file.version, community_filter: file.community_filter  } }));
       speak(`Selected file ${file.filename}`);
       navigate('/dataview');
     }

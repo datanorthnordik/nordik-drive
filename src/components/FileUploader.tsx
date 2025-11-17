@@ -76,7 +76,7 @@ const PreviewItem = styled(Paper)`
 `;
 
 interface FileForm {
-  files: { filename: string; private: boolean }[];
+  files: { filename: string; private: boolean, communityFilter: boolean }[];
 }
 
 const getSchema = (files: File[]) =>
@@ -87,6 +87,7 @@ const getSchema = (files: File[]) =>
         yup.object({
           filename: yup.string().trim().required("File name is required"),
           private: yup.boolean().default(false),
+          communityFilter: yup.boolean().default(false),
         })
       )
       .min(1, "At least one file is required")
@@ -122,7 +123,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
 
     setValue(
       "files",
-      updatedFiles.map(() => ({ filename: "", private: false })),
+      updatedFiles.map(() => ({ filename: "", private: false, communityFilter: false })),
       { shouldValidate: false }
     );
   };
@@ -148,7 +149,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
 
     setValue(
       "files",
-      updatedFiles.map(() => ({ filename: "", private: false })),
+      updatedFiles.map(() => ({ filename: "", private: false, communityFilter: false })),
       { shouldValidate: false }
     );
   };
@@ -161,6 +162,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
     data.files.forEach((f) => {
       formData.append("filenames", f.filename);
       formData.append("private", f.private.toString());
+      formData.append("community_filter", f.communityFilter.toString());
     });
     fetchData(formData);
   };
@@ -218,6 +220,18 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
                           <FormControlLabel
                             control={<Checkbox {...field} checked={field.value} />}
                             label="Mark as Confidential"
+                            sx={{ marginTop: 1, "& .MuiFormControlLabel-label": { fontSize: "1rem" } }}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name={`files.${index}.communityFilter`}
+                        control={control}
+                        defaultValue={false}
+                        render={({ field }) => (
+                          <FormControlLabel
+                            control={<Checkbox {...field} checked={field.value} />}
+                            label="Enable Community Filter"
                             sx={{ marginTop: 1, "& .MuiFormControlLabel-label": { fontSize: "1rem" } }}
                           />
                         )}

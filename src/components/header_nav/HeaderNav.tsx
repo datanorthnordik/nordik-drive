@@ -7,6 +7,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import PhoneIcon from '@mui/icons-material/Phone';
 import DoneIcon from '@mui/icons-material/Done';
 import { Stack, useMediaQuery, useTheme } from "@mui/material";
+import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
 
 interface HeaderNavProps {
   onLinkClick?: () => void; // called when a nav link is clicked
@@ -53,6 +54,13 @@ function HeaderNav({ onLinkClick }: HeaderNavProps) {
           <HeaderLink to="/acknowledgement" onClick={onLinkClick}>
             <DoneIcon sx={{ verticalAlign: "middle", mr: 1 }} />
             Acknowledgement
+          </HeaderLink>
+        )}
+
+        {user.role === 'Admin' && (
+          <HeaderLink to="/requests" onClick={onLinkClick}>
+            <PendingActionsOutlinedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+            Requests
           </HeaderLink>
         )}
         

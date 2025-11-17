@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useLayoutEffect, useEffect } from "react";
 import {
     AllCommunityModule,
     ModuleRegistry,
@@ -13,13 +13,19 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { DataTableWrapper, GridWrapper } from "../Wrappers";
-import { color_primary, color_secondary } from "../../constants/colors";
+import { color_primary, color_secondary, color_background, header_height } from "../../constants/colors";
 import NIAChat, { NIAChatTrigger } from "../NIAChat";
 import { MicIcon, MicOffIcon, SearchIcon } from "lucide-react";
 import { IconButton, InputAdornment, TextField } from "@mui/material";
 import styled, { keyframes } from "styled-components";
 import { colorSources } from "../../constants/constants";
-import { LegendItem, LegendWrapper } from "../Legent";
+import * as XLSX from "xlsx";
+import CommunityFilter from "../CommunityFilter/CommunityFilter";
+import { useDispatch, useSelector } from "react-redux";
+import { setCommunities } from "../../store/auth/fileSlice";
+import { AppDispatch } from "../../store/store";
+import { EditableTable } from './EditableTable';
+import AddInfoForm from "./AddInfoForm";
 
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -29,7 +35,6 @@ interface DataGridProps {
     rowData: any[];
 }
 
-// Overlay container
 const RecorderOverlay = styled.div<{ $recording: boolean }>`
   position: fixed;
   top: 0; left: 0;
@@ -74,23 +79,23 @@ const RecorderText = styled.div`
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// put this above your component (or inside it before usage)
+
 const applyQuickFilter = (api: any, text: string) => {
     if (!api) return;
 
-    // AG Grid v31+ (recommended): set grid option
+
     if (typeof api.setGridOption === 'function') {
         api.setGridOption('quickFilterText', text);
         return;
     }
 
-    // Older versions: classic quick filter
+
     if (typeof api.setQuickFilter === 'function') {
         api.setQuickFilter(text);
         return;
     }
 
-    // Fallback: simulate quick filter by applying a "contains" filter on all columns
+
     const model = text
         ? Object.fromEntries(
             (api.getColumnDefs() || []).map((col: any) => [
@@ -106,6 +111,11 @@ const applyQuickFilter = (api: any, text: string) => {
 
 export default function DataGrid({ rowData }: DataGridProps) {
     const [gridApi, setGridApi] = useState<any>(null);
+    // control whether filter is visible. On small screens this becomes a full overlay.
+    const [filterOpen, setFilterOpen] = useState(true);
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+    const [overlayTop, setOverlayTop] = useState<number>(0);
+    const [overlayHeight, setOverlayHeight] = useState<number>(360);
     const [searchText, setSearchText] = useState('');
     const [lastQuery, setLastQuery] = useState('');
     const [matches, setMatches] = useState<{ rowNode: RowNode; colId: string }[]>([]);
@@ -115,54 +125,184 @@ export default function DataGrid({ rowData }: DataGridProps) {
     const recognitionRef = useRef<any>(null);
     const [niaOpen, setNiaOpen] = useState(false);
     const [sourceFilter, setSourceFilter] = useState<string | null>(null);
+    const [matchedNodes, setMatchedNodes] = useState<any[]>([]);
+    const [editMode, setEditMode] = useState(false);
+    const dispatch = useDispatch<AppDispatch>();
+    const lastCommunitiesRef = useRef<string | null>(null);
+    // refs & state to compute remaining height for the grid
+    const wrapperRef = useRef<HTMLDivElement | null>(null);
+    const topControlsRef = useRef<HTMLDivElement | null>(null);
+    const filtersRef = useRef<HTMLDivElement | null>(null);
+    const [gridMinHeight, setGridMinHeight] = useState<number>(360);
+    const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file)
+    const [formOpen, setFormOpen] = useState(false);
+    const [formRow, setFormRow] = useState<any>(null);
+
+
+    // compute overlay top and available height (so collapsed strip fills grid vertically)
+    useLayoutEffect(() => {
+        const computeOverlay = () => {
+            if (!wrapperRef.current) {
+                setOverlayTop(0);
+                setOverlayHeight(360);
+                return;
+            }
+            const wrapperRect = wrapperRef.current.getBoundingClientRect();
+            const topH = topControlsRef.current?.getBoundingClientRect().bottom ?? wrapperRect.top;
+            const filtersH = filtersRef.current?.getBoundingClientRect().bottom ?? topH;
+            // offset relative to wrapper top
+            const top = Math.max((topH - wrapperRect.top), 0);
+            const padding = 16;
+            const avail = Math.max(200, wrapperRef.current.clientHeight - top - padding);
+            setOverlayTop(top + 8);
+            setOverlayHeight(avail);
+        };
+        computeOverlay();
+        window.addEventListener("resize", computeOverlay);
+        return () => window.removeEventListener("resize", computeOverlay);
+    }, []);
+
+    // lock body scroll while overlay is open (prevent outer scroll)
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        if (filterOpen && selectedFile?.community_filter) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = prev || "";
+        }
+        return () => { document.body.style.overflow = prev || ""; };
+    }, [filterOpen, selectedFile?.community_filter]);
+
+    useEffect(() => {
+        const enabled = !!selectedFile?.community_filter;
+        const uniqueCommunities = enabled
+            ? Array.from(new Set(
+                rowData
+                    .map((item: any) => (item?.["First Nation/Home"] ?? ""))
+                    .map((v: any) => String(v).trim())
+                    .filter(Boolean)
+            ))
+            : [];
+
+        const serialized = JSON.stringify(uniqueCommunities);
+        // only dispatch when communities actually change (prevents render loop)
+        if (serialized !== lastCommunitiesRef.current) {
+            lastCommunitiesRef.current = serialized;
+            dispatch(setCommunities({ communities: uniqueCommunities.sort() }));
+        }
+    }, [rowData, selectedFile?.community_filter, dispatch]);
+
+    useLayoutEffect(() => {
+        const compute = () => {
+            const wrapperH = wrapperRef.current?.clientHeight ?? window.innerHeight;
+            const topH = topControlsRef.current?.clientHeight ?? 0;
+            const filtersH = filtersRef.current?.clientHeight ?? 0;
+            const padding = 48; // adjust if needed for margins/padding
+            const remaining = Math.max(360, wrapperH - topH - filtersH - padding);
+            setGridMinHeight(remaining);
+        };
+        compute();
+        window.addEventListener("resize", compute);
+        return () => window.removeEventListener("resize", compute);
+    }, []);
+
+    // track viewport width to switch to mobile overlay mode
+    useEffect(() => {
+        const onResize = () => {
+            const w = window.innerWidth;
+            setIsMobile(w <= 768);
+        };
+        onResize();
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
 
     const columnDefs = useMemo(() => {
         if (!rowData || rowData.length === 0) return [];
-        return Object.keys(rowData[0]).map(key => ({
-            field: key,
-            headerName: key,
-            tooltipValueGetter: (params: any) => params.value,
-            cellRenderer: (params: any) => {
-                if (!params.value) return null;
+        const keys = Object.keys(rowData[0]).filter(k => k !== "id");
+        return [...(selectedFile?.community_filter ? [
+            {
+                headerName: "Add Info",
+                field: "add_info",
+                pinned: "left" as const,
+                width: 150,
+                minWidth: 150,   // <- prevents clipping
+                autoHeight: true, // <- allows row height to grow
+                suppressSizeToFit: true, // <- protect column from compression
 
-                const value = params.value.toString();
-                const safeSearch = escapeRegExp(searchText || "");
-                const regexSearch = safeSearch ? new RegExp(`(${safeSearch})`, "gi") : null;
-
-                const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
-                const mainText = (match?.[1] || "").trim();
-
-                const renderHighlighted = (text: string) => {
-                    if (!regexSearch) return text;
-                    return text.split(regexSearch).map((part, idx) =>
-                        regexSearch.test(part) ? (
-                            <span key={idx} style={{ backgroundColor: "yellow" }}>
-                                {part}
-                            </span>
-                        ) : (
-                            part
-                        )
-                    );
-                };
-
-                // ✅ Use params.fontSize
-                return <span style={{ fontSize: `${params.fontSize}px` }}>{renderHighlighted(mainText)}</span>;
-            },
-            cellRendererParams: { fontSize }, // Pass dynamically
-            cellStyle: (params: any) => {
-                const value = params.value?.toString() || "";
-                const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
-                const bracketText = (match?.[3] || "").trim();
-                const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
-                return {
-                    backgroundColor: bgColor,
-                    padding: '8px',
-                    color: '#1a1a1a',
-                };
+                cellRenderer: (params: any) => (
+                    <button
+                        style={{
+                            padding: "10px 16px",
+                            background: "#1976d2",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                            fontSize: "15px",
+                            fontWeight: 600,
+                            width: "100%",
+                            height: "40px",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            flexShrink: 0, // stays visible
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setFormRow(params.data);
+                            setFormOpen(true);
+                        }}
+                    >
+                        Add Info
+                    </button>
+                )
             }
-        }));
-    }, [rowData, searchText, fontSize]); // ✅ include fontSize as dependency
+        ] : [])
+            , ...keys.map(key => ({
+                field: key,
+                headerName: key,
+                tooltipValueGetter: (params: any) => params.value,
+                cellRenderer: (params: any) => {
+                    if (!params.value) return null;
 
+                    const value = params.value.toString();
+                    const safeSearch = escapeRegExp(searchText || "");
+                    const regexSearch = safeSearch ? new RegExp(`(${safeSearch})`, "gi") : null;
+
+                    const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
+                    const mainText = (match?.[1] || "").trim();
+
+                    const renderHighlighted = (text: string) => {
+                        if (!regexSearch) return text;
+                        return text.split(regexSearch).map((part, idx) =>
+                            regexSearch.test(part) ? (
+                                <span key={idx} style={{ backgroundColor: "yellow" }}>
+                                    {part}
+                                </span>
+                            ) : (
+                                part
+                            )
+                        );
+                    };
+                    return <span style={{ fontSize: `${params.fontSize}px` }}>{renderHighlighted(mainText)}</span>;
+                },
+                cellRendererParams: { fontSize },
+                cellStyle: (params: any) => {
+                    const value = params.value?.toString() || "";
+                    const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
+                    const bracketText = (match?.[3] || "").trim();
+                    const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
+                    return {
+                        backgroundColor: bgColor,
+                        padding: '8px',
+                        color: bracketText && colorSources[bracketText] ? "#fff" : "#1a1a1a",
+                        fontWeight: "600"
+                    };
+                }
+            }))
+        ]
+    }, [rowData, searchText, fontSize]);
 
     const defaultColDef = useMemo(() => ({
         editable: false,
@@ -194,61 +334,47 @@ export default function DataGrid({ rowData }: DataGridProps) {
         gridApi.resetRowHeights();
     };
 
-
-
-    const handleSearch = () => {
-        const term = searchText.trim();
-        if (!gridApi) return;
-
-        // 1) Apply filtering globally (quick filter or fallback)
-        applyQuickFilter(gridApi, term);
-
-        // Clear matches if empty search
-        if (!term) {
-            setMatches([]);
-            setCurrentMatchIndex(0);
-            setLastQuery('');
-            return;
-        }
-
-        // 2) Build matches **only from visible (filtered) rows**
-        const allMatches: { rowNode: RowNode; colId: string }[] = [];
-        const needle = term.toLowerCase();
-
-        // afterFilterAndSort iterates only rows currently shown
-        gridApi.forEachNodeAfterFilterAndSort((node: RowNode) => {
-            (gridApi.getColumnDefs() || []).forEach((col: any) => {
-                const value = node.data?.[col.field]?.toString() || '';
-                if (value.toLowerCase().includes(needle)) {
-                    allMatches.push({ rowNode: node, colId: col.field });
-                }
-            });
-        });
-
-        setMatches(allMatches);
-        setCurrentMatchIndex(0);
-        setLastQuery(term);
-
-        if (allMatches.length > 0) {
-            scrollToMatch(allMatches[0]);
-        }
+    // external filter is active if sourceFilter OR selectedCommunities has values
+    const isExternalFilterPresent = () => {
+        const communitiesActive = Array.isArray(selectedCommunities) && selectedCommunities.length > 0;
+        return sourceFilter !== null || communitiesActive;
     };
 
-
-    const isExternalFilterPresent = () => sourceFilter !== null;
-
+    // when external filter is present, rows must pass BOTH sourceFilter (if set)
+    // AND selectedCommunities (if set). If neither is set, row passes.
     const doesExternalFilterPass = (node: IRowNode<any>) => {
-        if (!sourceFilter) return true; // "All" selected → no filter
-        const values = Object.values(node.data || {});
-        return values.some((val: any) => {
-            if (!val) return false;
-            const match = val.toString().match(/\(([^)]*)\)/);
-            const bracketText = match?.[1]?.trim();
-            return bracketText === sourceFilter;
-        });
+        const data = node.data || {};
+
+        // sourceFilter check (same as before)
+        let passSource = true;
+        if (sourceFilter) {
+            const values = Object.values(data);
+            passSource = values.some((val: any) => {
+                if (!val) return false;
+                const match = val.toString().match(/\(([^)]*)\)/);
+                const bracketText = match?.[1]?.trim();
+                return bracketText === sourceFilter;
+            });
+        }
+
+        // selectedCommunities check: check the "First Nation/Home" field (or fallback)
+        let passCommunity = true;
+        if (Array.isArray(selectedCommunities) && selectedCommunities.length > 0) {
+            const communityValue = String(data["First Nation/Home"] ?? "").trim().toLowerCase();
+            const normalizedSelected = selectedCommunities.map((s: any) => String(s ?? "").trim().toLowerCase());
+            passCommunity = normalizedSelected.includes(communityValue);
+        }
+
+        return passSource && passCommunity;
     };
 
-    // Find which sources are actually used in rowData
+    // refresh grid filters whenever selectedCommunities or sourceFilter changes
+    useEffect(() => {
+        if (gridApi?.onFilterChanged) {
+            gridApi.onFilterChanged();
+        }
+    }, [selectedCommunities, sourceFilter, gridApi]);
+
     const availableSources = useMemo(() => {
         if (!rowData || rowData.length === 0) return [];
 
@@ -272,7 +398,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
     }, [rowData]);
 
 
-
     const scrollToMatch = (match: { rowNode: RowNode; colId: string }) => {
         if (!gridApi) return;
         gridApi.ensureNodeVisible(match.rowNode, 'middle');
@@ -289,302 +414,520 @@ export default function DataGrid({ rowData }: DataGridProps) {
         scrollToMatch(matches[newIndex]);
     };
 
+    const handleSearch = () => {
+        const term = searchText.trim();
+        if (!gridApi) return;
+
+        // Apply quick filter
+        applyQuickFilter(gridApi, term);
+
+        if (!term) {
+            setMatches([]);
+            setCurrentMatchIndex(0);
+            setLastQuery('');
+            return;
+        }
+
+        // If search text changed, recompute matches
+        if (term !== lastQuery) {
+            const allMatches: { rowNode: RowNode; colId: string }[] = [];
+            const needle = term.toLowerCase();
+
+            gridApi.forEachNodeAfterFilterAndSort((node: RowNode) => {
+                (gridApi.getColumnDefs() || []).forEach((col: any) => {
+                    const value = node.data?.[col.field]?.toString() || '';
+                    if (value.toLowerCase().includes(needle)) {
+                        allMatches.push({ rowNode: node, colId: col.field });
+                    }
+                });
+            });
+
+            setMatches(allMatches);
+            setCurrentMatchIndex(0);
+            setLastQuery(term);
+
+            if (allMatches.length > 0) {
+                scrollToMatch(allMatches[0]);
+            }
+            return;
+        }
+
+        // If text same as last search → go to next match
+        if (matches.length > 0) {
+            const nextIndex = (currentMatchIndex + 1) % matches.length;
+            setCurrentMatchIndex(nextIndex);
+            scrollToMatch(matches[nextIndex]);
+        }
+    };
+
+
+
     return (
-        <GridWrapper style={{ padding: '8px', boxSizing: 'border-box' }}>
+        <GridWrapper
+            ref={wrapperRef}
+            // make outer wrapper fill viewport minus header and prevent outer scrolling
+            style={{
+                padding: '8px',
+                boxSizing: 'border-box',
+                height: `calc(100vh - ${header_height})`,
+                overflow: 'hidden',
+                position: 'relative', // required for absolute mobile overlay
+            }}
+        >
             <DataTableWrapper>
-                <div
-                    style={{
-                        marginBottom: "12px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        background: "#f1f5f9",
-                        padding: "12px 16px",
-                        borderRadius: "10px",
-                        boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-                        flexWrap: "nowrap",
-                        overflowX: "auto",
-                    }}
-                >
-                    {/* Back Button */}
-                    <button
-                        onClick={() => window.history.back()}
+                {!editMode && <>
+                    <div ref={topControlsRef}
                         style={{
-                            height: "56px",
-                            padding: "0 20px",
-                            fontSize: "1rem",
-                            borderRadius: "10px",
-                            border: `1px solid ${color_secondary}`,
-                            background: "#E3F2FD",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            color: color_secondary,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            flexShrink: 0,
-                        }}
-                    >
-                        ← Files
-                    </button>
-
-                    {/* Search Input with buttons inside */}
-                    <TextField
-                        variant="outlined"
-                        placeholder="Search..."
-                        value={searchText}
-                        onChange={(e) => { setSearchText(e.target.value); setMatches([]); setCurrentMatchIndex(0); }}
-                        onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton onClick={handleSearch}>
-                                        <SearchIcon />
-                                    </IconButton>
-                                    <IconButton
-                                        onClick={() => {
-                                            if (!isRecording) {
-                                                const SpeechRecognition =
-                                                    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-                                                if (!SpeechRecognition) { alert("Speech recognition not supported."); return; }
-                                                const recognition = new SpeechRecognition();
-                                                recognition.lang = "en-US";
-                                                recognition.interimResults = false;
-                                                recognition.maxAlternatives = 1;
-                                                recognition.onresult = (event: any) => {
-                                                    const transcript = event.results[0][0].transcript;
-                                                    setSearchText(transcript);
-                                                    handleSearch();
-                                                };
-                                                recognition.onend = () => setIsRecording(false);
-                                                recognition.start();
-                                                recognitionRef.current = recognition;
-                                                setIsRecording(true);
-                                            } else {
-                                                recognitionRef.current?.stop();
-                                                setIsRecording(false);
-                                            }
-                                        }}
-                                        color={isRecording ? "error" : "default"}
-                                        title={isRecording ? "Stop recording" : "Start voice search"}
-                                    >
-                                        {isRecording ? <MicOffIcon /> : <MicIcon />}
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                        }}
-                        sx={{ minWidth: "200px", flex: 1, height: "56px" }}
-                    />
-
-                    {/* Navigation arrows */}
-                    <button
-                        onClick={() => navigateMatch("prev")}
-                        style={{
-                            height: "56px",
-                            padding: "0 12px",
-                            fontSize: "1rem",
-                            borderRadius: "10px",
-                            border: "1px solid #ccc",
-                            background: "#fff",
-                            cursor: "pointer",
-                            color: color_primary,
-                            flexShrink: 0,
-                        }}
-                    >
-                        ▲
-                    </button>
-                    <button
-                        onClick={() => navigateMatch("next")}
-                        style={{
-                            height: "56px",
-                            padding: "0 12px",
-                            fontSize: "1rem",
-                            borderRadius: "10px",
-                            border: "1px solid #ccc",
-                            background: "#fff",
-                            cursor: "pointer",
-                            color: color_primary,
-                            flexShrink: 0,
-                        }}
-                    >
-                        ▼
-                    </button>
-
-                    <NIAChatTrigger setOpen={setNiaOpen} />
-
-                    {/* Match Info */}
-                    <span
-                        style={{
-                            height: "56px",
-                            display: "flex",
-                            alignItems: "center",
-                            padding: "0 12px",
-                            fontSize: "1rem",
-                            color: "#333",
-                            background: "#e3f2fd",
-                            borderRadius: "10px",
-                            fontWeight: 500,
-                            flexShrink: 0,
-                        }}
-                    >
-                        {matches.length > 0 ? `${currentMatchIndex + 1} of ${matches.length}` : "0 results"}
-                    </span>
-
-                    {/* Zoom */}
-                    <button
-                        title="Zoom In"
-                        onClick={() => onZoomChange(Math.min(28, fontSize + 2))}
-                        style={{
-                            height: "56px",
-                            padding: "0 12px",
-                            fontSize: "1rem",
-                            borderRadius: "10px",
-                            border: "1px solid #ccc",
-                            cursor: "pointer",
-                            background: "#fff",
-                            fontWeight: "bold",
-                            flexShrink: 0,
-                        }}
-                    >
-                        ZOOM IN
-                    </button>
-                    <button
-                        title="Zoom Out"
-                        onClick={() => onZoomChange(Math.max(12, fontSize - 2))}
-                        style={{
-                            height: "56px",
-                            padding: "0 12px",
-                            fontSize: "1rem",
-                            borderRadius: "10px",
-                            border: "1px solid #ccc",
-                            cursor: "pointer",
-                            background: "#fff",
-                            fontWeight: "bold",
-                            flexShrink: 0,
-                        }}
-                    >
-                        ZOOM OUT
-                    </button>
-
-                    {/* Download */}
-                    <button
-                        onClick={() => {
-                            if (!gridApi) return;
-
-                            // Detect if filters or quick filter are active
-                            const filterModel = gridApi.getFilterModel();
-                            const quickFilter = gridApi.getQuickFilter();
-                            const isFiltered =
-                                Object.keys(filterModel).length > 0 || (quickFilter && quickFilter.trim() !== "");
-
-                            // Export as CSV (built-in, no modules needed)
-                            gridApi.exportDataAsCsv({
-                                onlyFiltered: isFiltered, // if filtered → export only those rows
-                                fileName: isFiltered ? "filtered_data.csv" : "all_data.csv",
-                            });
-                        }}
-                        style={{
-                            height: "56px",
-                            padding: "0 20px",
-                            fontSize: "1rem",
-                            borderRadius: "10px",
-                            border: `1px solid ${color_secondary}`,
-                            background: "#FFE0B2",
-                            cursor: "pointer",
-                            color: color_secondary,
-                            fontWeight: "bold",
-                            flexShrink: 0,
-                        }}
-                    >
-                        ⬇️ Download
-                    </button>
-                </div>
-
-                {availableSources.length > 0 && (
-                    <div
-                        style={{
-                            display: "flex",
-                            gap: "12px",
-                            alignItems: "center",
                             marginBottom: "12px",
-                            flexWrap: "wrap",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            background: "#f1f5f9",
+                            padding: "12px 16px",
+                            borderRadius: "10px",
+                            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                            flexWrap: "nowrap",
+                            overflowX: "auto",
                         }}
                     >
-                        <span style={{ fontWeight: "bold" }}>Filter by Source:</span>
-
-                        {/* "All" button */}
+                        {/* Back Button */}
                         <button
-                            onClick={() => {
-                                setSourceFilter(null);
-                                gridApi?.onFilterChanged();
-                            }}
+                            onClick={() => window.history.back()}
                             style={{
-                                padding: "6px 14px",
-                                borderRadius: "6px",
-                                border: sourceFilter === null ? "3px solid #000" : "1px solid #ccc",
-                                background: "#f5f5f5",
-                                color: "#333",
+                                height: "56px",
+                                padding: "0 20px",
+                                fontSize: "1rem",
+                                borderRadius: "10px",
+                                border: `1px solid ${color_secondary}`,
+                                background: "#E3F2FD",
                                 cursor: "pointer",
-                                fontWeight: 600,
-                                boxShadow: sourceFilter === null ? "0 0 6px rgba(0,0,0,0.3)" : "none",
+                                fontWeight: "bold",
+                                color: color_secondary,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                flexShrink: 0,
                             }}
                         >
-                            All
+                            ← Files
                         </button>
 
-                        {/* Only show available sources */}
-                        {availableSources.map((key) => (
+                        <TextField
+                            variant="outlined"
+                            placeholder="Search..."
+                            value={searchText}
+                            onChange={(e) => {
+                                setSearchText(e.target.value);
+                                setMatches([]);
+                                setCurrentMatchIndex(0);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSearch();
+                            }}
+
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton onClick={handleSearch}>
+                                            <SearchIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            onClick={() => {
+                                                if (!isRecording) {
+                                                    const SpeechRecognition =
+                                                        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+                                                    if (!SpeechRecognition) { alert("Speech recognition not supported."); return; }
+                                                    const recognition = new SpeechRecognition();
+                                                    recognition.lang = "en-US";
+                                                    recognition.interimResults = false;
+                                                    recognition.maxAlternatives = 1;
+                                                    recognition.onresult = (event: any) => {
+                                                        const transcript = event.results[0][0].transcript;
+                                                        setSearchText(transcript);
+                                                        handleSearch();
+                                                    };
+                                                    recognition.onend = () => setIsRecording(false);
+                                                    recognition.start();
+                                                    recognitionRef.current = recognition;
+                                                    setIsRecording(true);
+                                                } else {
+                                                    recognitionRef.current?.stop();
+                                                    setIsRecording(false);
+                                                }
+                                            }}
+                                            color={isRecording ? "error" : "default"}
+                                            title={isRecording ? "Stop recording" : "Start voice search"}
+                                        >
+                                            {isRecording ? <MicOffIcon /> : <MicIcon />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{ minWidth: "200px", flex: 1, height: "56px" }}
+                        />
+
+                        <button
+                            onClick={() => navigateMatch("prev")}
+                            style={{
+                                height: "56px",
+                                padding: "0 12px",
+                                fontSize: "1rem",
+                                borderRadius: "10px",
+                                border: "1px solid #ccc",
+                                background: "#fff",
+                                cursor: "pointer",
+                                color: color_primary,
+                                flexShrink: 0,
+                            }}
+                        >
+                            ▲
+                        </button>
+                        <button
+                            onClick={() => navigateMatch("next")}
+                            style={{
+                                height: "56px",
+                                padding: "0 12px",
+                                fontSize: "1rem",
+                                borderRadius: "10px",
+                                border: "1px solid #ccc",
+                                background: "#fff",
+                                cursor: "pointer",
+                                color: color_primary,
+                                flexShrink: 0,
+                            }}
+                        >
+                            ▼
+                        </button>
+
+                        <NIAChatTrigger setOpen={setNiaOpen} />
+
+                        <span
+                            style={{
+                                height: "56px",
+                                display: "flex",
+                                alignItems: "center",
+                                padding: "0 12px",
+                                fontSize: "1rem",
+                                color: "#333",
+                                background: "#e3f2fd",
+                                borderRadius: "10px",
+                                fontWeight: 500,
+                                flexShrink: 0,
+                            }}
+                        >
+                            {matches.length > 0 ? `${currentMatchIndex + 1} of ${matches.length}` : "0 results"}
+                        </span>
+
+                        <button
+                            title="Zoom In"
+                            onClick={() => onZoomChange(Math.min(28, fontSize + 2))}
+                            style={{
+                                height: "56px",
+                                padding: "0 12px",
+                                fontSize: "1rem",
+                                borderRadius: "10px",
+                                border: "1px solid #ccc",
+                                cursor: "pointer",
+                                background: "#fff",
+                                fontWeight: "bold",
+                                flexShrink: 0,
+                            }}
+                        >
+                            ZOOM IN
+                        </button>
+                        <button
+                            title="Zoom Out"
+                            onClick={() => onZoomChange(Math.max(12, fontSize - 2))}
+                            style={{
+                                height: "56px",
+                                padding: "0 12px",
+                                fontSize: "1rem",
+                                borderRadius: "10px",
+                                border: "1px solid #ccc",
+                                cursor: "pointer",
+                                background: "#fff",
+                                fontWeight: "bold",
+                                flexShrink: 0,
+                            }}
+                        >
+                            ZOOM OUT
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                if (!gridApi) return;
+
+                                let totalRows: any[] = [];
+                                let rowDataToExport: any[] = [];
+
+                                gridApi.forEachNode((node: any) => {
+                                    if (node.data) totalRows.push(node.data);
+                                });
+                                gridApi.forEachNodeAfterFilterAndSort((node: any) => {
+                                    if (node.data) rowDataToExport.push(node.data);
+                                });
+
+                                const isFiltered = rowDataToExport.length !== totalRows.length;
+
+                                // Convert to worksheet
+                                const worksheet = XLSX.utils.json_to_sheet(rowDataToExport);
+                                const workbook = XLSX.utils.book_new();
+                                XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+
+                                // Download as .xlsx file
+                                XLSX.writeFile(workbook, isFiltered ? "filtered_data.xlsx" : "all_data.xlsx");
+                            }}
+                            style={{
+                                height: "56px",
+                                padding: "0 20px",
+                                fontSize: "1rem",
+                                borderRadius: "10px",
+                                border: `1px solid ${color_secondary}`,
+                                background: "#FFE0B2",
+                                cursor: "pointer",
+                                color: color_secondary,
+                                fontWeight: "bold",
+                                flexShrink: 0,
+                            }}
+                        >
+                            ⬇️ Download
+                        </button>
+                    </div>
+
+                    {availableSources.length > 0 && !selectedFile?.community_filter && (
+                        <div ref={filtersRef}
+                            style={{
+                                display: "flex",
+                                gap: "12px",
+                                alignItems: "center",
+                                marginBottom: "12px",
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <span style={{ fontWeight: "bold" }}>Filter by Source:</span>
+
+                            {/* "All" button */}
                             <button
-                                key={key}
                                 onClick={() => {
-                                    setSourceFilter(key);
+                                    setSourceFilter(null);
                                     gridApi?.onFilterChanged();
                                 }}
                                 style={{
                                     padding: "6px 14px",
                                     borderRadius: "6px",
-                                    border: sourceFilter === key ? "3px solid #000" : "1px solid #ccc",
-                                    background: colorSources[key],
-                                    color: "#fff",
+                                    border: sourceFilter === null ? "3px solid #000" : "1px solid #ccc",
+                                    background: "#f5f5f5",
+                                    color: "#333",
                                     cursor: "pointer",
                                     fontWeight: 600,
-                                    boxShadow: sourceFilter === key ? "0 0 6px rgba(0,0,0,0.4)" : "none",
-                                    textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                                    boxShadow: sourceFilter === null ? "0 0 6px rgba(0,0,0,0.3)" : "none",
                                 }}
                             >
-                                {key}
+                                All
                             </button>
-                        ))}
+
+                            {availableSources.map((key) => (
+                                <button
+                                    key={key}
+                                    onClick={() => {
+                                        setSourceFilter(key);
+                                        gridApi?.onFilterChanged();
+                                    }}
+                                    style={{
+                                        padding: "6px 14px",
+                                        borderRadius: "6px",
+                                        border: sourceFilter === key ? "3px solid #000" : "1px solid #ccc",
+                                        background: colorSources[key],
+                                        color: "#fff",
+                                        cursor: "pointer",
+                                        fontWeight: 600,
+                                        boxShadow: sourceFilter === key ? "0 0 6px rgba(0,0,0,0.4)" : "none",
+                                        textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                                    }}
+                                >
+                                    {key}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* universal filter toggle (mobile shows overlay, desktop toggles left panel) */}
+                    {selectedFile?.community_filter && (
+                        <div style={{ marginBottom: 8, display: "flex", gap: 12 }}>
+                            <button
+                                className="mobile-filter-button"
+                                onClick={() => setFilterOpen(prev => !prev)}
+                                aria-expanded={filterOpen}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    background: color_secondary,
+                                    color: "#fff",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                }}
+                            >
+                                {filterOpen ? "Hide filter" : "Show filter"}
+                            </button>
+                            <div
+                                style={{
+                                    marginTop: "8px",
+                                    fontSize: "16px",
+                                    fontWeight: "bold",
+                                    color: "#333",
+                                    background: "#F0F4FF",
+                                    padding: "10px 14px",
+                                    borderRadius: "8px",
+                                    lineHeight: 1.4
+                                }}
+                            >
+                                Aanii, Boozhoo, Wachéye, Sago! We welcome you to add and/or edit any information in the Shingwauk student list that is missing or inaccurate. Chi-miigwetch!
+                            </div>
+
+
+                        </div>
+                    )}
+
+
+                    {/* main content: use column flex so grid can fill remaining height; hide outer scroll */}
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "row",
+                            width: "100%",
+                            borderRadius: "8px",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            alignItems: "stretch",
+                            gap: "8px",
+                            flex: 1,        // take remaining vertical space
+                            minHeight: 0,   // allow children to shrink properly
+                            overflow: "hidden",
+                        }}
+                    /* removed {...themeLightWarm} to avoid injecting non-DOM props */
+                    >
+
+                        {selectedFile?.community_filter && !isMobile && filterOpen && (
+                            <div
+                                className="left-panel"
+                                style={{
+                                    padding: "8px 16px",
+                                    boxSizing: "border-box",
+                                    flex: "0 0 30%",
+                                    maxWidth: "30%",
+                                    transition: "all 220ms ease",
+                                    // subtle elevation
+                                    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+                                }}
+                            >
+                                {/* pass onClose so desktop panel has internal close button */}
+                                <CommunityFilter onClose={() => setFilterOpen(false)} showClose />
+                            </div>
+                        )}
+
+                        {/* right/grid panel: takes remaining space and provides internal scrolling only */}
+                        <div
+                            className="ag-theme-quartz"
+                            style={{
+                                flex: 1,
+                                minWidth: 0,
+                                minHeight: 0,      // allow flex to size this area
+                                height: "100%",    // fill vertical space of parent
+                                overflow: "auto",  // ONLY the grid area scrolls
+                            }}
+                        >
+                            <AgGridReact
+                                columnDefs={columnDefs}
+                                rowData={rowData}
+                                defaultColDef={defaultColDef}
+
+                                getRowHeight={(params) => {
+                                    return fontSize + 16;
+                                }}
+                                headerHeight={45}
+                                domLayout="normal"
+                                rowSelection="single"
+                                getRowStyle={getRowStyle}
+                                onGridReady={onGridReady}
+                                pagination={false}
+                                suppressPaginationPanel={true}
+                                enableBrowserTooltips={true}
+                                rowModelType="clientSide"
+                                isExternalFilterPresent={isExternalFilterPresent}
+                                doesExternalFilterPass={doesExternalFilterPass}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Overlay for mobile/smaller screens — smooth enter/exit */}
+                    {selectedFile?.community_filter && isMobile && filterOpen && (
+                        <div
+                            className="mobile-filter-overlay"
+                            role="dialog"
+                            aria-modal="true"
+                            style={{
+                                position: "absolute",
+                                left: 8,
+                                right: 8,
+                                top: overlayTop,
+                                zIndex: 999,
+                                background: color_background,
+                                borderRadius: 10,
+                                boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+                                maxHeight: `calc(100vh - ${overlayTop + 16}px)`,
+                                overflow: "auto",
+                                padding: 12,
+                                transform: "translateY(0)",
+                                transition: "opacity 240ms ease, transform 240ms ease",
+                                opacity: 1,
+                            }}
+                        >
+                            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                                <button
+                                    onClick={() => setFilterOpen(false)}
+                                    style={{
+                                        padding: "10px 14px",
+                                        borderRadius: 10,
+                                        background: color_primary,
+                                        color: "#fff",
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontWeight: 700,
+                                        flex: 1,
+                                    }}
+                                >
+                                    Close filter
+                                </button>
+                            </div>
+                            <CommunityFilter onClose={() => setFilterOpen(false)} showClose />
+                        </div>
+                    )}
+                </>}
+
+
+                {/* Editable table overlay */}
+                {editMode && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'white',
+                        zIndex: 1000,
+                        borderRadius: 8,
+                        overflow: 'hidden'
+                    }}>
+                        <EditableTable
+                            data={rowData}
+                            onClose={() => setEditMode(false)}
+                        />
                     </div>
                 )}
-
-                <div
-                    className="ag-theme-quartz"
-                    style={{ flex: 1, width: '100%', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                    {...themeLightWarm}
-                >
-                    <AgGridReact
-                        columnDefs={columnDefs}
-                        rowData={rowData}
-                        defaultColDef={defaultColDef}
-
-                        getRowHeight={(params) => {
-                            return fontSize + 16; // 16px padding (8px top + 8px bottom)
-                        }}
-                        headerHeight={45}
-                        domLayout="normal"
-                        rowSelection="single"
-                        getRowStyle={getRowStyle}
-                        onGridReady={onGridReady}
-                        pagination={false}
-                        suppressPaginationPanel={true}
-                        enableBrowserTooltips={true}
-                        rowModelType="clientSide"
-                        isExternalFilterPresent={() => !!sourceFilter}
-                        doesExternalFilterPass={doesExternalFilterPass}
-                    />
-
-                </div>
             </DataTableWrapper>
             <RecorderOverlay $recording={isRecording}>
                 <MicButton $recording={isRecording} onClick={() => {
@@ -597,6 +940,14 @@ export default function DataGrid({ rowData }: DataGridProps) {
             </RecorderOverlay>
 
             {niaOpen && <NIAChat setOpen={setNiaOpen} open={niaOpen} />}
+            {formOpen && formRow && (
+                <AddInfoForm
+                    row={formRow}
+                    file={selectedFile}
+                    onClose={() => setFormOpen(false)}
+                />
+            )}
+
             <style>
                 {`
           .ag-theme-quartz .bold-header {
@@ -615,7 +966,27 @@ export default function DataGrid({ rowData }: DataGridProps) {
           .ag-theme-quartz .ag-paging-panel {
             display: none !important;
           }
-        `}
+          /* mobile: show top button only on small screens */
+          .mobile-filter-button { display: none; }
+           .left-panel { display: block; }
+           @media (max-width: 900px) {
+            .mobile-filter-button { display: inline-flex !important; align-items:center; justify-content:center; }
+             .left-panel { display: none !important; }
+           }
+
+           /* medium devices: make left panel 40% width for screens <1200px (but above mobile breakpoint) */
+            @media (min-width: 900px) and (max-width: 1200px) {
+              .left-panel {
+                flex: 0 0 40% !important;
+                max-width: 40% !important;
+              }
+            }
+            
+            .ag-pinned-left-cols-container,
+            .ag-pinned-left-header {
+                 width: max-content !important;
+            }
+          `}
             </style>
         </GridWrapper>
     );

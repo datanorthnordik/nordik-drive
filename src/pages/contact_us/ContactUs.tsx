@@ -170,7 +170,7 @@ const ContactUs = () => {
               </Typography>
 
               <Button
-                onClick={() => onJoinHere("https://childrenofshingwauk.org/")}
+                onClick={() => onJoinHere("https://childrenofshingwauk.org/contact-us/")}
                 variant="contained"
                 sx={{
                   fontSize: '1.6rem',
