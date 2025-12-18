@@ -12,8 +12,13 @@ import Logout from "../logout/Logout";
 import { NavContainer } from "../NavContainer";
 import { Link } from "react-router-dom";
 
+import { useTheme, useMediaQuery } from "@mui/material";
+
 const AppToolbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -31,9 +36,13 @@ const AppToolbar = () => {
       }}
     >
       <HeaderNav onLinkClick={() => setMobileOpen(false)} />
-      <Box mt={2}>
-        <Logout />
-      </Box>
+
+      {/* Logout only in drawer for mobile */}
+      {isMobile && (
+        <Box mt={2}>
+          <Logout />
+        </Box>
+      )}
     </Box>
   );
 
@@ -42,12 +51,13 @@ const AppToolbar = () => {
       <AppBar
         position="fixed"
         sx={{
-          background: "linear-gradient(90deg, rgba(255,255,255,0.9) 0%, rgba(245,245,245,0.9) 100%)",
-          color: "#003366",  // deep blue text/icons
+          background:
+            "linear-gradient(90deg, rgba(255,255,255,0.9) 0%, rgba(245,245,245,0.9) 100%)",
+          color: "#003366",
           boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-          padding: "0.3rem 1rem",
+          padding: "0.05rem 0.6rem",
           zIndex: 1300,
-          backdropFilter: "blur(6px)", // frosted effect
+          backdropFilter: "blur(6px)",
         }}
       >
         <Toolbar
@@ -55,7 +65,10 @@ const AppToolbar = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 2, // space between left logo and nav
+
+            gap: { xs: 0.75, sm: 1.1 },
+            minHeight: { xs: 50, sm: 56, md: 56 },
+            py: 0.1,
           }}
         >
           {/* LEFT: Shingwauk Logo */}
@@ -64,33 +77,42 @@ const AppToolbar = () => {
               display: "flex",
               alignItems: "center",
               flexShrink: 0,
-              px: 1,
-              gap: 2,
-              maxWidth: { xs: 180, sm: 220, md: 260 },
+              px: 0.25,
+              gap: { xs: 0.6, sm: 0.9 },
+
+              // allow it to shrink more on mobile
+              maxWidth: { xs: 140, sm: 185, md: 215 },
+
               "& img": {
                 width: "100%",
-                height: "7.5rem",
-                maxHeight: "7.5rem",
                 objectFit: "contain",
-                transform: "scale(1)", // subtle scale to pop
+                transform: "scale(1)",
+
+                // ✅ real mobile sizing (this is the key)
+                height: { xs: "3.0rem", sm: "5.0rem", md: "5.4rem" },
+                maxHeight: { xs: "3.0rem", sm: "5.0rem", md: "5.4rem" },
               },
             }}
           >
-            <a href="https://childrenofshingwauk.org/"
-              target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://childrenofshingwauk.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <img
                 src="/logo-1.png"
                 alt="Children of Shingwauk Alumni Association"
               />
             </a>
-            <Link to="/coroner">   
+
+            <Link to="/coroner">
               <img
-                src="/image001.png"   
+                src="/image001.png"
                 alt="Ontario Office of the Chief Coroner"
-                style={{ height: "6.5rem" }}
+                // ✅ responsive height for the 2nd logo too
+                style={{ height: isMobile ? "2.7rem" : "4.9rem" }}
               />
             </Link>
-
           </Box>
 
           {/* CENTER (Desktop Navigation) */}
@@ -98,7 +120,7 @@ const AppToolbar = () => {
             sx={{
               display: { xs: "none", sm: "flex" },
               alignItems: "center",
-              gap: 2,
+              gap: 1.1,
               flexGrow: 1,
               justifyContent: "center",
             }}
@@ -109,7 +131,7 @@ const AppToolbar = () => {
           </Box>
 
           {/* RIGHT: Nordik Logo + Logout */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.75, sm: 1.1 } }}>
             <a
               href="https://nordikinstitute.com/"
               target="_blank"
@@ -119,10 +141,19 @@ const AppToolbar = () => {
               <img
                 src="https://nordikinstitute.com/wp-content/uploads/2020/04/NordikFinalLogo-640x160.png"
                 alt="Nordik Institute"
-                style={{ width: "100%", maxHeight: "4rem", objectFit: "contain" }}
+                style={{
+                  width: "auto",
+                  objectFit: "contain",
+
+                  // ✅ cap the logo so it doesn't overflow on xs
+                  maxHeight: isMobile ? "2.2rem" : "2.8rem",
+                  maxWidth: isMobile ? "150px" : "260px",
+                }}
               />
             </a>
-            <Logout />
+
+            {/* Logout in header only for non-mobile */}
+            {!isMobile && <Logout />}
           </Box>
 
           {/* Mobile Hamburger */}

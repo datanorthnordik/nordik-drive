@@ -9,6 +9,11 @@ export const GridWrapper = styled.div`
     .ag-header-cell-label {
         font-weight: bold;
     }
+    
+    @media screen and (max-width: 600px){
+        margin-top: ${header_mobile_height};
+        height: calc(100vh - ${header_mobile_height});
+    }
 `
 export const FileListWrapper = styled.div`
     width: 100%;

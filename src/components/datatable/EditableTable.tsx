@@ -179,7 +179,7 @@ export const EditableTable = ({ data, onClose }: EditableTableProps) => {
     const doesExternalFilterPass = (node: any) => {
         if (!Array.isArray(selectedCommunities) || selectedCommunities.length === 0) return true;
 
-        const communityValue = String(node.data?.["First Nation/Home"] ?? "").trim().toLowerCase();
+        const communityValue = String(node.data?.["First Nation/Community"] ?? "").trim().toLowerCase();
         const normalizedSelected = selectedCommunities.map((s: any) => String(s ?? "").trim().toLowerCase());
         return normalizedSelected.includes(communityValue);
     };

@@ -1,23 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Button, Checkbox, FormControlLabel, TextField, } from '@mui/material';
+import {
+  Button,
+  FormControlLabel,
+  TextField,
+  InputAdornment,
+  IconButton
+} from '@mui/material';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { AuthWrapper, FormWrapper } from '../../components/Wrappers';
-import { LinkButton } from "../../components/Links"
+import { LinkButton } from "../../components/Links";
 import BorderLine from '../../components/BorderLine';
 import { useNavigate } from 'react-router-dom';
 
-import axios from 'axios';
 import useFetch from '../../hooks/useFetch';
 import Loader from '../../components/Loader';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../store/store';
+import { AppDispatch } from '../../store/store';
 import { setAuth } from '../../store/auth/authSlics';
 import { AuthContainer } from '../../components/containers/Containers';
 import { CheckBoxWrapper } from '../../components/TextGroup';
 import toast from 'react-hot-toast';
 import PasswordResetModal from '../../components/PasswordReset';
+
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 const schema = yup.object().shape({
   email: yup.string().email('Invalid email').required('Email is required'),
@@ -31,44 +39,48 @@ function Login() {
   });
 
   const [openReset, setOpenReset] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const { token } = useSelector((state: any) => state.auth)
+  const { token } = useSelector((state: any) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const { data, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/login", "POST", false)
+  const { data, loading, error, fetchData } = useFetch(
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/login",
+    "POST",
+    false
+  );
 
-  const onSubmit = (data: any) => {
-    fetchData(data, null, true)
+  const onSubmit = (formData: any) => {
+    fetchData(formData, null, true);
   };
 
   useEffect(() => {
     if ((data as any)?.data) {
-      const { firstname, id, email, lastname, phonenumber, role } = (data as any).data
+      const { firstname, id, email, lastname, phonenumber, role } = (data as any).data;
       dispatch(setAuth({ token: "cookies", user: { id, firstname, lastname, email, phonenumber, role } }));
-      navigate("/files")
+      navigate("/files");
     }
-  }, [data])
+  }, [data]);
 
   useEffect(() => {
     if (error) {
-      toast.error(error)
+      toast.error(error);
     }
-  }, [error])
+  }, [error]);
 
   useEffect(() => {
     if (token && !data) {
-      navigate("/files")
+      navigate("/files");
     }
-  }, [token])
+  }, [token]);
 
   return (
     <AuthContainer>
       <Loader loading={loading} />
       <PasswordResetModal open={openReset} onClose={() => setOpenReset(false)} />
       <AuthWrapper>
-        {/* Logos Section */}
         {/* Logos Section */}
         <div
           style={{
@@ -80,7 +92,6 @@ function Login() {
             marginBottom: "1.5rem",
           }}
         >
-          {/* Left Logo (Shingwauk) */}
           <div style={{ height: "120px", maxWidth: "200px" }}>
             <img
               src="/logo-1.png"
@@ -89,7 +100,6 @@ function Login() {
             />
           </div>
 
-          {/* Right Logo (Nordik) */}
           <div style={{ height: "60px", maxWidth: "220px" }}>
             <img
               src="https://nordikinstitute.com/wp-content/uploads/2020/04/NordikFinalLogo-640x160.png"
@@ -99,13 +109,10 @@ function Login() {
           </div>
         </div>
 
-
-        {/* Title */}
         <h2 style={{ textAlign: "center", marginBottom: "1rem" }}>
           Sign in with Email Address
         </h2>
 
-        {/* Form Section */}
         <FormWrapper onSubmit={handleSubmit(onSubmit)}>
           {/* Email */}
           <Controller
@@ -124,7 +131,7 @@ function Login() {
             )}
           />
 
-          {/* Password */}
+          {/* Password with Eye Icon */}
           <Controller
             name="password"
             control={control}
@@ -132,12 +139,25 @@ function Login() {
               <TextField
                 {...field}
                 label="Password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 variant="outlined"
                 fullWidth
                 margin="normal"
                 error={!!errors.password}
                 helperText={errors.password?.message}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword((p) => !p)}
+                        edge="end"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
             )}
           />
@@ -156,7 +176,6 @@ function Login() {
             )}
           />
 
-          {/* Buttons */}
           <Button
             style={{ width: "100%", margin: "1rem 0rem" }}
             type="submit"
@@ -165,20 +184,22 @@ function Login() {
           >
             SIGN IN
           </Button>
-          <LinkButton type="button"   onClick={() => setOpenReset(true)} role="button">Forgot password</LinkButton>
+
+          <LinkButton type="button" onClick={() => setOpenReset(true)} role="button">
+            Forgot password
+          </LinkButton>
+
           <BorderLine />
+
           <Button
             style={{ margin: "1rem" }}
-            onClick={() => {
-              navigate("/signup");
-            }}
+            onClick={() => navigate("/signup")}
           >
             Create new account
           </Button>
         </FormWrapper>
       </AuthWrapper>
     </AuthContainer>
-
   );
 }
 

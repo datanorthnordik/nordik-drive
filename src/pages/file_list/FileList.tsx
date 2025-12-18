@@ -99,7 +99,7 @@ const FileList = () => {
             : '0 8px 32px rgba(0,0,0,0.1)',
           transition: 'all 0.3s ease',
           '&:hover': {
-            transform: 'translateY(-8px)',
+            transform: 'translateY(-5px)', // was -8px
             boxShadow: isConfidential
               ? '0 20px 40px rgba(220,53,69,0.3)'
               : '0 20px 40px rgba(0,75,156,0.3)',
@@ -112,7 +112,7 @@ const FileList = () => {
             top: 0,
             left: 0,
             right: 0,
-            height: '4px',
+            height: '3px', // was 4px
             background: isConfidential
               ? `linear-gradient(90deg, #dc3545 0%, ${color_primary} 100%)`
               : `linear-gradient(90deg, ${color_secondary} 0%, ${color_primary} 100%)`,
@@ -123,9 +123,9 @@ const FileList = () => {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            gap: 2,
-            p: 3,
-            '&:last-child': { pb: 3 },
+            gap: 1.5,     // was 2
+            p: 2,         // was 3
+            '&:last-child': { pb: 2 },
           }}
           tabIndex={0}
           onFocus={() => speak(`${file.filename}, ${isConfidential ? 'Confidential' : 'Public'}`)}
@@ -135,17 +135,18 @@ const FileList = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 56,
-              height: 56,
+              width: 46,   // was 56
+              height: 46,  // was 56
               borderRadius: 2,
               background: isConfidential
                 ? 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)'
                 : `linear-gradient(135deg, ${color_secondary} 0%, ${color_primary} 100%)`,
               color: 'white',
               boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+              flexShrink: 0,
             }}
           >
-            {isConfidential ? <LockIcon sx={{ fontSize: 28 }} /> : <FolderIcon sx={{ fontSize: 28 }} />}
+            {isConfidential ? <LockIcon sx={{ fontSize: 22 }} /> : <FolderIcon sx={{ fontSize: 22 }} />}
           </Box>
 
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -156,6 +157,8 @@ const FileList = () => {
                 color: isConfidential ? '#721c24' : color_primary,
                 mb: 0.5,
                 wordBreak: 'break-word',
+                fontSize: { xs: '1rem', md: '1.05rem' }, // smaller
+                lineHeight: 1.25,
               }}
             >
               {file.filename}
@@ -168,6 +171,8 @@ const FileList = () => {
                 color: isConfidential ? '#721c24' : color_secondary,
                 fontWeight: 500,
                 border: `1px solid ${isConfidential ? 'rgba(220,53,69,0.3)' : 'rgba(0,75,156,0.3)'}`,
+                fontSize: '0.78rem', // slightly smaller
+                height: 24,          // tighter chip
               }}
             />
           </Box>
@@ -226,19 +231,20 @@ const FileList = () => {
         <Container
           maxWidth="xl"
           sx={{
-            pt: { xs: `calc(${header_mobile_height} + 2rem)`, md: `calc(${header_height} + 2rem)` },
-            pb: 4,
+            // was + 2rem, reduced to + 1.25rem
+            pt: { xs: `calc(${header_mobile_height} + 1.25rem)`, md: `calc(${header_height} + 1.25rem)` },
+            pb: 3, // was 4
             position: 'relative',
             zIndex: 1,
           }}
         >
           {/* Public Files */}
           {publicFiles.length > 0 && (
-            <Box sx={{ mb: 6 }}>
+            <Box sx={{ mb: 4 }}> {/* was 6 */}
               <Typography
                 variant="h4"
                 sx={{
-                  mb: 3,
+                  mb: 2, // was 3
                   color: color_primary,
                   fontWeight: 600,
                   display: 'flex',
@@ -248,6 +254,10 @@ const FileList = () => {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
+
+                  // ✅ smaller title but keep h4
+                  fontSize: { xs: '1.8rem', sm: '2rem', md: '2.2rem' },
+                  lineHeight: 1.15,
                 }}
               >
                 📂 Community Records
@@ -260,7 +270,7 @@ const FileList = () => {
                     sm: 'repeat(2, 1fr)',
                     md: 'repeat(3, 1fr)',
                   },
-                  gap: 3,
+                  gap: 2, // was 3
                 }}
               >
                 {publicFiles.map((file: FileType) => renderFileCard(file, false))}
@@ -274,7 +284,7 @@ const FileList = () => {
               <Typography
                 variant="h4"
                 sx={{
-                  mb: 3,
+                  mb: 2, // was 3
                   color: '#721c24',
                   fontWeight: 600,
                   display: 'flex',
@@ -284,6 +294,10 @@ const FileList = () => {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
+
+                  // ✅ smaller title but keep h4
+                  fontSize: { xs: '1.8rem', sm: '2rem', md: '2.2rem' },
+                  lineHeight: 1.15,
                 }}
               >
                 🔒 Community Records (Confidential)
@@ -296,7 +310,7 @@ const FileList = () => {
                     sm: 'repeat(2, 1fr)',
                     md: 'repeat(3, 1fr)',
                   },
-                  gap: 3,
+                  gap: 2, // was 3
                 }}
               >
                 {confidentialFiles.map((file: FileType) => renderFileCard(file, true))}
