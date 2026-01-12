@@ -1,6 +1,6 @@
 import { Checkbox } from '@mui/material';
 import styled from 'styled-components'
-import { color_primary } from '../constants/colors';
+import { color_secondary } from '../constants/colors';
 
 const TextGroup = styled.div`
     display: flex;
@@ -15,7 +15,7 @@ const TextGroup = styled.div`
 
 export const CheckBoxWrapper = styled(Checkbox)`
   &.Mui-checked {
-    color: ${color_primary} !important
+    color: ${color_secondary} !important
   }
 `;
 

@@ -2,6 +2,7 @@
 export const color_primary = "#A61D33"; // Red/burgundy primary color
 export const color_secondary = "#004B9C"; // Blue secondary color
 export const color_primary_dark = "#821427"; // Darker red
+export const color_secondary_dark = "#003A7A"; // Darker blue
 export const color_border = "#DADDE1"; // Light gray border
 export const header_height = "5.5rem"; // Header height constant
 export const header_mobile_height = "3.5rem"

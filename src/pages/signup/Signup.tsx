@@ -1,71 +1,75 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import React, { useEffect, useMemo, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import {
   Button,
   TextField,
   Box,
   Typography,
   InputAdornment,
-  IconButton
-} from '@mui/material';
-import Autocomplete from '@mui/material/Autocomplete';
+  IconButton,
+  Divider,
+} from "@mui/material";
+import Autocomplete from "@mui/material/Autocomplete";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import * as yup from 'yup';
-import { yupResolver } from '@hookform/resolvers/yup';
-import { AuthWrapper, FormWrapper } from '../../components/Wrappers';
+import * as yup from "yup";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { AuthWrapper, FormWrapper } from "../../components/Wrappers";
 import { LinkButton } from "../../components/Links";
 import TextGroup from "../../components/TextGroup";
-import { useNavigate } from 'react-router-dom';
-import useFetch from '../../hooks/useFetch';
-import Loader from '../../components/Loader';
-import { AuthContainer } from '../../components/containers/Containers';
-import BorderLine from '../../components/BorderLine';
+import { useNavigate } from "react-router-dom";
+import useFetch from "../../hooks/useFetch";
+import Loader from "../../components/Loader";
+import { AuthContainer } from "../../components/containers/Containers";
 import toast from "react-hot-toast";
-import { signup_success } from '../../constants/messages';
+import { signup_success } from "../../constants/messages";
+
+// ✅ use ONLY constants (no hardcoded colors)
+import {
+  color_secondary,
+  color_text_primary,
+  color_text_secondary,
+  color_white,
+  color_border,
+  color_background,
+} from "../../constants/colors";
 
 /* ===========================
    Validation Schema
 =========================== */
 const schema = yup.object().shape({
-  firstname: yup.string().required('First name is required'),
-  lastname: yup.string().required('Last name is required'),
-  email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().required('Password is required').min(
-    4,
-    "Password must be at least 6 characters",
-  ),
-  confirmPassword: yup.string()
+  firstname: yup.string().required("First name is required"),
+  lastname: yup.string().required("Last name is required"),
+  email: yup.string().email("Invalid email").required("Email is required"),
+  password: yup.string().required("Password is required").min(4, "Password must be at least 6 characters"),
+  confirmPassword: yup
+    .string()
     .required("Confirm Password is required")
     .oneOf([yup.ref("password")], "Passwords must match"),
-  community: yup
-    .array()
-    .of(yup.string().trim().required("Please select or type a community"))
+  community: yup.array().of(yup.string().trim().required("Please select or type a community")),
 });
 
 function Signup() {
-  const { handleSubmit, control, formState: { errors } } = useForm({
+  const {
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      community: [""] // row-based UI: start with one row
-    }
+      community: [""],
+    },
   });
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  /* ===========================
-     Existing Signup API
-  =========================== */
   const { data, loading, error, fetchData } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/signup",
     "POST",
     false
   );
 
-  /* ===========================
-     Communities APIs
-  =========================== */
   const { data: communitiesData, fetchData: fetchCommunities } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
     "GET",
@@ -82,6 +86,7 @@ function Signup() {
 
   useEffect(() => {
     fetchCommunities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const communityOptions = useMemo(() => {
@@ -90,17 +95,15 @@ function Signup() {
 
   const normalizeName = (v: any) => (typeof v === "string" ? v.trim() : "");
   const existsInOptions = (name: string) =>
-    communityOptions.some((o: string) => o.trim().toLowerCase() === name.trim().toLowerCase());
+    communityOptions.some(
+      (o: string) => o.trim().toLowerCase() === name.trim().toLowerCase()
+    );
 
-  /* ===========================
-     Submit Signup
-  =========================== */
   const onSubmit = async (formData: any) => {
     const cleaned = (formData.community || [])
       .map((x: string) => (x || "").trim())
       .filter((x: string) => x.length > 0);
 
-    // case-insensitive dedupe
     const seen = new Set<string>();
     const unique = cleaned.filter((n: string) => {
       const k = n.toLowerCase();
@@ -109,10 +112,8 @@ function Signup() {
       return true;
     });
 
-    // names not in dropdown
     const missing = unique.filter((name: string) => !existsInOptions(name));
 
-    // ✅ single call
     if (missing.length > 0) {
       await addCommunity({ communities: missing }, null, true);
       await fetchCommunities();
@@ -129,17 +130,15 @@ function Signup() {
   }, [data]);
 
   useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
+    if (error) toast.error(error);
   }, [error]);
 
   return (
     <AuthContainer>
       <Loader loading={loading} />
-      <AuthWrapper>
 
-        {/* Logos Section */}
+      <AuthWrapper>
+        {/* Logos Section (keep previous sizes) */}
         <Box
           sx={{
             display: "flex",
@@ -147,7 +146,7 @@ function Signup() {
             alignItems: "center",
             gap: "2rem",
             flexWrap: "wrap",
-            marginBottom: "1.5rem",
+            marginBottom: "1.25rem",
           }}
         >
           <Box sx={{ height: "120px", maxWidth: "200px" }}>
@@ -167,9 +166,21 @@ function Signup() {
           </Box>
         </Box>
 
-        <h2>Create a new account</h2>
+        {/* Title (center like UX) */}
+        <Typography
+          sx={{
+            textAlign: "center",
+            fontWeight: 800,
+            fontSize: "1.35rem",
+            color: color_text_primary,
+            mb: 1.5,
+          }}
+        >
+          Create a new account
+        </Typography>
 
         <FormWrapper onSubmit={handleSubmit(onSubmit)}>
+          {/* First/Last in a row like UX */}
           <TextGroup>
             <Controller
               name="firstname"
@@ -184,6 +195,12 @@ function Signup() {
                   margin="normal"
                   error={!!errors.firstname}
                   helperText={errors.firstname?.message}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      backgroundColor: color_white,
+                    },
+                  }}
                 />
               )}
             />
@@ -201,11 +218,18 @@ function Signup() {
                   margin="normal"
                   error={!!errors.lastname}
                   helperText={errors.lastname?.message}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      backgroundColor: color_white,
+                    },
+                  }}
                 />
               )}
             />
           </TextGroup>
 
+          {/* Email */}
           <Controller
             name="email"
             control={control}
@@ -218,10 +242,17 @@ function Signup() {
                 margin="normal"
                 error={!!errors.email}
                 helperText={errors.email?.message}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    backgroundColor: color_white,
+                  },
+                }}
               />
             )}
           />
 
+          {/* Passwords side-by-side like UX */}
           <TextGroup>
             <Controller
               name="password"
@@ -236,6 +267,12 @@ function Signup() {
                   margin="normal"
                   error={!!errors.password}
                   helperText={errors.password?.message}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      backgroundColor: color_white,
+                    },
+                  }}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -266,13 +303,21 @@ function Signup() {
                   margin="normal"
                   error={!!errors.confirmPassword}
                   helperText={errors.confirmPassword?.message}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      backgroundColor: color_white,
+                    },
+                  }}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
                           onClick={() => setShowConfirmPassword((p) => !p)}
                           edge="end"
-                          aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                          aria-label={
+                            showConfirmPassword ? "Hide confirm password" : "Show confirm password"
+                          }
                         >
                           {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
@@ -284,28 +329,34 @@ function Signup() {
             />
           </TextGroup>
 
-          {/* ===========================
-             Community
-          =========================== */}
+          {/* Community Info Card (like UX blue-header section but using constants only) */}
           <Box
             sx={{
               width: "100%",
-              mt: 2,
-              mb: 0.5,
-              p: 1.25,
-              borderRadius: 1,
-              border: "1px solid rgba(0,0,0,0.15)",
-              backgroundColor: "rgba(0,0,0,0.03)"
+              mt: 1.5,
+              mb: 0.75,
+              p: 1.5,
+              borderRadius: 2,
+              border: `1px solid ${color_border}`,
+              backgroundColor: color_background,
             }}
           >
-            <Typography sx={{ fontSize: "1.15rem", fontWeight: 800, lineHeight: 1.35 }}>
+            <Typography
+              sx={{
+                fontSize: "0.95rem",
+                fontWeight: 900,
+                color: color_text_primary,
+                lineHeight: 1.35,
+              }}
+            >
               First Nation / Community (you can add more than one)
             </Typography>
-            <Typography sx={{ fontSize: "1.05rem", lineHeight: 1.4, mt: 0.25 }}>
-              Start typing to <b>search</b> the dropdown. If you don’t see it, type the name and press <b>Enter</b> to add.
+            <Typography sx={{ fontSize: "0.9rem", color: color_text_secondary, mt: 0.5, lineHeight: 1.4 }}>
+              Start typing to search the dropdown. If you don’t see it, type the name and press Enter to add.
             </Typography>
           </Box>
 
+          {/* Community Rows */}
           <Controller
             name="community"
             control={control}
@@ -320,9 +371,7 @@ function Signup() {
                 field.onChange(next);
               };
 
-              const addRow = () => {
-                field.onChange([...safeItems, ""]);
-              };
+              const addRow = () => field.onChange([...safeItems, ""]);
 
               const removeRow = (index: number) => {
                 const next = safeItems.filter((_, i) => i !== index);
@@ -330,11 +379,16 @@ function Signup() {
               };
 
               return (
-                <Box sx={{ width: "100%", mt: 1 }}>
+                <Box sx={{ width: "100%", mt: 0.5 }}>
                   {safeItems.map((val, idx) => (
                     <Box
                       key={idx}
-                      sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        alignItems: "center",
+                        mt: 1,
+                      }}
                     >
                       <Autocomplete
                         freeSolo
@@ -353,6 +407,12 @@ function Signup() {
                             label={idx === 0 ? "Community" : ""}
                             placeholder="Search or type a community"
                             margin="normal"
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: 2,
+                                backgroundColor: color_white,
+                              },
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault();
@@ -364,16 +424,19 @@ function Signup() {
                         )}
                       />
 
+                      {/* X button like UX (using only constants) */}
                       <Button
                         onClick={() => removeRow(idx)}
+                        aria-label="Remove community"
                         sx={{
-                          minWidth: 48,
-                          height: 48,
-                          borderRadius: "10px",
+                          minWidth: 46,
+                          height: 46,
+                          borderRadius: 2,
                           textTransform: "none",
-                          border: "1px solid #999",
-                          fontWeight: 700,
-                          fontSize: "1.1rem"
+                          border: `1px solid ${color_border}`,
+                          fontWeight: 900,
+                          color: color_text_primary,
+                          backgroundColor: color_white,
                         }}
                       >
                         ✕
@@ -381,22 +444,24 @@ function Signup() {
                     </Box>
                   ))}
 
+                  {/* Add another community row like UX */}
                   <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}>
                     <Button
                       onClick={addRow}
                       sx={{
                         textTransform: "none",
-                        borderRadius: "10px",
-                        border: "1px dashed rgba(0,0,0,0.4)",
-                        fontWeight: 700,
-                        padding: "8px 14px",
-                        fontSize: "1.05rem"
+                        borderRadius: 2,
+                        fontWeight: 900,
+                        px: 2,
+                        border: `1px solid ${color_secondary}`,
+                        color: color_secondary,
+                        backgroundColor: color_white,
                       }}
                     >
                       + Add another community
                     </Button>
 
-                    <Typography sx={{ fontSize: "1rem", opacity: 0.85 }}>
+                    <Typography sx={{ fontSize: "0.85rem", color: color_text_secondary }}>
                       If not listed, type and press Enter.
                     </Typography>
                   </Box>
@@ -405,20 +470,41 @@ function Signup() {
             }}
           />
 
+          {/* SIGN UP button (blue, full width like UX) */}
           <Button
-            style={{ width: "100%", margin: "1rem 0" }}
             type="submit"
             variant="contained"
-            color="primary"
+            sx={{
+              width: "100%",
+              mt: 2,
+              mb: 1.25,
+              borderRadius: 2,
+              fontWeight: 900,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              py: 1.3,
+              backgroundColor: `${color_secondary} !important`,
+              boxShadow: "none",
+            }}
           >
             SIGN UP
           </Button>
 
-          <BorderLine />
+          {/* OR divider like UX */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 1.75 }}>
+            <Divider sx={{ flex: 1, borderColor: color_border }} />
+            <Typography sx={{ fontSize: 12, fontWeight: 900, color: color_text_secondary }}>
+              OR
+            </Typography>
+            <Divider sx={{ flex: 1, borderColor: color_border }} />
+          </Box>
 
-          <LinkButton role="button" onClick={() => navigate("/")}>
-            Already have an account
-          </LinkButton>
+          {/* Already have an account link */}
+          <Box sx={{ textAlign: "center", mb: 0.5 }}>
+            <LinkButton role="button" onClick={() => navigate("/")}>
+              Already have an account?
+            </LinkButton>
+          </Box>
         </FormWrapper>
       </AuthWrapper>
     </AuthContainer>
