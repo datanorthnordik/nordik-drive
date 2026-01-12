@@ -1,7 +1,16 @@
 import { createTheme } from "@mui/material/styles";
-import { color_primary, color_secondary, color_primary_dark } from "../constants/colors";
+import { color_primary, color_secondary, color_primary_dark, color_background } from "../constants/colors";
 
 const theme = createTheme({
+  palette: {
+    background: {
+      default: color_background,
+      paper: "#ffffff",
+    },
+    text: {
+      primary: "#2c3e50",
+    },
+  },
   components: {
     MuiOutlinedInput: {
       styleOverrides: {
@@ -25,7 +34,6 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: color_primary,
-          border: `2px solid ${color_primary}`,
           color: "#fff",
           "&:hover": {
             backgroundColor: color_primary_dark, // darker shade on hover

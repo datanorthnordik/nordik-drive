@@ -1,3 +1,8 @@
+// ==============================
+// UploadedFiles.tsx (FULL CODE)
+// - Same logic, redesigned to match portal UX
+// - No logic removed: modals, delete/restore/replace/history/access, refetch, search, highlight.
+// ==============================
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Table,
@@ -13,6 +18,8 @@ import {
   Box,
   TextField,
   Chip,
+  InputAdornment,
+  Divider,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import RestoreIcon from "@mui/icons-material/Restore";
@@ -20,6 +27,8 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LockIcon from "@mui/icons-material/Lock";
+import SearchIcon from "@mui/icons-material/Search";
+
 import { color_primary } from "../constants/colors";
 import { useDispatch, useSelector } from "react-redux";
 import useFetch from "../hooks/useFetch";
@@ -151,7 +160,7 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
       <>
         {parts.map((part, i) =>
           part.toLowerCase() === search.toLowerCase() ? (
-            <span key={i} style={{ backgroundColor: "yellow" }}>
+            <span key={i} style={{ backgroundColor: "rgba(255, 230, 130, 0.85)" }}>
               {part}
             </span>
           ) : (
@@ -171,12 +180,7 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
       const insertedBy = String(row.inserted_by || "").toLowerCase();
       const createdAt = String(row.created_at || "").toLowerCase();
       const fullName = String(`${row.firstname || ""} ${row.lastname || ""}`).toLowerCase();
-      return (
-        fileName.includes(search) ||
-        insertedBy.includes(search) ||
-        createdAt.includes(search) ||
-        fullName.includes(search)
-      );
+      return fileName.includes(search) || insertedBy.includes(search) || createdAt.includes(search) || fullName.includes(search);
     });
   }, [rows, searchText]);
 
@@ -227,34 +231,41 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
         />
       )}
 
-      {/* ✅ KEY FIX: make this component fill its parent; only table scrolls */}
+      {/* ✅ Portal table card */}
       <Paper
-        elevation={3}
+        elevation={0}
         sx={{
-          borderRadius: "12px",
+          borderRadius: 2,
           overflow: "hidden",
           height: "100%",
           minHeight: 0,
           display: "flex",
           flexDirection: "column",
+          border: "1px solid rgba(0,0,0,0.08)",
+          background: "#fff",
         }}
       >
-        {/* Header area (fixed) */}
+        {/* Header row */}
         <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          p={2}
           sx={{
-            backgroundColor: "#f7f9fc",
-            borderBottom: "1px solid #ddd",
+            p: 2,
+            background: "#fbfcfe",
+            borderBottom: "1px solid rgba(0,0,0,0.08)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
             gap: 2,
             flexShrink: 0,
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: "bold", color: color_primary }}>
-            Uploaded Files
-          </Typography>
+          <Box>
+            <Typography sx={{ fontWeight: 900, color: "#0f172a", fontSize: "0.95rem" }}>
+              Uploaded Files
+            </Typography>
+            <Typography sx={{ fontSize: "0.8rem", color: "rgba(15,23,42,0.65)", mt: 0.25 }}>
+              Manage visibility, versions, and access. Deleted files can be restored.
+            </Typography>
+          </Box>
 
           <TextField
             size="small"
@@ -262,13 +273,22 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             sx={{
-              minWidth: 250,
+              minWidth: 280,
               backgroundColor: "#fff",
-              borderRadius: "6px",
-              "& .MuiOutlinedInput-root": { borderRadius: "6px" },
+              borderRadius: 1.5,
+              "& .MuiOutlinedInput-root": { borderRadius: 1.5 },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
             }}
           />
         </Box>
+
+        <Divider />
 
         {/* Scroll area */}
         <TableContainer
@@ -276,29 +296,46 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
             flex: 1,
             minHeight: 0,
             overflow: "auto",
-            pb: 3, // ✅ ensures last row is never cut off
+            pb: 2,
+            background: "#fff",
           }}
         >
           <Table stickyHeader size="small">
             <TableHead>
-              <TableRow sx={{ backgroundColor: "#e8f1fb" }}>
-                <TableCell sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>File Name</TableCell>
-                <TableCell sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>Version</TableCell>
-                <TableCell sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>Size</TableCell>
-                <TableCell sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>Row Count</TableCell>
-                <TableCell sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>Inserted By</TableCell>
-                <TableCell sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>Created Date</TableCell>
-                <TableCell sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>Type</TableCell>
-                <TableCell align="right" width={260} sx={{ fontWeight: "bold", whiteSpace: "nowrap" }}>
-                  Actions
-                </TableCell>
+              <TableRow>
+                {[
+                  "FILE NAME",
+                  "VERSION",
+                  "SIZE (MB)",
+                  "ROW COUNT",
+                  "INSERTED BY",
+                  "CREATED DATE",
+                  "TYPE / STATUS",
+                  "ACTIONS",
+                ].map((h, idx) => (
+                  <TableCell
+                    key={h}
+                    align={idx === 7 ? "right" : "left"}
+                    sx={{
+                      fontWeight: 900,
+                      fontSize: "0.72rem",
+                      letterSpacing: "0.05em",
+                      color: "rgba(15,23,42,0.75)",
+                      background: "#fbfcfe",
+                      borderBottom: "1px solid rgba(0,0,0,0.08)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {h}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHead>
 
             <TableBody>
               {filteredRows?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 2 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 3, color: "rgba(15,23,42,0.65)" }}>
                     No files found
                   </TableCell>
                 </TableRow>
@@ -309,18 +346,16 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
                       key={row.id}
                       hover
                       sx={{
-                        "&:nth-of-type(odd)": {
-                          backgroundColor: row.is_delete ? "#ffe6e6" : "#f9f9f9",
+                        "& td": {
+                          borderBottom: "1px solid rgba(0,0,0,0.06)",
                         },
-                        "&:hover": {
-                          backgroundColor: row.is_delete ? "#ffcccc" : "#e3f2fd",
-                        },
+                        backgroundColor: row.is_delete ? "rgba(220, 53, 69, 0.06)" : "#fff",
                       }}
                     >
-                      <TableCell sx={{ maxWidth: 520, whiteSpace: "normal", wordBreak: "break-word" }}>
+                      <TableCell sx={{ maxWidth: 520, whiteSpace: "normal", wordBreak: "break-word", fontWeight: 700 }}>
                         {highlightMatch(String(row.filename || ""), searchText)}
                       </TableCell>
-                      <TableCell>{highlightMatch(String(row.version || ""), searchText)}</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>{highlightMatch(String(row.version || ""), searchText)}</TableCell>
                       <TableCell>{highlightMatch(String(row.size || ""), searchText)}</TableCell>
                       <TableCell>{highlightMatch(String(row.rows || ""), searchText)}</TableCell>
                       <TableCell>
@@ -330,11 +365,45 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
 
                       <TableCell>
                         {row.is_delete ? (
-                          <Chip label="Deleted" size="small" color="error" />
+                          <Chip
+                            label="DELETED"
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: "0.7rem",
+                              fontWeight: 900,
+                              borderRadius: 1.5,
+                              background: "rgba(220,53,69,0.14)",
+                              color: "#b42318",
+                            }}
+                          />
                         ) : row.private ? (
-                          <Chip label="Private" size="small" color="warning" icon={<LockIcon />} />
+                          <Chip
+                            label="PRIVATE"
+                            size="small"
+                            icon={<LockIcon sx={{ fontSize: 16 }} />}
+                            sx={{
+                              height: 22,
+                              fontSize: "0.7rem",
+                              fontWeight: 900,
+                              borderRadius: 1.5,
+                              background: "rgba(245, 158, 11, 0.16)",
+                              color: "#92400e",
+                            }}
+                          />
                         ) : (
-                          <Chip label="Public" size="small" color="success" />
+                          <Chip
+                            label="PUBLIC"
+                            size="small"
+                            sx={{
+                              height: 22,
+                              fontSize: "0.7rem",
+                              fontWeight: 900,
+                              borderRadius: 1.5,
+                              background: "rgba(34, 197, 94, 0.14)",
+                              color: "#166534",
+                            }}
+                          />
                         )}
                       </TableCell>
 
@@ -345,7 +414,12 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
                               <Tooltip title="Delete">
                                 <IconButton
                                   size="small"
-                                  sx={{ bgcolor: "#ffebee", "&:hover": { bgcolor: "#ffcdd2" } }}
+                                  sx={{
+                                    borderRadius: 1.5,
+                                    border: "1px solid rgba(0,0,0,0.10)",
+                                    background: "#fff",
+                                    "&:hover": { background: "#fff", borderColor: "rgba(0,0,0,0.18)" },
+                                  }}
                                   onClick={() => openConfirmDeleteModal(row)}
                                 >
                                   <DeleteIcon fontSize="small" />
@@ -356,7 +430,12 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
                                 <IconButton
                                   onClick={() => openReplaceFilemodal(row)}
                                   size="small"
-                                  sx={{ bgcolor: "#e8f5e9", "&:hover": { bgcolor: "#c8e6c9" } }}
+                                  sx={{
+                                    borderRadius: 1.5,
+                                    border: "1px solid rgba(0,0,0,0.10)",
+                                    background: "#fff",
+                                    "&:hover": { background: "#fff", borderColor: "rgba(0,0,0,0.18)" },
+                                  }}
                                 >
                                   <SwapHorizIcon fontSize="small" />
                                 </IconButton>
@@ -366,7 +445,12 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
                                 <IconButton
                                   onClick={() => openHisoryModal(row)}
                                   size="small"
-                                  sx={{ bgcolor: "#f5f5f5", "&:hover": { bgcolor: "#e0e0e0" } }}
+                                  sx={{
+                                    borderRadius: 1.5,
+                                    border: "1px solid rgba(0,0,0,0.10)",
+                                    background: "#fff",
+                                    "&:hover": { background: "#fff", borderColor: "rgba(0,0,0,0.18)" },
+                                  }}
                                 >
                                   <AccessTimeIcon fontSize="small" />
                                 </IconButton>
@@ -377,7 +461,12 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
                                   <IconButton
                                     onClick={() => openAccessModal(row)}
                                     size="small"
-                                    sx={{ bgcolor: "#fff3e0", "&:hover": { bgcolor: "#ffe0b2" } }}
+                                    sx={{
+                                      borderRadius: 1.5,
+                                      border: "1px solid rgba(0,0,0,0.10)",
+                                      background: "#fff",
+                                      "&:hover": { background: "#fff", borderColor: "rgba(0,0,0,0.18)" },
+                                    }}
                                   >
                                     <PersonAddIcon fontSize="small" />
                                   </IconButton>
@@ -388,7 +477,12 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
                             <Tooltip title="Restore">
                               <IconButton
                                 size="small"
-                                sx={{ bgcolor: "#e3f2fd", "&:hover": { bgcolor: "#bbdefb" } }}
+                                sx={{
+                                  borderRadius: 1.5,
+                                  border: "1px solid rgba(0,0,0,0.10)",
+                                  background: "#fff",
+                                  "&:hover": { background: "#fff", borderColor: "rgba(0,0,0,0.18)" },
+                                }}
                                 onClick={() => openRestoreConfirmModal(row)}
                               >
                                 <RestoreIcon fontSize="small" />
@@ -400,9 +494,9 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
                     </TableRow>
                   ))}
 
-                  {/* ✅ Spacer row guarantees last item fully visible */}
+                  {/* Spacer row ensures last item never clipped */}
                   <TableRow>
-                    <TableCell colSpan={8} sx={{ height: 18, borderBottom: "none" }} />
+                    <TableCell colSpan={8} sx={{ height: 14, borderBottom: "none" }} />
                   </TableRow>
                 </>
               )}

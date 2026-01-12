@@ -121,6 +121,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
       setInput(finalTranscript + interimTranscript);
       finalTranscriptRef.current = finalTranscript + interimTranscript;
+      setRecordingState("idle");
     };
 
     recognition.onerror = (err: any) => console.error(err);

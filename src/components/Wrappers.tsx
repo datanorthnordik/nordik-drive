@@ -35,6 +35,9 @@ export const LayoutWrapper = styled.div`
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    width: 100%;
 `
 
 export const NavWrapper = styled.nav`

@@ -1,82 +1,26 @@
-import React, { useState, ChangeEvent, useEffect } from "react";
+import React, { useState, ChangeEvent, useEffect, useRef } from "react";
 import { styled } from "styled-components";
 import {
-  Button, TextField, Typography, Checkbox, FormControlLabel, Paper
+  Button,
+  TextField,
+  Typography,
+  Checkbox,
+  FormControlLabel,
+  Paper,
+  Box,
+  Divider,
 } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { color_primary, color_secondary } from "../constants/colors";
-import { FileWrapper } from "./Wrappers";
 import useFetch from "../hooks/useFetch";
 import Loader from "./Loader";
-import { InsertDriveFile } from "@mui/icons-material";
+import { InsertDriveFile, CloudUpload } from "@mui/icons-material";
 import toast from "react-hot-toast";
 
-const UploadWrapper = styled(Paper)`
-  border: 2px dashed ${color_secondary};
-  border-radius: 12px;
-  padding: 40px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.3s, background-color 0.3s;
-  flex: 1;
-  min-height: 180px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #fefefe;
-
-  &:hover {
-    border-color: ${color_primary};
-    background-color: #f9f9f9;
-  }
-`;
-
-const HiddenInput = styled.input`
-  display: none;
-`;
-
-const PreviewList = styled.div`
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-`;
-
-const PreviewItem = styled(Paper)`
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 15px 20px;
-  border-radius: 12px;
-  background-color: #fafafa;
-  position: relative;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-
-  .file-icon {
-    color: ${color_primary};
-    font-size: 40px;
-  }
-
-  .remove-btn {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: ${color_primary};
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 26px;
-  }
-`;
-
 interface FileForm {
-  files: { filename: string; private: boolean, communityFilter: boolean }[];
+  files: { filename: string; private: boolean; communityFilter: boolean }[];
 }
 
 const getSchema = (files: File[]) =>
@@ -95,11 +39,91 @@ const getSchema = (files: File[]) =>
   });
 
 interface FileUploaderProps {
-  setNewFile: (filename: string)=> void
+  setNewFile: (filename: string) => void;
 }
 
-const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
+/** ✅ Make the dropzone a label (native file picker) */
+const DropZoneLabel = styled.label`
+  border: 2px dashed ${color_secondary};
+  border-radius: 12px;
+  padding: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fbfdff;
+  user-select: none;
+
+  &:hover {
+    border-color: ${color_primary};
+    background-color: #f5f9ff;
+  }
+`;
+
+const HiddenInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+`;
+
+const PreviewList = styled.div`
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const PreviewItem = styled(Paper)`
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 14px;
+  border-radius: 12px;
+  background-color: #ffffff;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: none;
+
+  .file-icon {
+    color: ${color_primary};
+    font-size: 34px;
+    margin-top: 4px;
+  }
+
+  .remove-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #0f172a;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 26px;
+    opacity: 0.85;
+  }
+
+  .remove-btn:hover {
+    opacity: 1;
+  }
+`;
+
+const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
   const [files, setFiles] = useState<File[]>([]);
+  const inputId = "archival-file-input";
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const {
     handleSubmit,
@@ -113,10 +137,15 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
     reValidateMode: "onChange",
   });
 
-  const { loading, error, fetchData, data } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file/upload", "POST", false);
+  const { loading, error, fetchData, data } = useFetch(
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/upload",
+    "POST",
+    false
+  );
 
   const handleFiles = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
+
     const newFiles = Array.from(e.target.files);
     const updatedFiles = [...files, ...newFiles];
     setFiles(updatedFiles);
@@ -126,22 +155,22 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
       updatedFiles.map(() => ({ filename: "", private: false, communityFilter: false })),
       { shouldValidate: false }
     );
+
+    // ✅ allow selecting same file again
+    e.target.value = "";
   };
 
-  useEffect(()=>{
-    if(data){
-      toast.success((data as any)?.message)
+  useEffect(() => {
+    if (data) {
+      toast.success((data as any)?.message);
       const random = Math.floor(Math.random() * (1000 - 1 + 1)) + 1;
-      setNewFile("newfile"+ random)
+      setNewFile("newfile" + random);
     }
-  },[data])
+  }, [data, setNewFile]);
 
-  useEffect(()=>{
-    if(error){
-      toast.error(error)
-    }
-
-  },[error])
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
 
   const handleRemove = (index: number) => {
     const updatedFiles = files.filter((_, i) => i !== index);
@@ -154,16 +183,16 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
     );
   };
 
-  const onSubmit = (data: FileForm) => {
+  const onSubmit = (form: FileForm) => {
     const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
-    data.files.forEach((f) => {
+    files.forEach((file) => formData.append("files", file));
+
+    form.files.forEach((f) => {
       formData.append("filenames", f.filename);
       formData.append("private", f.private.toString());
       formData.append("community_filter", f.communityFilter.toString());
     });
+
     fetchData(formData);
   };
 
@@ -172,92 +201,222 @@ const FileUploader: React.FC<FileUploaderProps> = ({setNewFile}) => {
       setValue("files", [], { shouldValidate: false });
       setFiles([]);
     }
-  }, [data]);
+  }, [data, setValue]);
 
   return (
     <>
       <Loader loading={loading} />
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-        <UploadWrapper onClick={() => document.getElementById("fileInput")?.click()} elevation={2}>
-          <Typography variant="h6" style={{ color: color_secondary, fontSize: "1.1rem" }}>
-            📂 Drag & Drop files here <br /> or click to select
+
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 2,
+          border: "1px solid rgba(0,0,0,0.08)",
+          overflow: "hidden",
+          background: "#fff",
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ p: 2, background: "#fbfcfe", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+          <Typography sx={{ fontWeight: 800, color: "#0f172a", fontSize: "0.95rem" }}>
+            Document Upload
           </Typography>
-          <HiddenInput id="fileInput" type="file" multiple onChange={handleFiles} />
-        </UploadWrapper>
+          <Typography sx={{ color: "rgba(15, 23, 42, 0.65)", fontSize: "0.8rem", mt: 0.35 }}>
+            Upload records to secure archival storage. Supports Excel, and CSV formats.
+          </Typography>
+        </Box>
 
-        <div style={{ flex: 1, minWidth: "280px" }}>
-          {files.length > 0 && (
-            <PreviewList>
-              {files.map((file, index) => (
-                <FileWrapper key={index}>
-                  <PreviewItem elevation={1}>
-                    <InsertDriveFile className="file-icon" />
-                    <div style={{ flex: 1 }}>
-                      <Controller
-                        name={`files.${index}.filename`}
-                        control={control}
-                        defaultValue=""
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            label="File name"
-                            variant="outlined"
-                            fullWidth
-                            size="medium"
-                            margin="dense"
-                            InputLabelProps={{ style: { fontSize: "1rem" } }}
-                            inputProps={{ style: { fontSize: "1rem" } }}
-                            error={!!errors.files?.[index]?.filename}
-                            helperText={errors.files?.[index]?.filename?.message}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name={`files.${index}.private`}
-                        control={control}
-                        defaultValue={false}
-                        render={({ field }) => (
-                          <FormControlLabel
-                            control={<Checkbox {...field} checked={field.value} />}
-                            label="Mark as Confidential"
-                            sx={{ marginTop: 1, "& .MuiFormControlLabel-label": { fontSize: "1rem" } }}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name={`files.${index}.communityFilter`}
-                        control={control}
-                        defaultValue={false}
-                        render={({ field }) => (
-                          <FormControlLabel
-                            control={<Checkbox {...field} checked={field.value} />}
-                            label="Enable Community Filter"
-                            sx={{ marginTop: 1, "& .MuiFormControlLabel-label": { fontSize: "1rem" } }}
-                          />
-                        )}
-                      />
-                    </div>
-                    <button type="button" className="remove-btn" onClick={() => handleRemove(index)}>
-                      ×
-                    </button>
-                  </PreviewItem>
-                </FileWrapper>
-              ))}
-            </PreviewList>
-          )}
+        <Box sx={{ p: 2 }}>
+          <Box
+            component="form"
+            onSubmit={handleSubmit(onSubmit)}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "minmax(320px, 1fr) minmax(320px, 1fr)" },
+              gap: 2,
+              alignItems: "start",
+            }}
+          >
+            {/* Left: Drop Zone (LABEL) */}
+            <Box sx={{ position: "relative" }}>
+              <HiddenInput
+                id={inputId}
+                ref={inputRef}
+                type="file"
+                multiple
+                onChange={handleFiles}
+              />
 
-          {files.length > 0 && (
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              style={{ marginTop: "1.5rem", width: "100%", fontSize: "1.1rem", padding: "10px" }}
+              <DropZoneLabel htmlFor={inputId} aria-label="Select files to upload">
+                <Box>
+                  <CloudUpload sx={{ fontSize: 56, color: color_primary, opacity: 0.9 }} />
+                  <Typography sx={{ mt: 1, fontWeight: 800, color: "#0f172a" }}>
+                    Drag & Drop files here
+                  </Typography>
+                  <Typography sx={{ mt: 0.5, fontSize: "0.8rem", color: "rgba(15, 23, 42, 0.65)" }}>
+                    Maximum file size 500MB. Secure encryption applied automatically.
+                  </Typography>
+
+                  {/* This button is just visual; the label click opens picker */}
+                  <Button
+                    type="button"
+                    variant="contained"
+                    sx={{
+                      mt: 2,
+                      textTransform: "none",
+                      fontWeight: 800,
+                      borderRadius: 1.5,
+                      background: color_primary,
+                      px: 2.25,
+                      boxShadow: "none",
+                      "&:hover": { background: color_primary, boxShadow: "none", opacity: 0.92 },
+                    }}
+                    onClick={(e) => {
+                      // ✅ keep button from submitting form
+                      e.preventDefault();
+                      // ✅ open picker programmatically as a backup (optional)
+                      inputRef.current?.click();
+                    }}
+                  >
+                    Select Files from Device
+                  </Button>
+                </Box>
+              </DropZoneLabel>
+            </Box>
+
+            {/* Right: Selected Files */}
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: 2,
+                border: "1px solid rgba(0,0,0,0.08)",
+                overflow: "hidden",
+                background: "#fff",
+              }}
             >
-              ✅ Upload Files
-            </Button>
-          )}
-        </div>
-      </form>
+              <Box sx={{ p: 2, background: "#fbfcfe", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                <Typography sx={{ fontWeight: 800, color: "#0f172a", fontSize: "0.95rem" }}>
+                  Selected Files
+                </Typography>
+                <Typography sx={{ fontSize: "0.8rem", color: "rgba(15, 23, 42, 0.65)", mt: 0.25 }}>
+                  Add a display name and set visibility options before upload.
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 2 }}>
+                {files.length === 0 ? (
+                  <Box
+                    sx={{
+                      border: "1px dashed rgba(0,0,0,0.18)",
+                      borderRadius: 2,
+                      p: 2,
+                      background: "#ffffff",
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 700, color: "rgba(15, 23, 42, 0.75)" }}>
+                      No files selected
+                    </Typography>
+                    <Typography sx={{ mt: 0.5, fontSize: "0.8rem", color: "rgba(15, 23, 42, 0.60)" }}>
+                      Use the upload area to select one or more files.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <>
+                    <PreviewList>
+                      {files.map((file, index) => (
+                        <PreviewItem key={index} elevation={0}>
+                          <InsertDriveFile className="file-icon" />
+                          <Box sx={{ flex: 1 }}>
+                            <Controller
+                              name={`files.${index}.filename`}
+                              control={control}
+                              defaultValue=""
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  label="File name"
+                                  variant="outlined"
+                                  fullWidth
+                                  size="small"
+                                  margin="dense"
+                                  error={!!errors.files?.[index]?.filename}
+                                  helperText={errors.files?.[index]?.filename?.message}
+                                  sx={{
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: 1.5,
+                                      background: "#fff",
+                                    },
+                                    "& .MuiInputLabel-root": { fontSize: "0.85rem" },
+                                    "& input": { fontSize: "0.9rem" },
+                                  }}
+                                />
+                              )}
+                            />
+
+                            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 0.5 }}>
+                              <Controller
+                                name={`files.${index}.private`}
+                                control={control}
+                                defaultValue={false}
+                                render={({ field }) => (
+                                  <FormControlLabel
+                                    control={<Checkbox {...field} checked={field.value} />}
+                                    label="Mark as Confidential"
+                                    sx={{
+                                      "& .MuiFormControlLabel-label": { fontSize: "0.9rem", fontWeight: 700 },
+                                    }}
+                                  />
+                                )}
+                              />
+                              <Controller
+                                name={`files.${index}.communityFilter`}
+                                control={control}
+                                defaultValue={false}
+                                render={({ field }) => (
+                                  <FormControlLabel
+                                    control={<Checkbox {...field} checked={field.value} />}
+                                    label="Enable Community Filter"
+                                    sx={{
+                                      "& .MuiFormControlLabel-label": { fontSize: "0.9rem", fontWeight: 700 },
+                                    }}
+                                  />
+                                )}
+                              />
+                            </Box>
+                          </Box>
+
+                          <button type="button" className="remove-btn" onClick={() => handleRemove(index)}>
+                            ×
+                          </button>
+                        </PreviewItem>
+                      ))}
+                    </PreviewList>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      sx={{
+                        width: "100%",
+                        textTransform: "none",
+                        fontWeight: 900,
+                        borderRadius: 1.5,
+                        background: color_primary,
+                        boxShadow: "none",
+                        py: 1.1,
+                        "&:hover": { background: color_primary, boxShadow: "none", opacity: 0.92 },
+                      }}
+                    >
+                      Upload Files
+                    </Button>
+                  </>
+                )}
+              </Box>
+            </Paper>
+          </Box>
+        </Box>
+      </Paper>
     </>
   );
 };

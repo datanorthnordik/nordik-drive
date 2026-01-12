@@ -23,6 +23,8 @@ import ContactUs from "./pages/contact_us/ContactUs";
 import Acknowledgement from "./pages/Acknowledgement/Acknowledgement";
 import CoronerPage from "./pages/CoronerPage/CoronerPage";
 import PendingRequests from "./pages/pending-requests/PendingRequests";
+import FileActivities from "./components/tables/FileActivities";
+import ActivityLogs from "./components/tables/ActivityLogs";
 
 
 function App() {
@@ -118,7 +120,7 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout showHeader={true}>
-                <UserActivity />
+                <ActivityLogs />
               </Layout>
             </ProtectedRoute>
           }

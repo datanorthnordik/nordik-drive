@@ -11,7 +11,12 @@ import {
   IconButton,
   useMediaQuery,
   Divider,
-  Tooltip
+  Tooltip,
+  Chip,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
 import { RestartAlt } from "@mui/icons-material";
@@ -44,7 +49,44 @@ const fieldTypeMap: Record<string, string> = {
 };
 
 const MAX_PHOTOS = 5;
-const MAX_MB = 5;
+const MAX_PHOTO_MB = 5;
+
+// ✅ Additional Documents limits (tune as you want)
+const MAX_ADDITIONAL_DOCS = 10;
+const MAX_ADDITIONAL_DOCS_TOTAL_MB = 10;
+
+// ✅ Hard safety cap to reduce 413 risk with base64 JSON (tune as needed)
+const MAX_COMBINED_UPLOAD_MB = 15;
+
+// ---------------------- DOCUMENT TYPES -----------------------
+type DocumentType = "photos" | "document";
+type DocumentCategory = "birth_certificate" | "death_certificate" | "other_document";
+
+type AdditionalDocItem = {
+  id: string;
+  file: File;
+  document_type: DocumentType;       // always "document" for additional docs
+  document_category: DocumentCategory;
+};
+
+const DOCUMENT_CATEGORY_OPTIONS: { value: DocumentCategory; label: string }[] = [
+  { value: "birth_certificate", label: "Birth Certificate" },
+  { value: "death_certificate", label: "Death Certificate" },
+  { value: "other_document", label: "Other Document" },
+];
+
+const ALLOWED_DOC_MIME = new Set<string>([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+
+const ACCEPT_DOCS =
+  ".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*";
 
 // ---------------------- DATE HELPERS -----------------------
 const isDdMmYyyy = (v: string) =>
@@ -63,6 +105,20 @@ const normalizeIncomingDateToDdMmYyyy = (value: string): string => {
 };
 
 const toApiDate = (value: string): string => (isDdMmYyyy(value) ? value : "");
+
+// ---------------------- UID -----------------------
+function uid() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// ---------------------- SIZE HELPERS -----------------------
+const bytesToMB = (b: number) => b / (1024 * 1024);
+const getTotalBytes = (files: File[]) => files.reduce((sum, f) => sum + f.size, 0);
+
+const estimateBase64Bytes = (rawBytes: number) => Math.ceil(rawBytes * 4 / 3) + 200; // + small overhead for prefix/json
+const estimateTotalBase64Bytes = (files: File[]) => files.reduce((sum, f) => sum + estimateBase64Bytes(f.size), 0);
+
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 // ---------------------- MAIN COMPONENT -----------------------
 export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
@@ -89,14 +145,12 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     data: communitiesData,
     fetchData: fetchCommunities
   } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/communities",
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
     "GET",
     false
   );
 
-  const {
-    fetchData: addCommunity
-  } = useFetch(
+  const { fetchData: addCommunity } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
     "POST",
     false
@@ -104,28 +158,41 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
   useEffect(() => {
     fetchCommunities();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const communityOptions = useMemo(() => {
     return (communitiesData as any)?.communities?.map((c: any) => c.name) || [];
   }, [communitiesData]);
 
-  const normalizeCommunityName = (v: any) => (typeof v === "string" ? v.trim() : "");
+  const normalizeCommunityName = (v: any) =>
+    typeof v === "string" ? v.trim() : "";
+
   const communityExists = (name: string) =>
-    communityOptions.some((o: string) => o.trim().toLowerCase() === name.trim().toLowerCase());
+    communityOptions.some(
+      (o: string) => o.trim().toLowerCase() === name.trim().toLowerCase()
+    );
 
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [changedFields, setChangedFields] = useState<Record<string, any>>({});
+
   const [photos, setPhotos] = useState<File[]>([]);
+  const [additionalDocs, setAdditionalDocs] = useState<AdditionalDocItem[]>([]);
+
+  // ✅ BOTH consents needed:
+  // 1) Keep existing `consent` key name for PHOTO consent (backward compatibility)
   const [consent, setConsent] = useState<boolean>(false);
+
+  // 2) NEW archive consent for SRS Centre
+  const [archiveConsent, setArchiveConsent] = useState<boolean>(false);
 
   const [reviewOpen, setReviewOpen] = useState(false);
   const [confirmResetAll, setConfirmResetAll] = useState(false);
 
-  const totalSizeMB =
-    photos.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+  const totalPhotoMB = bytesToMB(getTotalBytes(photos));
+  const totalAdditionalDocsMB = bytesToMB(getTotalBytes(additionalDocs.map(d => d.file)));
+  const totalCombinedMB = totalPhotoMB + totalAdditionalDocsMB;
 
-  // ---- warning banner computations ----
+  // ---- warning banner computations (photo display limit: MAX_PHOTOS) ----
   const photoCount = photos.length;
   const percentUsed = (photoCount / MAX_PHOTOS) * 100;
 
@@ -170,7 +237,9 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
     // Build fields from row shape (if passed)
     keys.forEach((key) => {
-      if (["Siblings", "Parents Names", "First Nation/Community", "First Nation / Community"].includes(key)) {
+      if (
+        ["Siblings", "Parents Names", "First Nation/Community", "First Nation / Community"].includes(key)
+      ) {
         if (isNewEntry) {
           initial[key] = [];
         } else {
@@ -209,8 +278,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const dialogTitle = isNewEntry
     ? "Add New Student"
     : `Add Information – ${fullName ||
-    `${row["First Names"] || ""} ${row["Last Names"] || ""}`.trim()
-    }`;
+      `${row["First Names"] || ""} ${row["Last Names"] || ""}`.trim()
+      }`;
 
   // ---------------------- FIELD UPDATER -----------------------
   const updateField = (field: string, value: any) => {
@@ -290,7 +359,9 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
       setFormValues(cleared);
       setPhotos([]);
+      setAdditionalDocs([]);
       setConsent(false);
+      setArchiveConsent(false);
       setConfirmResetAll(false);
       setChangedFields({});
       return;
@@ -315,7 +386,9 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     setFormValues(restored);
     setChangedFields({});
     setPhotos([]);
+    setAdditionalDocs([]);
     setConsent(false);
+    setArchiveConsent(false);
     setConfirmResetAll(false);
   };
 
@@ -325,33 +398,106 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     const onlyImages = files.filter((f) => f.type.startsWith("image/"));
 
     if (onlyImages.length !== files.length) {
-      toast.error("Only image files are allowed.");
+      toast.error("Only image files are allowed for photos.");
+      event.target.value = "";
       return;
     }
 
-    const newPhotos = [...photos, ...onlyImages];
-    const newTotalSizeMB =
-      newPhotos.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+    const nextPhotos = [...photos, ...onlyImages];
+    const nextTotalPhotoMB = bytesToMB(getTotalBytes(nextPhotos));
+    const nextTotalCombinedMB = nextTotalPhotoMB + totalAdditionalDocsMB;
 
-    const exceeds =
-      newPhotos.length > MAX_PHOTOS || newTotalSizeMB > MAX_MB;
-
-    if (exceeds) {
-      toast.error(
-        "Upload limit reached. Extra photos will be sent to the CSAA Gallery for review."
-      );
+    if (nextTotalPhotoMB > MAX_PHOTO_MB) {
+      toast.error(`Photo size limit exceeded (${MAX_PHOTO_MB} MB total). Please remove some photos or use smaller files.`);
+      event.target.value = "";
+      return;
     }
 
-    setPhotos(newPhotos);
+    // Combined cap helps prevent 413 when using base64 JSON
+    if (nextTotalCombinedMB > MAX_COMBINED_UPLOAD_MB) {
+      toast.error(`Total upload too large. Keep combined uploads under ${MAX_COMBINED_UPLOAD_MB} MB.`);
+      event.target.value = "";
+      return;
+    }
+
+    // Keep existing behavior message (extra photos go to gallery review)
+    if (nextPhotos.length > MAX_PHOTOS) {
+      toast.error("Upload limit reached. Extra photos will be sent to the CSAA Gallery for review.");
+    }
+
+    setPhotos(nextPhotos);
+    event.target.value = "";
   };
 
   const removePhoto = (idx: number) => {
     setPhotos((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // ---------------------- DOCUMENT HANDLING -----------------------
+  const handleDocUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    // Validate mime types
+    const hasBad = files.some((f) => {
+      if (!f.type) return false; // allow unknown, backend can validate
+      if (f.type.startsWith("image/")) return false;
+      return !ALLOWED_DOC_MIME.has(f.type);
+    });
+
+    if (hasBad) {
+      toast.error("Only PDF, DOC/DOCX, or image files are allowed for documents.");
+      event.target.value = "";
+      return;
+    }
+
+    const nextCount = additionalDocs.length + files.length;
+    if (nextCount > MAX_ADDITIONAL_DOCS) {
+      toast.error(`You can upload up to ${MAX_ADDITIONAL_DOCS} additional documents.`);
+      event.target.value = "";
+      return;
+    }
+
+    const nextDocsBytes = getTotalBytes(additionalDocs.map(d => d.file)) + getTotalBytes(files);
+    const nextDocsMB = bytesToMB(nextDocsBytes);
+    if (nextDocsMB > MAX_ADDITIONAL_DOCS_TOTAL_MB) {
+      toast.error(`Additional documents total limit exceeded (${MAX_ADDITIONAL_DOCS_TOTAL_MB} MB).`);
+      event.target.value = "";
+      return;
+    }
+
+    const nextTotalCombinedMB = totalPhotoMB + nextDocsMB;
+    if (nextTotalCombinedMB > MAX_COMBINED_UPLOAD_MB) {
+      toast.error(`Total upload too large. Keep combined uploads under ${MAX_COMBINED_UPLOAD_MB} MB.`);
+      event.target.value = "";
+      return;
+    }
+
+    const next: AdditionalDocItem[] = files.map((file) => ({
+      id: uid(),
+      file,
+      document_type: "document",
+      document_category: "other_document",
+    }));
+
+    setAdditionalDocs((prev) => [...prev, ...next]);
+    event.target.value = "";
+  };
+
+  const updateDocCategory = (id: string, document_category: DocumentCategory) => {
+    setAdditionalDocs((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, document_category } : d))
+    );
+  };
+
+  const removeDoc = (id: string) => {
+    setAdditionalDocs((prev) => prev.filter((d) => d.id !== id));
+  };
+
   const convertToBase64 = (file: File): Promise<string> =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const r = new FileReader();
+      r.onerror = () => reject(new Error("File read error"));
       r.onloadend = () => resolve(r.result as string);
       r.readAsDataURL(file);
     });
@@ -389,7 +535,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
       return;
     }
 
-    if (Object.keys(changedFields).length === 0 && photos.length === 0) {
+    if (
+      Object.keys(changedFields).length === 0 &&
+      photos.length === 0 &&
+      additionalDocs.length === 0
+    ) {
       toast("No changes made.");
       onClose();
       return;
@@ -399,80 +549,117 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   };
 
   const handleConfirmSubmit = async () => {
-    const base64Photos = await Promise.all(photos.map(convertToBase64));
-    const photosInApp = base64Photos.slice(0, MAX_PHOTOS);
-    const photosGallery = base64Photos.slice(MAX_PHOTOS);
+    try {
+      // ✅ extra protection against 413: estimate base64 request size before conversion
+      const allFiles = [...photos, ...additionalDocs.map(d => d.file)];
+      const estimatedB64Bytes = estimateTotalBase64Bytes(allFiles);
+      const estimatedMB = bytesToMB(estimatedB64Bytes);
 
-    const basePayload = {
-      file_id: file.id,
-      filename: file.filename,
-      photos_in_app: photosInApp,
-      photos_for_gallery_review: photosGallery,
-      consent,
-      is_edited: isNewEntry ? false : true
-    };
+      // This is an estimate, but prevents obvious oversize requests
+      if (estimatedMB > 25) {
+        toast.error("Upload too large for a single request. Please reduce file sizes/count (or use server-side upload).");
+        return;
+      }
 
-    if (isNewEntry) {
-      const converted: Record<string, any[]> = {};
-      const key = "new";
+      // Existing photo conversion
+      const base64Photos = await Promise.all(photos.map(convertToBase64));
+      const photosInApp = base64Photos.slice(0, MAX_PHOTOS);
+      const photosGallery = base64Photos.slice(MAX_PHOTOS);
 
-      converted[key] = [];
+      // ✅ New: additional docs conversion + payload objects
+      const docsBase64 = await Promise.all(additionalDocs.map((d) => convertToBase64(d.file)));
 
-      Object.keys(formValues)
-        .filter((label) => !EXCLUDED_FIELDS.includes(label))
-        .forEach((field) => {
-          let value = formValues[field];
+      const documentsPayload = additionalDocs.map((d, idx) => ({
+        document_type: d.document_type,                 // "document"
+        document_category: d.document_category,         // birth/death/other
+        filename: d.file.name,
+        mime_type: d.file.type || "application/octet-stream",
+        size: d.file.size,
+        data_base64: docsBase64[idx],                   // data URL base64 (same style as photos)
+      }));
 
-          if (Array.isArray(value)) value = value.join(", ");
-          else if (fieldTypeMap[field] === "date")
-            value = toApiDate(value || "");
+      // ✅ Base payload: keep existing photo keys untouched (so nothing breaks)
+      // ✅ Add ONE key for docs: `documents`
+      // ✅ Keep existing `consent` (photos/public use), add `archive_consent`
+      const basePayload: any = {
+        file_id: file.id,
+        filename: file.filename,
 
+        photos_in_app: photosInApp,
+        photos_for_gallery_review: photosGallery,
+
+        consent,                 // photo/publication consent (existing)
+        archive_consent: archiveConsent, // new
+
+        documents: documentsPayload, // ✅ only one key for additional docs
+
+        is_edited: isNewEntry ? false : true
+      };
+
+      if (isNewEntry) {
+        const converted: Record<string, any[]> = {};
+        const key = "new";
+
+        converted[key] = [];
+
+        Object.keys(formValues)
+          .filter((label) => !EXCLUDED_FIELDS.includes(label))
+          .forEach((field) => {
+            let value = formValues[field];
+
+            if (Array.isArray(value)) value = value.join(", ");
+            else if (fieldTypeMap[field] === "date")
+              value = toApiDate(value || "");
+
+            converted[key].push({
+              row_id: null,
+              field_name: field,
+              old_value: "",
+              new_value: value ?? ""
+            });
+          });
+
+        submitEditRequest({
+          ...basePayload,
+          is_edited: false,
+          changes: converted,
+          row_id: null,
+          firstname: formValues["First Names"] || "",
+          lastname: formValues["Last Names"] || ""
+        });
+      } else {
+        const converted: Record<string, any[]> = {};
+
+        Object.entries(changedFields).forEach(([field, item]: any) => {
+          const newVal =
+            fieldTypeMap[field] === "date"
+              ? toApiDate(item.newValue)
+              : item.newValue;
+
+          const key = row.id;
+          if (!converted[key]) converted[key] = [];
           converted[key].push({
-            row_id: null,
+            row_id: row.id,
             field_name: field,
-            old_value: "",
-            new_value: value ?? ""
+            old_value: item.oldValue,
+            new_value: newVal
           });
         });
 
-      submitEditRequest({
-        ...basePayload,
-        is_edited: false,
-        changes: converted,
-        row_id: null,
-        firstname: formValues["First Names"] || "",
-        lastname: formValues["Last Names"] || ""
-      });
-    } else {
-      const converted: Record<string, any[]> = {};
-
-      Object.entries(changedFields).forEach(([field, item]: any) => {
-        const newVal =
-          fieldTypeMap[field] === "date"
-            ? toApiDate(item.newValue)
-            : item.newValue;
-
-        const key = row.id;
-        if (!converted[key]) converted[key] = [];
-        converted[key].push({
+        submitEditRequest({
+          ...basePayload,
+          is_edited: true,
+          changes: converted,
           row_id: row.id,
-          field_name: field,
-          old_value: item.oldValue,
-          new_value: newVal
+          firstname: row["First Names"] || "",
+          lastname: row["Last Names"] || ""
         });
-      });
+      }
 
-      submitEditRequest({
-        ...basePayload,
-        is_edited: true,
-        changes: converted,
-        row_id: row.id,
-        firstname: row["First Names"] || "",
-        lastname: row["Last Names"] || ""
-      });
+      setReviewOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to submit request.");
     }
-
-    setReviewOpen(false);
   };
 
   return (
@@ -569,23 +756,23 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                           display: "flex",
                           gap: "8px",
                           width: "100%",
-                          alignItems: "stretch" // ✅ keep both same height
+                          alignItems: "stretch"
                         }}
                       >
                         <Autocomplete
                           freeSolo
-                          fullWidth // ✅ IMPORTANT: makes the Autocomplete take full width
+                          fullWidth
                           options={communityOptions}
                           value={val || ""}
                           onChange={(_, newValue) => handleSetItem(idx, newValue)}
                           noOptionsText="No match — type the name and press Enter to add it"
                           sx={{
-                            flex: 1,        // ✅ IMPORTANT: stretches inside flex row
-                            minWidth: 0,    // ✅ prevents shrinking in flex containers
+                            flex: 1,
+                            minWidth: 0,
                             "& .MuiInputBase-root": {
                               background: "#fff",
                               borderRadius: 2,
-                              minHeight: 52 // ✅ make input taller (looks less “small”)
+                              minHeight: 52
                             },
                             "& .MuiInputBase-input": {
                               fontSize: "1.15rem",
@@ -610,8 +797,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                         <Button
                           onClick={() => handleRemove(idx)}
                           sx={{
-                            minWidth: 52,       // ✅ make it square-ish
-                            height: 52,         // ✅ match input height
+                            minWidth: 52,
+                            height: 52,
                             borderRadius: "10px",
                             textTransform: "none",
                             border: "1px solid #999",
@@ -622,7 +809,6 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                         </Button>
                       </div>
                     ))}
-
 
                     <div
                       style={{
@@ -729,7 +915,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
               );
             }
 
-            // MULTI FIELD (Siblings / Parents Names)
+            // MULTI FIELD
             if (type === "multi") {
               const items: string[] = Array.isArray(value)
                 ? value
@@ -760,9 +946,19 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                     {label}
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "6px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      marginTop: "6px"
+                    }}
+                  >
                     {items.map((val, idx) => (
-                      <div key={idx} style={{ display: "flex", gap: "8px", width: "100%" }}>
+                      <div
+                        key={idx}
+                        style={{ display: "flex", gap: "8px", width: "100%" }}
+                      >
                         <TextField
                           fullWidth
                           value={val}
@@ -791,7 +987,14 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                       </div>
                     ))}
 
-                    <div style={{ display: "flex", gap: "8px", marginTop: "4px", alignItems: "center" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        marginTop: "4px",
+                        alignItems: "center"
+                      }}
+                    >
                       <Button
                         onClick={handleAdd}
                         sx={{
@@ -830,6 +1033,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             }
 
             // DEFAULT TEXT / TEXTAREA
+            const isAdditionalInfo = label === "Additional Information";
+
             return (
               <div key={label}>
                 <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>
@@ -876,6 +1081,139 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                     </Button>
                   )}
                 </div>
+
+                {/* ✅ Additional Documents (right under Additional Information) */}
+                {isAdditionalInfo && (
+                  <div
+                    style={{
+                      marginTop: 16,
+                      background: "#f7f9ff",
+                      padding: "18px",
+                      borderRadius: "12px",
+                      border: "2px solid #d0d7e5"
+                    }}
+                  >
+                    <div style={{ fontSize: "1.2rem", fontWeight: 800, marginBottom: 10 }}>
+                      Additional Documents
+                    </div>
+
+                    <div style={{ fontSize: "1.05rem", color: "#334155", marginBottom: 14 }}>
+                      Upload documents such as <b>Birth Certificate</b>, <b>Death Certificate</b>, or other relevant files.
+                      Accepted: <b>PDF, DOC/DOCX, JPG/PNG/WEBP</b>.
+                      <br />
+                      <b>Docs limit:</b> {additionalDocs.length}/{MAX_ADDITIONAL_DOCS} • {totalAdditionalDocsMB.toFixed(2)} MB / {MAX_ADDITIONAL_DOCS_TOTAL_MB} MB
+                      <br />
+                      <b>Total upload (photos + docs):</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
+                    </div>
+
+                    <Button
+                      variant="contained"
+                      component="label"
+                      sx={{
+                        background: color_primary,
+                        padding: "12px 18px",
+                        borderRadius: "12px",
+                        fontSize: "1.05rem",
+                        fontWeight: 800,
+                        textTransform: "none",
+                      }}
+                    >
+                      Upload Documents
+                      <input type="file" hidden multiple accept={ACCEPT_DOCS} onChange={handleDocUpload} />
+                    </Button>
+
+                    {additionalDocs.length > 0 && (
+                      <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                        {additionalDocs.map((d) => (
+                          <div
+                            key={d.id}
+                            style={{
+                              display: "flex",
+                              gap: 10,
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                              background: "#fff",
+                              border: "1px solid #e5e7eb",
+                              borderRadius: 12,
+                              padding: "10px 12px",
+                            }}
+                          >
+                            <Chip
+                              label={d.file.name}
+                              variant="outlined"
+                              sx={{ fontWeight: 800, maxWidth: 420 }}
+                            />
+
+                            <FormControl size="small" sx={{ minWidth: 240 }}>
+                              <InputLabel>Document Category</InputLabel>
+                              <Select
+                                label="Document Category"
+                                value={d.document_category}
+                                onChange={(e) => updateDocCategory(d.id, e.target.value as DocumentCategory)}
+                                sx={{ fontWeight: 800 }}
+                              >
+                                {DOCUMENT_CATEGORY_OPTIONS.map((opt) => (
+                                  <MenuItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </FormControl>
+
+                            <Button
+                              onClick={() => removeDoc(d.id)}
+                              sx={{
+                                textTransform: "none",
+                                borderRadius: "10px",
+                                border: "1px solid #999",
+                                fontWeight: 800,
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* ✅ Archive Consent (NEW) */}
+                    <div
+                      style={{
+                        marginTop: 16,
+                        fontSize: "1.1rem",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={archiveConsent}
+                        onChange={(e) => setArchiveConsent(e.target.checked)}
+                        style={{ transform: "scale(1.6)", marginRight: 12 }}
+                      />
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        I consent to the <b>Shingwauk Residential Schools Centre</b> archiving the additional information and documents I submit with this request.
+                        <Tooltip
+                          title={
+                            <div style={{ fontSize: "0.95rem", lineHeight: 1.4, maxWidth: 380 }}>
+                              By checking this box, you acknowledge that the information and documents you submit may be securely stored (archived) by the Shingwauk Residential Schools Centre
+                              for record keeping, survivor support, education, research, and commemorative purposes, subject to applicable policies.
+                              <br /><br />
+                              Consent is voluntary. If you wish to withdraw consent later, you may contact the Centre; withdrawal may not affect uses already completed.
+                            </div>
+                          }
+                          placement="right"
+                          arrow
+                          slotProps={{ popper: { disablePortal: true } }}
+                        >
+                          <IconButton size="small" sx={{ padding: 0.5 }}>
+                            <span style={{ fontSize: "1.15rem" }}>ℹ️</span>
+                          </IconButton>
+                        </Tooltip>
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -890,9 +1228,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             }}
           >
             <div style={{ fontSize: "1.2rem", marginBottom: "16px" }}>
-              You may upload <b>up to 5 images</b> or <b>5 MB</b> total.
+              You may upload <b>up to 5 images</b> or <b>{MAX_PHOTO_MB} MB</b> total.
               <br />
-              Extra photos will be displayed in the <b>CSAA Gallery</b>
+              Extra photos will be displayed in the <b>CSAA Gallery</b>.
+              <br />
+              <b>Total upload (photos + docs):</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
             </div>
 
             <Button
@@ -911,10 +1251,10 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             </Button>
 
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {photos.map((file, idx) => (
+              {photos.map((f, idx) => (
                 <div key={idx} style={{ position: "relative" }}>
                   <img
-                    src={URL.createObjectURL(file)}
+                    src={URL.createObjectURL(f)}
                     width={140}
                     height={120}
                     style={{
@@ -945,7 +1285,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
             <div style={{ marginTop: 20, fontSize: "1.1rem" }}>
               <b>Upload Limit:</b> {photos.length}/{MAX_PHOTOS} photos (
-              {totalSizeMB.toFixed(2)} MB of {MAX_MB} MB)
+              {totalPhotoMB.toFixed(2)} MB of {MAX_PHOTO_MB} MB)
               <div
                 style={{
                   marginTop: 8,
@@ -958,7 +1298,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
               >
                 <div
                   style={{
-                    width: `${Math.min((photos.length / MAX_PHOTOS) * 100, 100)}%`,
+                    width: `${clamp((photos.length / MAX_PHOTOS) * 100, 0, 100)}%`,
                     background: "#4f79ff",
                     height: "100%"
                   }}
@@ -983,10 +1323,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
               </div>
             )}
 
+            {/* ✅ Photo consent (OLD one, brought back) */}
             <div
               style={{
-                marginTop: 20,
-                fontSize: "1.2rem",
+                marginTop: 18,
+                fontSize: "1.15rem",
                 display: "flex",
                 alignItems: "center"
               }}
@@ -995,18 +1336,15 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                 type="checkbox"
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
-                style={{ transform: "scale(1.7)", marginRight: 12 }}
+                style={{ transform: "scale(1.6)", marginRight: 12 }}
               />
               <span style={{ display: "flex", alignItems: "center" }}>
-                I consent to have the pictures I upload shared and/or used for
-                CSAA publications (newsletters, photo gallery, social media).
+                I consent to have the pictures I upload shared and/or used for CSAA publications (newsletters, photo gallery, social media).
                 <Tooltip
                   title={
-                    <div style={{ fontSize: "0.95rem", lineHeight: 1.4 }}>
-                      By giving consent, you allow CSAA/CSA to display your
-                      photos in public galleries, newsletters, and other
-                      publications. Some photos may go through CSAA review
-                      before they are visible.
+                    <div style={{ fontSize: "0.95rem", lineHeight: 1.4, maxWidth: 360 }}>
+                      By giving consent, you allow CSAA/CSA to display your photos in public galleries, newsletters, and other publications.
+                      Some photos may go through CSAA review before they are visible.
                     </div>
                   }
                   placement="right"
@@ -1078,7 +1416,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           Reset All?
         </DialogTitle>
         <DialogContent sx={{ fontSize: "1.2rem", padding: "20px" }}>
-          Are you sure you want to reset all fields and remove uploaded photos?
+          Are you sure you want to reset all fields and remove uploaded photos and documents?
         </DialogContent>
         <DialogActions sx={{ padding: "18px" }}>
           <Button onClick={() => setConfirmResetAll(false)}>Cancel</Button>
@@ -1102,12 +1440,42 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             </div>
           ))}
 
-          {photos.length > 0 && (
+          {(photos.length > 0 || additionalDocs.length > 0) && (
             <>
               <Divider sx={{ margin: "16px 0" }} />
-              <b>Photos:</b> {photos.length} selected
             </>
           )}
+
+          {photos.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <b>Photos:</b> {photos.length} selected
+            </div>
+          )}
+
+          {additionalDocs.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <b>Additional Documents:</b> {additionalDocs.length} selected
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                {additionalDocs.map((d) => (
+                  <div key={d.id}>
+                    • {d.file.name} —{" "}
+                    <b>{DOCUMENT_CATEGORY_OPTIONS.find((x) => x.value === d.document_category)?.label ?? d.document_category}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 10 }}>
+            <b>Photo consent (CSAA publications):</b> {consent ? "Yes" : "No"}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <b>Archive consent (Shingwauk Residential Schools Centre):</b> {archiveConsent ? "Yes" : "No"}
+          </div>
+
+          <div style={{ marginTop: 10 }}>
+            <b>Total upload:</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
+          </div>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setReviewOpen(false)}>Back</Button>

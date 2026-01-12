@@ -39,7 +39,15 @@
 }
 
 
-.App{
+.App {
   box-sizing: border-box !important;
+  background-color: #f8f9fa !important;
+  min-height: 100vh;
+  width: 100%;
+}
+
+#root {
+  background-color: #f8f9fa;
+  width: 100%;
 }
 
