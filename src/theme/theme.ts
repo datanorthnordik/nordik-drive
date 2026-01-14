@@ -1,5 +1,5 @@
 import { createTheme } from "@mui/material/styles";
-import { color_primary, color_secondary, color_primary_dark, color_background } from "../constants/colors";
+import { color_primary, color_secondary, color_primary_dark, color_background, color_white } from "../constants/colors";
 
 const theme = createTheme({
   palette: {
@@ -34,10 +34,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: color_primary,
-          color: "#fff",
-          "&:hover": {
-            backgroundColor: color_primary_dark, // darker shade on hover
-          },
+          color: color_white
         },
       },
     },

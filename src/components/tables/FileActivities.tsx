@@ -62,7 +62,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
 import { FileButton } from "../buttons/Button";
-import { color_primary } from "../../constants/colors";
+import { color_primary, color_white } from "../../constants/colors";
 import FileActivityVisualization from "../activity/FileActivityVisualization";
 
 import ImageGallery from "react-image-gallery";
@@ -213,6 +213,17 @@ function deriveSelectedFileId(
   }
   return "";
 }
+
+
+function mergeSelectedIntoOptions(options: SelectOption[], selected: string[]) {
+  const map = new Map(options.map((o) => [o.value, o]));
+  (selected || []).forEach((v) => {
+    const s = String(v || "").trim();
+    if (s && !map.has(s)) map.set(s, { value: s, label: s });
+  });
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+}
+
 
 /**
  * Clearer status UI:
@@ -389,6 +400,10 @@ export default function AdminFileEditRequests({
     error: mediaBlobError,
   } = useFetch<any>(`${API_BASE}/file/doc/download`, "POST", false);
 
+  const { fetchData: fetchCommunities, data: communitiesResp, loading: communitiesLoading } =
+    useFetch(`${API_BASE}/communities`, "GET", false);
+
+
   const currentDoc = documents[docViewerIndex];
   const currentDocMime =
     currentDoc?.mime_type || guessMimeFromFilename(currentDoc?.filename) || "";
@@ -399,6 +414,7 @@ export default function AdminFileEditRequests({
   useEffect(() => {
     fetchUsers();
     fetchFiles();
+    fetchCommunities();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -484,11 +500,6 @@ export default function AdminFileEditRequests({
     return userOptions.find((u) => u.value === String(id))?.label ?? `User ${id}`;
   }, [selectedRequest, userOptions]);
 
-  // Community options (derived from rows)
-  const [communityOptions, setCommunityOptions] = useState<SelectOption[]>([]);
-  const [uploaderCommunityOptions, setUploaderCommunityOptions] = useState<
-    SelectOption[]
-  >([]);
 
   function buildStringOptionsFromRows(key: string, list: any[]): SelectOption[] {
     const uniq = new Set<string>();
@@ -569,23 +580,7 @@ export default function AdminFileEditRequests({
   }, [mediaBlobError, pendingDownload]);
 
 
-  useEffect(() => {
-    if (!rows || rows.length === 0) return;
-    const comm = buildStringOptionsFromRows("community", rows);
-    const upl = buildStringOptionsFromRows("uploader_community", rows);
 
-    setCommunityOptions((prev) => {
-      const m = new Map(prev.map((x) => [x.value, x]));
-      comm.forEach((x) => m.set(x.value, x));
-      return Array.from(m.values()).sort((a, b) => a.label.localeCompare(b.label));
-    });
-
-    setUploaderCommunityOptions((prev) => {
-      const m = new Map(prev.map((x) => [x.value, x]));
-      upl.forEach((x) => m.set(x.value, x));
-      return Array.from(m.values()).sort((a, b) => a.label.localeCompare(b.label));
-    });
-  }, [rows]);
 
   const statusOptions: SelectOption[] = useMemo(
     () => [
@@ -706,8 +701,15 @@ export default function AdminFileEditRequests({
 
     if (fieldKey === "field_key") return fieldList;
 
-    if (fieldKey === "community") return communityOptions;
-    if (fieldKey === "uploader_community") return uploaderCommunityOptions;
+    if (fieldKey === "community") {
+      const selected = builderOp === "IN" ? builderValues : builderValue ? [builderValue] : [];
+      return mergeSelectedIntoOptions(communityOptions, selected);
+    }
+
+    if (fieldKey === "uploader_community") {
+      const selected = builderOp === "IN" ? builderValues : builderValue ? [builderValue] : [];
+      return mergeSelectedIntoOptions(uploaderCommunityOptions, selected);
+    }
 
     return [];
   }
@@ -718,6 +720,21 @@ export default function AdminFileEditRequests({
         ?.label ?? fieldKey
     );
   }
+
+  const communityOptions = useMemo<SelectOption[]>(() => {
+    // Expecting: { communities: [{ name: "..." }, ...] }
+    const list = (communitiesResp as any)?.communities ?? [];
+    const opts = list
+      .map((c: any) => String(c?.name ?? "").trim())
+      .filter(Boolean)
+      .map((name: string) => ({ value: name, label: name }))
+      .sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
+
+    return opts;
+  }, [communitiesResp]);
+
+  const uploaderCommunityOptions = communityOptions;
+
 
   function getOpLabel(op: Operation, fieldType: FieldType) {
     return OPS_BY_TYPE[fieldType].find((x) => x.op === op)?.label ?? op;
@@ -949,7 +966,7 @@ export default function AdminFileEditRequests({
                 textTransform: "none",
                 fontWeight: 900,
                 borderRadius: "10px",
-                color: "#fff",
+                color: color_white,
                 background: "#6d28d9",
                 "&:hover": { background: "#5b21b6" },
               }}
@@ -1023,7 +1040,6 @@ export default function AdminFileEditRequests({
     userOptions,
     fileOptions,
     communityOptions,
-    uploaderCommunityOptions,
     fieldList,
   ]);
 
@@ -1031,9 +1047,9 @@ export default function AdminFileEditRequests({
     textTransform: "none",
     fontWeight: 900,
     borderRadius: "10px",
-    color: "#fff",
+    color: color_white,
     background: color_primary,
-    "&:hover": { background: "#b71c1c" },
+    "&:hover": { background: color_primary },
   } as const;
 
   const rightPct = 100 - leftPct;
@@ -1146,7 +1162,7 @@ export default function AdminFileEditRequests({
 
   return (
     <>
-      <Loader loading={loading || usersLoading || filesLoading || detailsLoading} />
+      <Loader loading={loading || usersLoading || filesLoading || detailsLoading || communitiesLoading} />
 
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Box
@@ -1166,7 +1182,7 @@ export default function AdminFileEditRequests({
             sx={{
               border: "1px solid #e5e7eb",
               borderRadius: "12px",
-              background: "#fff",
+              background: color_white,
               px: 1,
               py: 0.75,
               display: "flex",
@@ -1412,7 +1428,7 @@ export default function AdminFileEditRequests({
                           size="small"
                           sx={{
                             fontWeight: 900,
-                            background: "#fff",
+                            background: color_white,
                             border: "1px solid #e5e7eb",
                           }}
                         />
@@ -1514,7 +1530,7 @@ export default function AdminFileEditRequests({
               overflow: "hidden",
               border: "1px solid #e5e7eb",
               boxShadow: "0 10px 26px rgba(0,0,0,0.08)",
-              background: "#fff",
+              background: color_white,
               display: "flex",
             }}
           >
@@ -1677,7 +1693,7 @@ export default function AdminFileEditRequests({
               <Button
                 startIcon={
                   detailsZipLoading ? (
-                    <CircularProgress size={16} sx={{ color: "#fff" }} />
+                    <CircularProgress size={16} sx={{ color: color_white }} />
                   ) : (
                     <DownloadIcon />
                   )
@@ -1713,7 +1729,7 @@ export default function AdminFileEditRequests({
                       p: 1.25,
                       borderRadius: "14px",
                       border: "1px solid #e5e7eb",
-                      background: "#fff",
+                      background: color_white,
                       display: "flex",
                       gap: 1,
                       alignItems: "center",
@@ -1747,7 +1763,7 @@ export default function AdminFileEditRequests({
                       p: 1.25,
                       borderRadius: "14px",
                       border: "1px solid #e5e7eb",
-                      background: "#fff",
+                      background: color_white,
                       display: "flex",
                       gap: 1,
                       alignItems: "center",
@@ -1797,7 +1813,7 @@ export default function AdminFileEditRequests({
                       border: "1px solid #e5e7eb",
                       borderRadius: "14px",
                       overflow: "hidden",
-                      background: "#fff",
+                      background: color_white,
                       boxShadow: "0 8px 18px rgba(2,6,23,0.06)",
                     }}
                   >
@@ -1874,7 +1890,7 @@ export default function AdminFileEditRequests({
                               cursor: "pointer",
                               border: meta.border,
                               boxShadow: meta.shadow,
-                              background: "#fff",
+                              background: color_white,
                               transition: "transform 140ms ease, box-shadow 140ms ease",
                               "&:hover": {
                                 transform: "translateY(-2px)",
@@ -1917,7 +1933,7 @@ export default function AdminFileEditRequests({
                                 py: 0.75,
                                 borderRadius: "12px",
                                 background: meta.overlayBg,
-                                color: "#fff",
+                                color: color_white,
                                 fontWeight: 900,
                                 backdropFilter: "blur(6px)",
                               }}
@@ -2019,7 +2035,7 @@ export default function AdminFileEditRequests({
                               cursor: "pointer",
                               border: meta.border,
                               boxShadow: meta.shadow,
-                              background: "#fff",
+                              background: color_white,
                               transition: "transform 140ms ease, box-shadow 140ms ease",
                               "&:hover": {
                                 transform: "translateY(-2px)",
@@ -2046,7 +2062,7 @@ export default function AdminFileEditRequests({
                                 height: 190,
                                 display: "grid",
                                 placeItems: "center",
-                                background: "#fff",
+                                background: color_white,
                               }}
                             >
                               <DescriptionIcon sx={{ fontSize: 64, color: "#334155" }} />
@@ -2068,7 +2084,7 @@ export default function AdminFileEditRequests({
                                 py: 0.75,
                                 borderRadius: "12px",
                                 background: meta.overlayBg,
-                                color: "#fff",
+                                color: color_white,
                                 fontWeight: 900,
                                 backdropFilter: "blur(6px)",
                               }}
@@ -2178,7 +2194,7 @@ export default function AdminFileEditRequests({
                 justifyContent: "space-between",
                 alignItems: "center",
                 background: "#0b1220",
-                color: "#fff",
+                color: color_white,
               }}
             >
               Photo Viewer
@@ -2210,7 +2226,7 @@ export default function AdminFileEditRequests({
                       padding: "10px 16px",
                       borderRadius: "999px",
                       background: meta.viewerBg,
-                      color: "#fff",
+                      color: color_white,
                       fontWeight: 900,
                       fontSize: "0.95rem",
                       display: "flex",
@@ -2279,7 +2295,7 @@ export default function AdminFileEditRequests({
                 justifyContent: "space-between",
                 alignItems: "center",
                 background: "#0b1220",
-                color: "#fff",
+                color: color_white,
               }}
             >
               Document Viewer
@@ -2297,10 +2313,10 @@ export default function AdminFileEditRequests({
             <DialogContent sx={{ background: "#000" }}>
               {/* Header */}
               <Box sx={{ mb: 1 }}>
-                <Typography sx={{ fontWeight: 900, color: "#fff" }}>
+                <Typography sx={{ fontWeight: 900, color: color_white }}>
                   {currentDoc.filename ?? `Document #${currentDoc.id}`}
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.85, color: "#fff" }}>
+                <Typography variant="caption" sx={{ opacity: 0.85, color: color_white }}>
                   {currentDocMime || "unknown"} • ID: {currentDoc.id} • {docViewerIndex + 1}/{documents.length}
                 </Typography>
               </Box>
@@ -2317,14 +2333,14 @@ export default function AdminFileEditRequests({
                 }}
               >
                 {docBlobLoading && (
-                  <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2, color: "#fff" }}>
+                  <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2, color: color_white }}>
                     <CircularProgress size={24} />
                     <Typography>Loading document...</Typography>
                   </Box>
                 )}
 
                 {!docBlobLoading && docBlobError && (
-                  <Box sx={{ p: 3, color: "#fff" }}>
+                  <Box sx={{ p: 3, color: color_white }}>
                     <Typography sx={{ fontWeight: 800, mb: 1 }}>Failed to load document</Typography>
                     <Typography sx={{ opacity: 0.85 }}>{String(docBlobError)}</Typography>
                   </Box>
@@ -2336,7 +2352,7 @@ export default function AdminFileEditRequests({
                       <iframe
                         title="pdf-viewer"
                         src={docBlobUrl}
-                        style={{ width: "100%", height: "78vh", border: 0, background: "#fff" }}
+                        style={{ width: "100%", height: "78vh", border: 0, background: color_white }}
                       />
                     )}
 
@@ -2351,7 +2367,7 @@ export default function AdminFileEditRequests({
                     )}
 
                     {!isPdfMime(currentDocMime) && !isImageMime(currentDocMime) && (
-                      <Box sx={{ p: 3, color: "#fff" }}>
+                      <Box sx={{ p: 3, color: color_white }}>
                         <Typography sx={{ fontWeight: 800, mb: 2 }}>
                           Preview not supported for this file type.
                         </Typography>

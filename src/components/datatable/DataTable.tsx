@@ -13,10 +13,10 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { DataTableWrapper, GridWrapper } from "../Wrappers";
-import { color_primary, color_secondary, color_background, header_height, header_mobile_height } from "../../constants/colors";
+import { color_primary, color_secondary, color_background, header_height, header_mobile_height, color_white, color_black, color_black_light, color_light_blue, color_blue_light, color_blue_lighter, color_blue_lightest, color_text_lighter, color_light_gray, color_warning_light } from "../../constants/colors";
 import NIAChat, { NIAChatTrigger } from "../NIAChat";
 import { MicIcon, MicOffIcon, SearchIcon } from "lucide-react";
-import { IconButton, InputAdornment, TextField } from "@mui/material";
+import { Box, Button, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import styled, { keyframes } from "styled-components";
 import { colorSources } from "../../constants/constants";
 import * as XLSX from "xlsx";
@@ -28,6 +28,11 @@ import { EditableTable } from "./EditableTable";
 import AddInfoForm from "./AddInfoForm";
 import PhotoViewerModal from "../photoview/PhotoView";
 import SmartSearchSuggestions from "./SmartSearchSuggestions";
+
+import { Dialog, DialogTitle, DialogContent, Divider } from "@mui/material";
+import DocumentUrlViewerModal from "../photoview/URLDocumentViewer";
+import { color } from "framer-motion";
+
 
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -44,8 +49,8 @@ const AddInfoRenderer = React.memo((props: any) => {
         <button
             style={{
                 padding: "6px 12px",
-                background: "#1976d2",
-                color: "#fff",
+                background: color_secondary,
+                color: color_white,
                 border: "none",
                 borderRadius: "6px",
                 cursor: "pointer",
@@ -63,6 +68,57 @@ const AddInfoRenderer = React.memo((props: any) => {
         </button>
     );
 });
+
+const URL_REGEX = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+
+const normalizeUrl = (raw: string) => {
+    const s = (raw || "").trim();
+    if (!s) return "";
+    if (s.startsWith("http://") || s.startsWith("https://")) return s;
+    if (s.startsWith("www.")) return `https://${s}`;
+    return s;
+};
+
+const cleanUrl = (u: string) => u.replace(/[)\],.]+$/g, "");
+
+const extractUrls = (text: string): string[] => {
+    if (!text) return [];
+    const matches = text.match(URL_REGEX) || [];
+    const cleaned = matches.map((m) => normalizeUrl(cleanUrl(m))).filter(Boolean);
+    // unique
+    return Array.from(new Set(cleaned));
+};
+
+const isDocumentUrl = (url: string) => {
+    const u = url.toLowerCase().split("?")[0];
+    return (
+        u.endsWith(".pdf") ||
+        u.endsWith(".png") ||
+        u.endsWith(".jpg") ||
+        u.endsWith(".jpeg") ||
+        u.endsWith(".webp") ||
+        u.endsWith(".doc") ||
+        u.endsWith(".docx") ||
+        u.endsWith(".xls") ||
+        u.endsWith(".xlsx") ||
+        u.endsWith(".ppt") ||
+        u.endsWith(".pptx") ||
+        u.endsWith(".csv") ||
+        u.endsWith(".txt") ||
+        u.endsWith(".json")
+    );
+};
+
+const linkLabel = (url: string) => {
+    try {
+        const u = new URL(url);
+        const last = u.pathname.split("/").filter(Boolean).pop() || u.hostname;
+        return decodeURIComponent(last.length > 22 ? u.hostname : last);
+    } catch {
+        return url;
+    }
+};
+
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -130,7 +186,7 @@ const MicButton = styled.div<{ $recording: boolean }>`
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  color: ${props => props.$recording ? "#fff" : "#000"};
+  color: ${props => props.$recording ? color_white : color_black};
   font-size: 48px;
   animation: ${props => props.$recording ? pulse : "none"} 1.5s infinite;
   transition: all 0.3s ease;
@@ -138,7 +194,7 @@ const MicButton = styled.div<{ $recording: boolean }>`
 
 const RecorderText = styled.div`
   margin-top: 20px;
-  color: white;
+  color: ${color_white};
   font-size: 22px;
   font-weight: 500;
   text-align: center;
@@ -174,6 +230,34 @@ export default function DataGrid({ rowData }: DataGridProps) {
     const [photoModalOpen, setPhotoModalOpen] = useState(false);
     const [photoRequestId, setPhotoRequestId] = useState<number | null>(null);
     const [hasQuickFilterResults, setHasQuickFilterResults] = useState(true);
+    const [linksOpen, setLinksOpen] = useState(false);
+    const [linksTitle, setLinksTitle] = useState("");
+    const [linksList, setLinksList] = useState<string[]>([]);
+
+    const [docUrlOpen, setDocUrlOpen] = useState(false);
+    const [docUrl, setDocUrl] = useState("");
+    const [docUrlTitle, setDocUrlTitle] = useState<string>("");
+
+    const openWebsite = (url: string) => {
+        const u = normalizeUrl(url);
+        if (!u) return;
+        window.open(u, "_blank", "noopener,noreferrer");
+    };
+
+    const openDocumentUrl = (url: string) => {
+        const u = normalizeUrl(url);
+        if (!u) return;
+        setDocUrl(u);
+        setDocUrlTitle(linkLabel(u));
+        setDocUrlOpen(true);
+    };
+
+    const openLinksModal = (urls: string[], title?: string) => {
+        setLinksList(urls);
+        setLinksTitle(title || "Links");
+        setLinksOpen(true);
+    };
+
 
 
 
@@ -294,8 +378,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
                         <button
                             style={{
                                 padding: "6px 10px",
-                                background: "#0d47a1",
-                                color: "#fff",
+                                background: color_secondary,
+                                color: color_white,
                                 border: "none",
                                 borderRadius: "6px",
                                 cursor: "pointer",
@@ -324,6 +408,49 @@ export default function DataGrid({ rowData }: DataGridProps) {
                     if (!params.value) return null;
 
                     const value = params.value.toString();
+                    const urls = extractUrls(value);
+
+                    // ✅ If this cell contains links, show action buttons
+                    if (urls.length > 0) {
+                        const single = urls.length === 1 ? urls[0] : null;
+                        const isDoc = single ? isDocumentUrl(single) : false;
+
+                        const btnStyle: React.CSSProperties = {
+                            padding: "6px 10px",
+                            background: color_secondary,
+                            color: color_white,
+                            border: "none",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                            width: "100%",
+                            height: "32px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                        };
+
+                        return (
+                            <div style={{ padding: 8 }}>
+                                <button
+                                    style={btnStyle}
+                                    title={value}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (single) {
+                                            if (isDoc) params.context.openDocumentUrl(single);
+                                            else params.context.openWebsite(single);
+                                        } else {
+                                            params.context.openLinksModal(urls, params.colDef?.headerName || params.colDef?.field);
+                                        }
+                                    }}
+                                >
+                                    {single ? (isDoc ? "View Document" : "View Website") : `View Links (${urls.length})`}
+                                </button>
+                            </div>
+                        );
+                    }
+
+                    // ✅ Otherwise, keep your existing color/highlight behavior
                     const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
                     const bracketText = (match?.[3] || "").trim();
                     const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
@@ -334,14 +461,15 @@ export default function DataGrid({ rowData }: DataGridProps) {
                             style={{
                                 backgroundColor: bgColor,
                                 padding: "8px",
-                                color: isColored ? "#fff" : "#1a1a1a",
-                                fontWeight: isColored ? 600 : 400
+                                color: isColored ? color_white : color_black_light,
+                                fontWeight: isColored ? 600 : 400,
                             }}
                         >
                             <HighlightCell value={value} searchText={searchText} fontSize={fontSize} />
                         </div>
                     );
                 }
+
             };
         });
 
@@ -359,7 +487,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
             cellStyle: {
                 textAlign: "left",
                 padding: "0px",
-                color: "#1a1a1a"
+                color: color_black_light
             },
             headerClass: "bold-header"
         }),
@@ -558,7 +686,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "8px",
-                                background: "#f1f5f9",
+                                background: color_text_lighter,
                                 padding: "8px 12px",
                                 borderRadius: "10px",
                                 boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
@@ -581,7 +709,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     fontSize: "0.95rem",
                                     borderRadius: "10px",
                                     border: `1px solid ${color_secondary}`,
-                                    background: "#E3F2FD",
+                                    background: color_blue_lighter,
                                     cursor: "pointer",
                                     fontWeight: "bold",
                                     color: color_secondary,
@@ -671,7 +799,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     fontSize: "0.95rem",
                                     borderRadius: "10px",
                                     border: "1px solid #ccc",
-                                    background: "#fff",
+                                    background: color_white,
                                     cursor: "pointer",
                                     color: color_primary,
                                     flexShrink: 0,
@@ -688,7 +816,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     fontSize: "0.95rem",
                                     borderRadius: "10px",
                                     border: "1px solid #ccc",
-                                    background: "#fff",
+                                    background: color_white,
                                     cursor: "pointer",
                                     color: color_primary,
                                     flexShrink: 0,
@@ -725,8 +853,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     alignItems: "center",
                                     padding: "0 10px",
                                     fontSize: "0.95rem",
-                                    color: "#333",
-                                    background: "#e3f2fd",
+                                    color: color_black,
+                                    background: color_light_blue,
                                     borderRadius: "10px",
                                     fontWeight: 500,
                                     flexShrink: 0,
@@ -748,7 +876,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     borderRadius: "10px",
                                     border: "1px solid #ccc",
                                     cursor: "pointer",
-                                    background: "#fff",
+                                    background: color_white,
                                     fontWeight: "bold",
                                     flexShrink: 0,
                                     whiteSpace: "nowrap",
@@ -767,7 +895,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     borderRadius: "10px",
                                     border: "1px solid #ccc",
                                     cursor: "pointer",
-                                    background: "#fff",
+                                    background: color_white,
                                     fontWeight: "bold",
                                     flexShrink: 0,
                                     whiteSpace: "nowrap",
@@ -804,7 +932,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     fontSize: "0.95rem",
                                     borderRadius: "10px",
                                     border: `1px solid ${color_secondary}`,
-                                    background: "#FFE0B2",
+                                    background: color_warning_light,
                                     cursor: "pointer",
                                     color: color_secondary,
                                     fontWeight: "bold",
@@ -853,10 +981,10 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                         borderRadius: "6px",
                                         border:
                                             sourceFilter === null
-                                                ? "3px solid #000"
-                                                : "1px solid #ccc",
-                                        background: "#f5f5f5",
-                                        color: "#333",
+                                                ?  `3px solid ${color_black}`
+                                                : `1px solid ${color_light_gray}`,
+                                        background: color_white,
+                                        color: color_black,
                                         cursor: "pointer",
                                         fontWeight: 600,
                                         boxShadow:
@@ -883,7 +1011,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                                     ? "3px solid #000"
                                                     : "1px solid #ccc",
                                             background: colorSources[key],
-                                            color: "#fff",
+                                            color: color_white,
                                             cursor: "pointer",
                                             fontWeight: 600,
                                             boxShadow:
@@ -930,7 +1058,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                             padding: "0 14px",
                                             borderRadius: 10,
                                             background: color_secondary,
-                                            color: "#fff",
+                                            color: color_white,
                                             border: "none",
                                             cursor: "pointer",
                                             fontSize: 14,
@@ -962,7 +1090,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                             padding: "0 14px",
                                             borderRadius: 10,
                                             background: color_secondary,
-                                            color: "#fff",
+                                            color: color_white,
                                             border: "none",
                                             cursor: "pointer",
                                             fontSize: 14,
@@ -985,8 +1113,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                         minWidth: 260,
                                         fontSize: 14,
                                         fontWeight: 600,
-                                        color: "#1a1a1a",
-                                        background: "#F0F4FF",
+                                        color: color_black_light,
+                                        background: color_blue_lighter,
                                         padding: "10px 12px",
                                         borderRadius: 10,
                                         lineHeight: 1.35,
@@ -1046,7 +1174,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                             position: "sticky",
                                             top: 0,
                                             zIndex: 2,
-                                            background: "#fff",
+                                            background: color_white,
                                             paddingBottom: 8,
                                         }}
                                     >
@@ -1110,7 +1238,10 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                         openPhotoView: (row: any) => {
                                             setPhotoRequestId(row.id)
                                             setPhotoModalOpen(true);
-                                        }
+                                        },
+                                        openWebsite,
+                                        openDocumentUrl,
+                                        openLinksModal,
                                     }}
                                 />
                             </div>
@@ -1158,7 +1289,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                                 padding: "10px 14px",
                                                 borderRadius: 10,
                                                 background: color_primary,
-                                                color: "#fff",
+                                                color: color_white,
                                                 border: "none",
                                                 cursor: "pointer",
                                                 fontWeight: 700,
@@ -1174,6 +1305,71 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     />
                                 </div>
                             )}
+
+                        {/* Links picker */}
+                        {linksOpen && (
+                            <Dialog open={linksOpen} onClose={() => setLinksOpen(false)} maxWidth="sm" fullWidth>
+                                <DialogTitle sx={{ fontWeight: 900 }}>{linksTitle}</DialogTitle>
+                                <Divider />
+                                <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 1.25, py: 2 }}>
+                                    {linksList.map((u) => {
+                                        const doc = isDocumentUrl(u);
+                                        return (
+                                            <Box
+                                                key={u}
+                                                sx={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "space-between",
+                                                    gap: 1,
+                                                    p: 1.25,
+                                                    borderRadius: 2,
+                                                    border: "1px solid rgba(0,0,0,0.10)",
+                                                    background: color_white,
+                                                }}
+                                            >
+                                                <Typography
+                                                    sx={{
+                                                        fontWeight: 800,
+                                                        fontSize: 13,
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        maxWidth: "60%",
+                                                    }}
+                                                    title={u}
+                                                >
+                                                    {linkLabel(u)}
+                                                </Typography>
+
+                                                <Button
+                                                    variant="contained"
+                                                    onClick={() => {
+                                                        setLinksOpen(false);
+                                                        if (doc) openDocumentUrl(u);
+                                                        else openWebsite(u);
+                                                    }}
+                                                    sx={{ fontWeight: 900, textTransform: "none" }}
+                                                >
+                                                    {doc ? "View Document" : "View Website"}
+                                                </Button>
+                                            </Box>
+                                        );
+                                    })}
+                                </DialogContent>
+                            </Dialog>
+                        )}
+
+                        {/* URL Document Viewer */}
+                        {docUrlOpen && (
+                            <DocumentUrlViewerModal
+                                open={docUrlOpen}
+                                url={docUrl}
+                                title={docUrlTitle}
+                                onClose={() => setDocUrlOpen(false)}
+                            />
+                        )}
+
                     </>
                 )}
 
@@ -1185,7 +1381,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: "white",
+                            background: color_white,
                             zIndex: 1000,
                             borderRadius: 8,
                             overflow: "hidden"
@@ -1235,15 +1431,15 @@ export default function DataGrid({ rowData }: DataGridProps) {
           .ag-theme-quartz .bold-header {
             font-size: 1.1rem !important;
             font-weight: bold !important;
-            background-color: #cce0ff !important;
-            color: #0d47a1 !important;
+            background-color: ${color_blue_lightest} !important;
+            color: ${color_secondary} !important;
           }
           .ag-theme-quartz .ag-row-selected {
-            background-color: #99ccff !important;
+            background-color: ${color_blue_light} !important;
             font-weight: bold;
           }
           .ag-theme-quartz .ag-row:hover {
-            background-color: #b3d1ff !important;
+            background-color: ${color_blue_lighter} !important;
           }
           .ag-theme-quartz .ag-paging-panel {
             display: none !important;

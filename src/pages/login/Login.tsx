@@ -65,11 +65,11 @@ function Login() {
 
   useEffect(() => {
     if ((data as any)?.data) {
-      const { firstname, id, email, lastname, phonenumber, role } = (data as any).data;
+      const { firstname, id, email, lastname, phonenumber, role, community } = (data as any).data;
       dispatch(
         setAuth({
           token: "cookies",
-          user: { id, firstname, lastname, email, phonenumber, role },
+          user: { id, firstname, lastname, email, phonenumber, role, community },
         })
       );
       navigate("/files");

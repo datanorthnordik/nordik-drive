@@ -14,8 +14,8 @@ const AuthInitializer = () => {
 
   useEffect(()=>{
     if(data && !error){
-      const { firstname, id, email, lastname, phonenumber, role } = (data as any).user
-      dispatch(setAuth({ token: "Cookies", user: { id, firstname, lastname, email, phonenumber, role } }));
+      const { firstname, id, email, lastname, phonenumber, role, community } = (data as any).user
+      dispatch(setAuth({ token: "Cookies", user: { id, firstname, lastname, email, phonenumber, role, community } }));
     } else if(error){
       dispatch(clearAuth());
     }

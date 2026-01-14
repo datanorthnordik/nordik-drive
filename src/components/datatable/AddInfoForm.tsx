@@ -20,11 +20,12 @@ import {
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
 import { RestartAlt } from "@mui/icons-material";
-import { color_primary } from "../../constants/colors";
+import { color_light_gray, color_primary, color_secondary, color_text_primary, color_white, color_white_smoke, dark_grey } from "../../constants/colors";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
 import toast from "react-hot-toast";
 import DropdownDatePicker from "./DropDownPicker";
+import { useSelector } from "react-redux";
 
 interface AddInfoFormProps {
   row: Record<string, any>;
@@ -47,6 +48,44 @@ const fieldTypeMap: Record<string, string> = {
   "First Nation/Community": "community_multi",
   "First Nation / Community": "community_multi",
 };
+
+const toStringArray = (v: any): string[] => {
+  if (Array.isArray(v)) {
+    return v
+      .map((x) => (x ?? "").toString().trim())
+      .filter((x) => x.length > 0);
+  }
+  if (typeof v === "string") {
+    return v
+      .split(",")
+      .map((x) => x.trim())
+      .filter((x) => x.length > 0);
+  }
+  return [];
+};
+
+const uniqCaseInsensitive = (arr: string[]): string[] => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of arr) {
+    const k = s.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(s);
+  }
+  return out;
+};
+
+const getCommunityArray = (values: Record<string, any>, rowObj: Record<string, any>) => {
+  const v =
+    values["First Nation/Community"] ??
+    values["First Nation / Community"] ??
+    rowObj["First Nation/Community"] ??
+    rowObj["First Nation / Community"];
+
+  return uniqCaseInsensitive(toStringArray(v));
+};
+
 
 const MAX_PHOTOS = 5;
 const MAX_PHOTO_MB = 5;
@@ -195,6 +234,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   // ---- warning banner computations (photo display limit: MAX_PHOTOS) ----
   const photoCount = photos.length;
   const percentUsed = (photoCount / MAX_PHOTOS) * 100;
+  const { user } = useSelector((state: any) => state.auth);
 
   let warningColor = "";
   let warningText = "";
@@ -278,8 +318,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const dialogTitle = isNewEntry
     ? "Add New Student"
     : `Add Information – ${fullName ||
-      `${row["First Names"] || ""} ${row["Last Names"] || ""}`.trim()
-      }`;
+    `${row["First Names"] || ""} ${row["Last Names"] || ""}`.trim()
+    }`;
 
   // ---------------------- FIELD UPDATER -----------------------
   const updateField = (field: string, value: any) => {
@@ -554,6 +594,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
       const allFiles = [...photos, ...additionalDocs.map(d => d.file)];
       const estimatedB64Bytes = estimateTotalBase64Bytes(allFiles);
       const estimatedMB = bytesToMB(estimatedB64Bytes);
+      const communityArray = getCommunityArray(formValues, row || {});
 
       // This is an estimate, but prevents obvious oversize requests
       if (estimatedMB > 25) {
@@ -588,12 +629,14 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
         photos_in_app: photosInApp,
         photos_for_gallery_review: photosGallery,
 
-        consent,                 // photo/publication consent (existing)
-        archive_consent: archiveConsent, // new
+        consent,
+        archive_consent: archiveConsent,
 
-        documents: documentsPayload, // ✅ only one key for additional docs
+        documents: documentsPayload,
 
-        is_edited: isNewEntry ? false : true
+        is_edited: isNewEntry ? false : true,
+        community: communityArray,
+        uploader_community: user?.community || []
       };
 
       if (isNewEntry) {
@@ -764,21 +807,22 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                           fullWidth
                           options={communityOptions}
                           value={val || ""}
-                          onChange={(_, newValue) => handleSetItem(idx, newValue)}
-                          noOptionsText="No match — type the name and press Enter to add it"
-                          sx={{
-                            flex: 1,
-                            minWidth: 0,
-                            "& .MuiInputBase-root": {
-                              background: "#fff",
-                              borderRadius: 2,
-                              minHeight: 52
-                            },
-                            "& .MuiInputBase-input": {
-                              fontSize: "1.15rem",
-                              padding: "12px !important"
-                            }
+
+                          // ✅ this keeps the typed text in your controlled state
+                          inputValue={val || ""}
+                          onInputChange={(_, newInputValue) => {
+                            const next = [...safeItems];
+                            next[idx] = newInputValue;
+                            updateField(label, next);
                           }}
+
+                          onChange={(_, newValue) => {
+                            const next = [...safeItems];
+                            next[idx] = normalizeCommunityName(newValue);
+                            updateField(label, next);
+                          }}
+
+                          noOptionsText="No match — type the name and press Enter to add it"
                           renderInput={(params) => (
                             <TextField
                               {...params}
@@ -786,13 +830,17 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                               placeholder="Search or type a community (press Enter to add)"
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
+                                  e.preventDefault();
                                   const v = (e.target as HTMLInputElement).value;
-                                  handleSetItem(idx, v);
+                                  const next = [...safeItems];
+                                  next[idx] = v;
+                                  updateField(label, next);
                                 }
                               }}
                             />
                           )}
                         />
+
 
                         <Button
                           onClick={() => handleRemove(idx)}
@@ -839,11 +887,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                             textTransform: "none",
                             border: `2px solid ${color_primary}`,
                             color: color_primary,
-                            background: "#fff",
+                            background: color_white,
                             fontWeight: 700,
                             fontSize: "1.0rem",
                             borderRadius: "10px",
-                            "&:hover": { background: "#eef5ff" }
+                            "&:hover": { background: color_white_smoke }
                           }}
                         >
                           Reset
@@ -877,7 +925,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                         value={value || ""}
                         onChange={(e) => updateField(label, e.target.value)}
                         sx={{
-                          background: "#fff",
+                          background: color_white,
                           borderRadius: 2,
                           "& .MuiInputBase-input": {
                             fontSize: "1.15rem",
@@ -900,11 +948,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                           textTransform: "none",
                           border: `2px solid ${color_primary}`,
                           color: color_primary,
-                          background: "#fff",
+                          background: color_white,
                           fontWeight: 700,
                           fontSize: "1.15rem",
                           borderRadius: "12px",
-                          "&:hover": { background: "#eef5ff" }
+                          "&:hover": { background: color_white_smoke }
                         }}
                       >
                         Reset
@@ -964,7 +1012,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                           value={val}
                           onChange={(e) => handleChangeItem(idx, e.target.value)}
                           sx={{
-                            background: "#fff",
+                            background: color_white,
                             borderRadius: 2,
                             "& .MuiInputBase-input": {
                               fontSize: "1.15rem",
@@ -1016,11 +1064,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                             textTransform: "none",
                             border: `2px solid ${color_primary}`,
                             color: color_primary,
-                            background: "#fff",
+                            background: color_white,
                             fontWeight: 700,
                             fontSize: "1.0rem",
                             borderRadius: "10px",
-                            "&:hover": { background: "#eef5ff" }
+                            "&:hover": { background: color_white_smoke }
                           }}
                         >
                           Reset
@@ -1052,7 +1100,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                     value={value || ""}
                     onChange={(e) => updateField(label, e.target.value)}
                     sx={{
-                      background: "#fff",
+                      background: color_white,
                       borderRadius: 2,
                       "& .MuiInputBase-input": {
                         fontSize: "1.15rem",
@@ -1070,11 +1118,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                         textTransform: "none",
                         border: `2px solid ${color_primary}`,
                         color: color_primary,
-                        background: "#fff",
+                        background: color_white,
                         fontWeight: 700,
                         fontSize: "1.15rem",
                         borderRadius: "12px",
-                        "&:hover": { background: "#eef5ff" }
+                        "&:hover": { background: color_white_smoke }
                       }}
                     >
                       Reset
@@ -1087,7 +1135,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                   <div
                     style={{
                       marginTop: 16,
-                      background: "#f7f9ff",
+                      background: color_light_gray,
                       padding: "18px",
                       borderRadius: "12px",
                       border: "2px solid #d0d7e5"
@@ -1097,7 +1145,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                       Additional Documents
                     </div>
 
-                    <div style={{ fontSize: "1.05rem", color: "#334155", marginBottom: 14 }}>
+                    <div style={{ fontSize: "1.05rem", color: color_text_primary, marginBottom: 14 }}>
                       Upload documents such as <b>Birth Certificate</b>, <b>Death Certificate</b>, or other relevant files.
                       Accepted: <b>PDF, DOC/DOCX, JPG/PNG/WEBP</b>.
                       <br />
@@ -1132,7 +1180,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                               gap: 10,
                               alignItems: "center",
                               flexWrap: "wrap",
-                              background: "#fff",
+                              background: color_white,
                               border: "1px solid #e5e7eb",
                               borderRadius: 12,
                               padding: "10px 12px",
@@ -1221,7 +1269,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           {/* ---------------- PHOTO UPLOAD SECTION ---------------- */}
           <div
             style={{
-              background: "#f7f9ff",
+              background: color_light_gray,
               padding: "20px",
               borderRadius: "12px",
               border: "2px solid #d0d7e5"
@@ -1274,7 +1322,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                       fontSize: "1.2rem",
                       border: "1px solid #888",
                       background: color_primary,
-                      color: "#fff"
+                      color: color_white
                     }}
                   >
                     ✕
@@ -1291,7 +1339,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                   marginTop: 8,
                   height: 10,
                   width: "100%",
-                  background: "#e0e0e0",
+                  background: color_white_smoke,
                   borderRadius: 8,
                   overflow: "hidden"
                 }}
@@ -1299,7 +1347,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                 <div
                   style={{
                     width: `${clamp((photos.length / MAX_PHOTOS) * 100, 0, 100)}%`,
-                    background: "#4f79ff",
+                    background: color_secondary,
                     height: "100%"
                   }}
                 />
@@ -1315,8 +1363,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                   background: warningColor,
                   fontSize: "1.15rem",
                   fontWeight: 600,
-                  color: "#333",
-                  border: "1px solid #999"
+                  color: color_text_primary,
+                  border: `1px solid ${dark_grey}`
                 }}
               >
                 {warningText}
@@ -1370,7 +1418,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
               borderRadius: "12px",
               textTransform: "none",
               border: `2px solid ${color_primary}`,
-              background: "#fff",
+              background: color_white,
               color: color_primary,
               fontWeight: 800
             }}
