@@ -9,11 +9,24 @@ import {
     RowNode,
     IRowNode
 } from "ag-grid-community";
+import {
+    Mic,
+    MicOff,
+    Search,
+    ArrowLeft,
+    ChevronUp,
+    ChevronDown,
+    Sparkles,
+    Download,
+    Plus,
+    Info,
+    X,
+} from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { DataTableWrapper, GridWrapper } from "../Wrappers";
-import { color_primary, color_secondary, color_background, header_height, header_mobile_height, color_white, color_black, color_black_light, color_light_blue, color_blue_light, color_blue_lighter, color_blue_lightest, color_text_lighter, color_light_gray, color_warning_light } from "../../constants/colors";
+import { color_primary, color_secondary, color_background, header_height, header_mobile_height, color_white, color_black, color_black_light, color_light_blue, color_blue_light, color_blue_lighter, color_blue_lightest, color_text_lighter, color_light_gray, color_warning_light, color_border, color_secondary_dark, color_white_smoke, dark_grey, color_text_light } from "../../constants/colors";
 import NIAChat, { NIAChatTrigger } from "../NIAChat";
 import { MicIcon, MicOffIcon, SearchIcon } from "lucide-react";
 import { Box, Button, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
@@ -31,7 +44,7 @@ import SmartSearchSuggestions from "./SmartSearchSuggestions";
 
 import { Dialog, DialogTitle, DialogContent, Divider } from "@mui/material";
 import DocumentUrlViewerModal from "../photoview/URLDocumentViewer";
-import { color } from "framer-motion";
+
 
 
 
@@ -681,51 +694,52 @@ export default function DataGrid({ rowData }: DataGridProps) {
                     <>
                         <div
                             ref={topControlsRef}
+                            className="top-controls-bar"
                             style={{
                                 marginBottom: "10px",
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "8px",
-                                background: color_text_lighter,
                                 padding: "8px 12px",
                                 borderRadius: "10px",
                                 boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
 
-                                // ✅ One row always
                                 flexWrap: "nowrap",
-
-                                // ✅ Scroll ONLY on mobile
-                                overflowX: isMobile ? "auto" : "hidden",
-                                overflowY: "hidden",
-                                WebkitOverflowScrolling: "touch",
                                 whiteSpace: "nowrap",
+
+                                // ✅ IMPORTANT: prevents clipping (including NIA) when width gets tight
+                                overflowX: "auto",
+                                overflowY: "visible",
+                                WebkitOverflowScrolling: "touch",
                             }}
                         >
-                            <button
+                            {/* ...your existing buttons... */}
+
+                            {/* Files */}
+                            <Button
                                 onClick={() => window.history.back()}
-                                style={{
-                                    height: "44px",
-                                    padding: "0 16px",
-                                    fontSize: "0.95rem",
-                                    borderRadius: "10px",
-                                    border: `1px solid ${color_secondary}`,
-                                    background: color_blue_lighter,
-                                    cursor: "pointer",
-                                    fontWeight: "bold",
+                                variant="outlined"
+                                startIcon={<ArrowLeft size={18} />}
+                                sx={{
+                                    height: 46,
+                                    px: 2,
+                                    borderRadius: 999,
+                                    borderColor: color_border,
+                                    background: color_white,
                                     color: color_secondary,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "6px",
+                                    fontWeight: 900,
+                                    textTransform: "none",
                                     flexShrink: 0,
-                                    whiteSpace: "nowrap",
+                                    "&:hover": { background: color_white_smoke, borderColor: color_secondary },
                                 }}
                             >
-                                ← Files
-                            </button>
+                                Files
+                            </Button>
 
+                            {/* Search */}
                             <TextField
                                 variant="outlined"
-                                placeholder="Search..."
+                                placeholder="Search records..."
                                 value={searchText}
                                 onChange={(e) => {
                                     setSearchText(e.target.value);
@@ -736,175 +750,240 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                     if (e.key === "Enter") handleSearch();
                                 }}
                                 InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <Search size={18} color={dark_grey} />
+                                        </InputAdornment>
+                                    ),
                                     endAdornment: (
                                         <InputAdornment position="end">
-                                            <IconButton onClick={() => handleSearch()} size="small">
-                                                <SearchIcon size={18} />
-                                            </IconButton>
-                                            <IconButton
-                                                onClick={() => {
-                                                    if (!isRecording) {
-                                                        const SpeechRecognition =
-                                                            (window as any).SpeechRecognition ||
-                                                            (window as any).webkitSpeechRecognition;
-                                                        if (!SpeechRecognition) {
-                                                            alert("Speech recognition not supported.");
-                                                            return;
+                                            {/* small icon pills inside input (matches UX) */}
+                                            <Box sx={{ display: "flex", gap: 0.75 }}>
+                                                <IconButton
+                                                    onClick={() => handleSearch()}
+                                                    size="small"
+                                                    aria-label="Search"
+                                                    sx={{
+                                                        width: 36,
+                                                        height: 36,
+                                                        borderRadius: 2,
+                                                        border: `1px solid ${color_border}`,
+                                                        background: color_white,
+                                                        color: dark_grey,
+                                                    }}
+                                                >
+                                                    <Search size={18} />
+                                                </IconButton>
+
+                                                <IconButton
+                                                    aria-label={isRecording ? "Stop voice search" : "Start voice search"}
+                                                    title={isRecording ? "Stop voice search" : "Start voice search"}
+                                                    size="small"
+                                                    onClick={() => {
+                                                        if (!isRecording) {
+                                                            const SpeechRecognition =
+                                                                (window as any).SpeechRecognition ||
+                                                                (window as any).webkitSpeechRecognition;
+                                                            if (!SpeechRecognition) {
+                                                                alert("Speech recognition not supported.");
+                                                                return;
+                                                            }
+                                                            const recognition = new SpeechRecognition();
+                                                            recognition.lang = "en-US";
+                                                            recognition.interimResults = false;
+                                                            recognition.maxAlternatives = 1;
+                                                            recognition.onresult = (event: any) => {
+                                                                const transcript = event.results[0][0].transcript;
+                                                                setSearchText(transcript);
+                                                                handleSearch(transcript);
+                                                            };
+                                                            recognition.onend = () => setIsRecording(false);
+                                                            recognition.start();
+                                                            recognitionRef.current = recognition;
+                                                            setIsRecording(true);
+                                                        } else {
+                                                            recognitionRef.current?.stop();
+                                                            setIsRecording(false);
                                                         }
-                                                        const recognition = new SpeechRecognition();
-                                                        recognition.lang = "en-US";
-                                                        recognition.interimResults = false;
-                                                        recognition.maxAlternatives = 1;
-                                                        recognition.onresult = (event: any) => {
-                                                            const transcript = event.results[0][0].transcript;
-                                                            setSearchText(transcript);
-                                                            handleSearch();
-                                                        };
-                                                        recognition.onend = () => setIsRecording(false);
-                                                        recognition.start();
-                                                        recognitionRef.current = recognition;
-                                                        setIsRecording(true);
-                                                    } else {
-                                                        recognitionRef.current?.stop();
-                                                        setIsRecording(false);
-                                                    }
-                                                }}
-                                                color={isRecording ? "error" : "default"}
-                                                title={isRecording ? "Stop recording" : "Start voice search"}
-                                                size="small"
-                                            >
-                                                {isRecording ? <MicOffIcon size={18} /> : <MicIcon size={18} />}
-                                            </IconButton>
+                                                    }}
+                                                    sx={{
+                                                        width: 36,
+                                                        height: 36,
+                                                        borderRadius: 2,
+                                                        border: `1px solid ${color_border}`,
+                                                        background: color_white,
+                                                        color: isRecording ? color_primary : dark_grey,
+                                                    }}
+                                                >
+                                                    {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+                                                </IconButton>
+                                            </Box>
                                         </InputAdornment>
                                     ),
                                 }}
                                 sx={{
-                                    // ✅ better space usage on desktop, still scrolls on mobile when needed
-                                    flex: "1 1 420px",
-                                    minWidth: isMobile ? "240px" : "320px",
-                                    maxWidth: isMobile ? "520px" : "680px",
-
+                                    // ✅ make search shrink more so Download stays visible
+                                    flex: "1 1 520px",
+                                    minWidth: isMobile ? 220 : 360,
+                                    maxWidth: isMobile ? 520 : 760,
                                     "& .MuiOutlinedInput-root": {
-                                        height: "44px",
-                                        borderRadius: "10px",
+                                        height: 46,
+                                        borderRadius: 999,
+                                        background: color_white,
+                                        "& fieldset": { borderColor: color_border },
+                                        "&:hover fieldset": { borderColor: color_secondary },
+                                        "&.Mui-focused fieldset": { borderColor: color_secondary, borderWidth: 2 },
                                     },
+                                    "& input::placeholder": { color: color_text_light, opacity: 1 },
                                 }}
                             />
 
-                            <button
-                                onClick={() => navigateMatch("prev")}
-                                style={{
-                                    height: "44px",
-                                    padding: "0 10px",
-                                    fontSize: "0.95rem",
-                                    borderRadius: "10px",
-                                    border: "1px solid #ccc",
+                            {/* ✅ Single compact split-button: top half prev, bottom half next */}
+                            <IconButton
+                                disabled={matches.length === 0}
+                                onClick={(e) => {
+                                    if (matches.length === 0) return;
+                                    const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                    const y = (e as any).clientY - rect.top;
+                                    if (y < rect.height / 2) navigateMatch("prev");
+                                    else navigateMatch("next");
+                                }}
+                                title="Top: previous result • Bottom: next result"
+                                aria-label="Result navigation"
+                                disableRipple
+                                sx={{
+                                    width: 46,
+                                    height: 46,
+                                    borderRadius: 999,
+                                    border: `1px solid ${color_border}`,
                                     background: color_white,
-                                    cursor: "pointer",
-                                    color: color_primary,
+                                    color: dark_grey,
                                     flexShrink: 0,
+                                    overflow: "hidden",
+                                    padding: 0,
+                                    "&:hover": { background: color_white_smoke },
+                                    "&.Mui-disabled": { opacity: 0.45 },
                                 }}
                             >
-                                ▲
-                            </button>
-
-                            <button
-                                onClick={() => navigateMatch("next")}
-                                style={{
-                                    height: "44px",
-                                    padding: "0 10px",
-                                    fontSize: "0.95rem",
-                                    borderRadius: "10px",
-                                    border: "1px solid #ccc",
-                                    background: color_white,
-                                    cursor: "pointer",
-                                    color: color_primary,
-                                    flexShrink: 0,
-                                }}
-                            >
-                                ▼
-                            </button>
-
-                            {/* ✅ NIA Trigger shrink + stop it from expanding the bar */}
-                            <div
-                                style={{
-                                    height: "44px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        transform: isMobile ? "scale(0.92)" : "scale(0.85)",
-                                        transformOrigin: "center",
-                                        display: "flex",
-                                        alignItems: "center",
+                                <Box
+                                    sx={{
+                                        width: "100%",
+                                        height: "100%",
+                                        display: "grid",
+                                        gridTemplateRows: "1fr 1fr",
                                     }}
                                 >
-                                    <NIAChatTrigger setOpen={setNiaOpen} />
-                                </div>
-                            </div>
+                                    {/* Top half */}
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            lineHeight: 0,
+                                            borderBottom: `1px solid ${color_border}`, // ✅ divider
+                                            pointerEvents: "none", // ✅ click handled by IconButton
+                                        }}
+                                    >
+                                        <ChevronUp size={18} />
+                                    </Box>
 
-                            <span
-                                style={{
-                                    height: "44px",
+                                    {/* Bottom half */}
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            lineHeight: 0,
+                                            pointerEvents: "none",
+                                        }}
+                                    >
+                                        <ChevronDown size={18} />
+                                    </Box>
+                                </Box>
+                            </IconButton>
+
+
+                            {/* NIA (revert to old clean look) */}
+                            <Box
+                                sx={{
+                                    height: 46,
                                     display: "flex",
                                     alignItems: "center",
-                                    padding: "0 10px",
-                                    fontSize: "0.95rem",
-                                    color: color_black,
-                                    background: color_light_blue,
-                                    borderRadius: "10px",
-                                    fontWeight: 500,
                                     flexShrink: 0,
-                                    whiteSpace: "nowrap",
                                 }}
                             >
-                                {matches.length > 0
-                                    ? `${currentMatchIndex + 1} of ${matches.length}`
-                                    : "0 results"}
-                            </span>
+                                {/* ✅ NIA: no scaling, no clipping, no overlap */}
+                                <div className="nia-slot">
+                                    <NIAChatTrigger setOpen={setNiaOpen} />
+                                </div>
 
-                            <button
-                                title="Zoom In"
-                                onClick={() => onZoomChange(Math.min(28, fontSize + 2))}
-                                style={{
-                                    height: "44px",
-                                    padding: "0 10px",
-                                    fontSize: "0.95rem",
-                                    borderRadius: "10px",
-                                    border: "1px solid #ccc",
-                                    cursor: "pointer",
-                                    background: color_white,
-                                    fontWeight: "bold",
+                            </Box>
+
+
+                            {/* Results */}
+                            <Box
+                                sx={{
+                                    height: 46,
+                                    width: 110,                // ✅ fixed width prevents layout jump
+                                    px: 1.5,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",  // ✅ center text
+                                    borderRadius: 999,
+                                    border: `1px solid ${color_border}`,
+                                    background: color_white_smoke,
+                                    fontWeight: 900,
+                                    color: color_black_light,
                                     flexShrink: 0,
                                     whiteSpace: "nowrap",
+                                    fontVariantNumeric: "tabular-nums", // ✅ stable digit width
+                                }}
+                            >
+                                {matches.length > 0 ? `${currentMatchIndex + 1} of ${matches.length}` : "0 results"}
+                            </Box>
+
+
+                            {/* Zoom In/Out */}
+                            <Button
+                                onClick={() => onZoomChange(Math.min(28, fontSize + 2))}
+                                variant="outlined"
+                                sx={{
+                                    height: 46,
+                                    px: 2,
+                                    borderRadius: 999,
+                                    borderColor: color_border,
+                                    background: color_white,
+                                    color: color_black_light,
+                                    fontWeight: 900,
+                                    textTransform: "none",
+                                    flexShrink: 0,
+                                    "&:hover": { background: color_white_smoke, borderColor: color_secondary },
                                 }}
                             >
                                 ZOOM IN
-                            </button>
+                            </Button>
 
-                            <button
-                                title="Zoom Out"
+                            <Button
                                 onClick={() => onZoomChange(Math.max(12, fontSize - 2))}
-                                style={{
-                                    height: "44px",
-                                    padding: "0 10px",
-                                    fontSize: "0.95rem",
-                                    borderRadius: "10px",
-                                    border: "1px solid #ccc",
-                                    cursor: "pointer",
+                                variant="outlined"
+                                sx={{
+                                    height: 46,
+                                    px: 2,
+                                    borderRadius: 999,
+                                    borderColor: color_border,
                                     background: color_white,
-                                    fontWeight: "bold",
+                                    color: color_black_light,
+                                    fontWeight: 900,
+                                    textTransform: "none",
                                     flexShrink: 0,
-                                    whiteSpace: "nowrap",
+                                    "&:hover": { background: color_white_smoke, borderColor: color_secondary },
                                 }}
                             >
                                 ZOOM OUT
-                            </button>
+                            </Button>
 
-                            <button
+                            {/* Download */}
+                            <Button
                                 onClick={() => {
                                     if (!gridApi) return;
 
@@ -926,23 +1005,26 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
                                     XLSX.writeFile(workbook, isFiltered ? "filtered_data.xlsx" : "all_data.xlsx");
                                 }}
-                                style={{
-                                    height: "44px",
-                                    padding: "0 16px",
-                                    fontSize: "0.95rem",
-                                    borderRadius: "10px",
-                                    border: `1px solid ${color_secondary}`,
-                                    background: color_warning_light,
-                                    cursor: "pointer",
-                                    color: color_secondary,
-                                    fontWeight: "bold",
+                                variant="contained"
+                                startIcon={<Download size={18} />}
+                                sx={{
+                                    height: 46,
+                                    px: 2.25,
+                                    borderRadius: 999,
+                                    background: color_secondary,
+                                    color: color_white,
+                                    fontWeight: 900,
+                                    textTransform: "none",
                                     flexShrink: 0,
-                                    whiteSpace: "nowrap",
+                                    "&:hover": { background: color_secondary_dark },
                                 }}
                             >
-                                ⬇️ Download
-                            </button>
+                                Download
+                            </Button>
                         </div>
+
+
+
                         <SmartSearchSuggestions
                             query={searchText}
                             rowData={rowData}
@@ -981,7 +1063,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                                         borderRadius: "6px",
                                         border:
                                             sourceFilter === null
-                                                ?  `3px solid ${color_black}`
+                                                ? `3px solid ${color_black}`
                                                 : `1px solid ${color_light_gray}`,
                                         background: color_white,
                                         color: color_black,
@@ -1029,108 +1111,43 @@ export default function DataGrid({ rowData }: DataGridProps) {
                         )}
 
                         {selectedFile?.community_filter && (
-                            <div
-                                style={{
-                                    marginBottom: 8,
-                                    display: "flex",
-                                    alignItems: "stretch",
-                                    gap: 10,
+                            <div className="community-action-bar">
+                                <button
+                                    className="community-action-btn"
+                                    onClick={() => setFilterOpen((p) => !p)}
+                                    aria-expanded={filterOpen}
+                                    type="button"
+                                >
+                                    {filterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                    {filterOpen ? "Hide filter" : "Show filter"}
+                                </button>
 
-                                    // ✅ keep it clean on smaller widths
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                {/* Left: action buttons */}
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        gap: 10,
-                                        alignItems: "center",
-                                        flexShrink: 0,
+                                <button
+                                    className="community-action-btn"
+                                    type="button"
+                                    onClick={() => {
+                                        const sampleRow = gridApi?.getDisplayedRowAtIndex?.(0)?.data || rowData?.[0] || {};
+                                        const newRow: any = {};
+                                        Object.keys(sampleRow).forEach((key) => (newRow[key] = ""));
+                                        setFormRow(newRow);
+                                        setFormOpen(true);
                                     }}
                                 >
-                                    <button
-                                        className="mobile-filter-button"
-                                        onClick={() => setFilterOpen((prev) => !prev)}
-                                        aria-expanded={filterOpen}
-                                        style={{
-                                            height: "44px",
-                                            padding: "0 14px",
-                                            borderRadius: 10,
-                                            background: color_secondary,
-                                            color: color_white,
-                                            border: "none",
-                                            cursor: "pointer",
-                                            fontSize: 14,
-                                            fontWeight: 700,
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            gap: 8,
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
-                                        {filterOpen ? "Hide filter" : "Show filter"}
-                                    </button>
+                                    <Plus size={16} />
+                                    Add Student
+                                </button>
 
-                                    <button
-                                        className="mobile-filter-button"
-                                        onClick={() => {
-                                            const sampleRow = gridApi.getDisplayedRowAtIndex(0)?.data; // or rowData[0]
-                                            const newRow: any = {};
-
-                                            Object.keys(sampleRow).forEach((key) => {
-                                                newRow[key] = "";
-                                            });
-                                            setFormRow(newRow);
-                                            setFormOpen(true);
-                                        }}
-                                        style={{
-                                            height: "44px",
-                                            padding: "0 14px",
-                                            borderRadius: 10,
-                                            background: color_secondary,
-                                            color: color_white,
-                                            border: "none",
-                                            cursor: "pointer",
-                                            fontSize: 14,
-                                            fontWeight: 700,
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            gap: 8,
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
-                                        Add Student
-                                    </button>
-                                </div>
-
-                                {/* Right: compact message (takes remaining width) */}
-                                <div
-                                    style={{
-                                        flex: "1 1 520px",
-                                        minWidth: 260,
-                                        fontSize: 14,
-                                        fontWeight: 600,
-                                        color: color_black_light,
-                                        background: color_blue_lighter,
-                                        padding: "10px 12px",
-                                        borderRadius: 10,
-                                        lineHeight: 1.35,
-                                        boxSizing: "border-box",
-
-                                        // ✅ keep height compact, avoid huge block
-                                        display: "flex",
-                                        alignItems: "center",
-                                    }}
-                                >
-                                    Aanii, Boozhoo, Wachéye, Sago! We welcome you to add and/or edit any
-                                    information in the Shingwauk student list that is missing or inaccurate.
-                                    Chi-miigwetch!
+                                <div className="community-action-msg" role="note">
+                                    <Info size={18} />
+                                    <span className="community-action-msg-text">
+                                        Aanii, Boozhoo, Wachéye, Sago! We welcome you to add and/or edit any information in the
+                                        Shingwauk student list that is missing or inaccurate. Chi-miigwetch!
+                                    </span>
                                 </div>
                             </div>
                         )}
+
+
 
 
                         <div
@@ -1460,10 +1477,158 @@ export default function DataGrid({ rowData }: DataGridProps) {
           .ag-pinned-left-header {
             width: max-content !important;
           }
+           
+            
                     
           .ag-theme-quartz .ag-cell {
        font-weight: bold !important;
    }
+       .top-controls-bar {
+        scrollbar-width: none;          /* Firefox */
+        -ms-overflow-style: none;       /* IE/Edge legacy */
+        }
+        .top-controls-bar::-webkit-scrollbar {
+        display: none;                  /* Chrome/Safari */
+        }
+
+        .nia-slot {
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 2;                     /* keeps it above neighbors if any overlap happens */
+        }
+
+        .nia-slot > * {
+        display: flex;
+        align-items: center;
+        }
+
+       
+
+        .community-action-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        }
+
+        
+
+        .community-action-btn:focus-visible {
+        outline: 3px solid ${color_blue_light};
+        outline-offset: 2px;
+        }
+
+        .community-action-bar {
+  display: flex;
+  align-items: stretch;          /* ✅ makes buttons match message height */
+  gap: 8px;
+  margin-bottom: 8px;
+
+  padding: 6px;                  /* ✅ reduced height */
+  border-radius: 10px;
+  background: ${color_white};
+  border: 1px solid ${color_border};
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+
+  flex-wrap: wrap;               /* ✅ lets message wrap cleanly */
+}
+
+.community-action-btn {
+  align-self: stretch;           /* ✅ match the tallest item */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  padding: 0 14px;               /* ✅ reduced height (no vertical padding) */
+  min-height: 36px;              /* ✅ compact baseline height */
+  border-radius: 8px;
+
+  background: ${color_secondary};
+  color: ${color_white};
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.community-action-btn:hover {
+  background: ${color_secondary_dark};
+}
+
+.community-action-msg {
+  flex: 1 1 520px;
+  min-width: 280px;
+
+  align-self: stretch;           /* ✅ same height as buttons */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 6px 12px;             /* ✅ reduced height */
+  border-radius: 8px;
+
+  background: ${color_blue_lightest};
+  border: 1px solid ${color_blue_light};
+  color: ${color_black_light};
+
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.community-action-msg-text {
+  white-space: normal;           /* ✅ show full text */
+  overflow: visible;
+  text-overflow: clip;
+}
+
+
+
+        .community-action-msg-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: ${color_white};
+        border: 1px solid ${color_border};
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: ${color_secondary};
+        flex-shrink: 0;
+        }
+
+        @media (max-width: 900px) {
+            .community-action-bar {
+                flex-wrap: wrap;
+            }
+            .community-action-msg {
+                flex: 1 1 100%;
+                min-width: 100%;
+            }
+        }
+
+
+        
+
+        /* Responsive: allow message to wrap below buttons when space is tight */
+        @media (max-width: 900px) {
+        .community-action-bar {
+            flex-wrap: wrap;
+        }
+        .community-action-msg {
+            flex: 1 1 100%;
+        }
+        }
+
+
         `}
             </style>
         </GridWrapper>

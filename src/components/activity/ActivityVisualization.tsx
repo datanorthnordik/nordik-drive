@@ -5,6 +5,20 @@ import { Box, FormControl, InputLabel, MenuItem, Select, Typography, Chip } from
 import { PieChart } from "@mui/x-charts/PieChart";
 import { BarChart } from "@mui/x-charts/BarChart";
 
+import {
+  color_white,
+  color_border,
+  color_secondary,
+  color_text_primary,
+  color_text_secondary,
+  color_text_light,
+  color_primary,
+  color_secondary_dark,
+  color_primary_dark,
+  color_background,
+  color_white_smoke,
+} from "../../constants/colors";
+
 type VizType = "PIE" | "DONUT" | "BAR";
 type Dimension = "COMMUNITY" | "FILENAME" | "PERSON";
 
@@ -85,7 +99,6 @@ export default function ActivityVisualization({
       .filter((x) => x.count > 0)
       .sort((a, b) => b.count - a.count);
 
-    // ✅ Top 10 + Others only if more than 10 exist
     if (items.length <= TOP_N) return items;
 
     const top = items.slice(0, TOP_N);
@@ -111,37 +124,58 @@ export default function ActivityVisualization({
     [aggregated]
   );
 
+  // ✅ Only allowed colors: cycle through your prim/sec variants
+  const accentPalette = [color_secondary, color_primary, color_secondary_dark, color_primary_dark];
+
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {/* Header + controls */}
+      {/* Header + controls (PendingRequests feel: white header, subtle divider) */}
       <Box
         sx={{
-          px: 1.5,
+          px: 1.25,
           py: 1,
-          borderBottom: "1px solid #eef2f7",
-          background: "#fbfcfe",
+          borderBottom: `1px solid ${color_border}`,
+          backgroundColor: color_white, // ✅ match PendingRequests header area
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 1,
+          flexDirection: "column",
+          gap: 0.75,
           flexShrink: 0,
-          flexWrap: "wrap",
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column" }}>
-          <Typography sx={{ fontWeight: 900 }}>Visualization</Typography>
-          <Typography sx={{ color: "#64748b", fontSize: 13 }}>{title}</Typography>
+          <Typography sx={{ fontWeight: 800, fontSize: 14, color: color_text_primary }}>
+            Visualization
+          </Typography>
+          <Typography sx={{ color: color_text_secondary, fontSize: 12, lineHeight: 1.25 }}>
+            {title}
+          </Typography>
         </Box>
 
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
-          <Chip label={`${total} events`} size="small" sx={{ fontWeight: 900 }} />
+        <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <Chip
+            label={`${total} events`}
+            size="small"
+            sx={{
+              fontWeight: 900,
+              height: 26,
+              borderRadius: "10px",
+              backgroundColor: color_background,
+              border: `1px solid ${color_border}`,
+              color: color_text_primary,
+            }}
+          />
 
-          <FormControl size="small" sx={{ minWidth: 160 }}>
+          <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Group by</InputLabel>
             <Select
               label="Group by"
               value={dimension}
               onChange={(e) => setDimension(e.target.value as Dimension)}
+              sx={{
+                height: 34,
+                backgroundColor: color_white,
+                "& .MuiSelect-select": { py: 0.75 },
+              }}
             >
               {allowedDimensions.map((d) => (
                 <MenuItem key={d} value={d}>
@@ -151,9 +185,18 @@ export default function ActivityVisualization({
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 140 }}>
+          <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Chart</InputLabel>
-            <Select label="Chart" value={vizType} onChange={(e) => setVizType(e.target.value as VizType)}>
+            <Select
+              label="Chart"
+              value={vizType}
+              onChange={(e) => setVizType(e.target.value as VizType)}
+              sx={{
+                height: 34,
+                backgroundColor: color_white,
+                "& .MuiSelect-select": { py: 0.75 },
+              }}
+            >
               <MenuItem value="DONUT">Donut</MenuItem>
               <MenuItem value="PIE">Pie</MenuItem>
               <MenuItem value="BAR">Bar</MenuItem>
@@ -162,27 +205,27 @@ export default function ActivityVisualization({
         </Box>
       </Box>
 
-      {/* ✅ ONE scroll area (no nested scroll) */}
-      <Box sx={{ p: 1.5, flex: 1, minHeight: 0, overflowY: "auto" }}>
+      {/* ONE scroll area */}
+      <Box sx={{ p: 1.25, flex: 1, minHeight: 0, overflowY: "auto", backgroundColor: color_white }}>
         {aggregated.length === 0 ? (
-          <Typography sx={{ color: "#94a3b8" }}>No data to visualize.</Typography>
+          <Typography sx={{ color: color_text_light, fontSize: 13 }}>No data to visualize.</Typography>
         ) : (
           <>
-            {/* ✅ Chart always visible, legend inside chart hidden */}
+            {/* Chart box */}
             <Box
               sx={{
-                border: "1px solid #eef2f7",
-                borderRadius: 12,
-                background: "#fff",
+                border: `1px solid ${color_border}`,
+                borderRadius: 2,
+                backgroundColor: color_white,
                 overflow: "hidden",
-                "& .MuiChartsLegend-root": { display: "none !important" }, // ✅ prevents donut shrinking
+                "& .MuiChartsLegend-root": { display: "none !important" },
               }}
             >
               {vizType === "BAR" ? (
                 <BarChart
                   xAxis={[{ scaleType: "band", data: barLabels }]}
                   series={perBarSeries}
-                  height={360}
+                  height={280}
                   margin={{ bottom: 30, left: 40, right: 10, top: 10 }}
                 />
               ) : (
@@ -190,69 +233,114 @@ export default function ActivityVisualization({
                   series={[
                     {
                       data: pieData,
-                      innerRadius: vizType === "DONUT" ? 65 : 0,
-                      outerRadius: 120,
+                      innerRadius: vizType === "DONUT" ? 58 : 0,
+                      outerRadius: 105,
                       paddingAngle: 2,
                       cornerRadius: 4,
                     },
                   ]}
-                  height={360}
+                  height={280}
                 />
               )}
             </Box>
 
-            {/* ✅ Simple “legend” below: customer-friendly */}
-            <Box sx={{ mt: 1.25, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Typography sx={{ fontWeight: 900, fontSize: 13, color: "#64748b" }}>
+            {/* Breakdown header */}
+            <Box
+              sx={{
+                mt: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography sx={{ fontWeight: 900, fontSize: 12, color: color_text_primary }}>
                 Breakdown
               </Typography>
-              <Typography sx={{ fontSize: 12, color: "#94a3b8" }}>
+              <Typography sx={{ fontSize: 12, color: color_text_light }}>
                 {aggregated.length > TOP_N ? `Top ${TOP_N} + Others` : `${aggregated.length} item(s)`}
               </Typography>
             </Box>
 
+            {/* Breakdown rows */}
             <Box sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {aggregated.map((x) => {
+              {aggregated.map((x, i) => {
                 const pct = total > 0 ? Math.round((x.count / total) * 100) : 0;
+                const accent = accentPalette[i % accentPalette.length];
+
                 return (
                   <Box
                     key={x.label}
                     sx={{
                       display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 10,
-                      px: 1.25,
-                      py: 0.9,
-                      background: "#fff",
-                      minWidth: 0,
+                      alignItems: "stretch",
+                      border: `1px solid ${color_border}`,
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      backgroundColor: color_white,
                     }}
                   >
-                    <Typography
-                      title={x.label}
+                    <Box sx={{ width: 6, backgroundColor: accent, flexShrink: 0 }} />
+
+                    <Box
                       sx={{
-                        fontWeight: 800,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        pr: 1,
-                        minWidth: 0,
+                        px: 1,
+                        py: 0.85,
                         flex: 1,
+                        minWidth: 0,
+                        display: "grid",
+                        gridTemplateColumns: "1fr auto",
+                        alignItems: "center",
+                        gap: 1,
                       }}
                     >
-                      {x.label}
-                    </Typography>
+                      <Typography
+                        title={x.label}
+                        sx={{
+                          fontWeight: 800,
+                          fontSize: 12,
+                          color: color_text_primary,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {x.label}
+                      </Typography>
 
-                    <Chip
-                      label={`${x.count}${total ? ` • ${pct}%` : ""}`}
-                      size="small"
-                      sx={{ fontWeight: 900, flexShrink: 0 }}
-                    />
+                      <Box sx={{ display: "flex", gap: 0.75, alignItems: "center" }}>
+                        <Chip
+                          label={`${x.count}`}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            borderRadius: "8px",
+                            fontWeight: 900,
+                            backgroundColor: color_background,
+                            border: `1px solid ${color_border}`,
+                            color: color_text_primary,
+                          }}
+                        />
+                        <Chip
+                          label={`${pct}%`}
+                          size="small"
+                          sx={{
+                            height: 22,
+                            borderRadius: "8px",
+                            fontWeight: 900,
+                            backgroundColor: color_background,
+                            border: `1px solid ${color_border}`,
+                            color: color_text_primary,
+                          }}
+                        />
+                      </Box>
+                    </Box>
                   </Box>
                 );
               })}
             </Box>
+
+            {/* Optional subtle bottom padding like PendingRequests empty area */}
+            <Box sx={{ height: 10, backgroundColor: color_white }} />
           </>
         )}
       </Box>

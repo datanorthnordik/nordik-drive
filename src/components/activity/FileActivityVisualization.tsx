@@ -1,9 +1,30 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Typography } from "@mui/material";
+import {
+  Box,
+  Chip,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Typography,
+} from "@mui/material";
+import InsertChartOutlinedIcon from "@mui/icons-material/InsertChartOutlined";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { BarChart } from "@mui/x-charts/BarChart";
+
+import {
+  color_secondary,
+  color_secondary_dark,
+  color_border,
+  color_white,
+  color_white_smoke,
+  color_text_primary,
+  color_text_secondary,
+  color_text_light,
+  color_background,
+} from "../../constants/colors";
 
 type VizType = "DONUT" | "PIE" | "BAR";
 type Mode = "CHANGES" | "PHOTOS";
@@ -79,7 +100,6 @@ export default function FileActivityVisualization({
       .filter((x) => x.count > 0)
       .sort((a, b) => b.count - a.count);
 
-    // ✅ Top 10 + Others only if more than 10 exist
     if (items.length <= TOP_N) return items;
 
     const top = items.slice(0, TOP_N);
@@ -107,13 +127,13 @@ export default function FileActivityVisualization({
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {/* Header + controls */}
+      {/* Header (screenshot style) */}
       <Box
         sx={{
-          px: 1.5,
-          py: 1,
-          borderBottom: "1px solid #eef2f7",
-          background: "#fbfcfe",
+          px: 1.25,
+          py: 0.9,
+          borderBottom: `1px solid ${color_border}`,
+          background: color_white,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -123,21 +143,27 @@ export default function FileActivityVisualization({
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column" }}>
-          <Typography sx={{ fontWeight: 900 }}>Visualization</Typography>
-          <Typography sx={{ color: "#64748b", fontSize: 13 }}>{title}</Typography>
+          <Typography sx={{ fontWeight: 900, color: color_text_primary }}>Visualization</Typography>
+          <Typography sx={{ color: color_text_light, fontSize: 13 }}>{title}</Typography>
         </Box>
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
-          <Chip label={`${total} pending`} size="small" sx={{ fontWeight: 900 }} />
+          <Chip
+            label={`${total} pending`}
+            size="small"
+            sx={{
+              fontWeight: 900,
+              borderRadius: "10px",
+              background: color_white,
+              border: `1px solid ${color_secondary}`,
+              color: color_secondary_dark,
+            }}
+          />
 
           {allowedDimensions.length > 1 && (
-            <FormControl size="small" sx={{ minWidth: 170 }}>
-              <InputLabel>Group by</InputLabel>
-              <Select
-                label="Group by"
-                value={dimension}
-                onChange={(e) => setDimension(e.target.value as Dimension)}
-              >
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel>Group</InputLabel>
+              <Select label="Group" value={dimension} onChange={(e) => setDimension(e.target.value as Dimension)}>
                 <MenuItem value="BY_FILE">File</MenuItem>
                 <MenuItem value="BY_FIELD">Field</MenuItem>
               </Select>
@@ -155,21 +181,39 @@ export default function FileActivityVisualization({
         </Box>
       </Box>
 
-      {/* ✅ ONE scroll area (no nested scroll) */}
-      <Box sx={{ p: 1.5, flex: 1, minHeight: 0, overflowY: "auto" }}>
+      {/* Single scroll area */}
+      <Box sx={{ p: 1.25, flex: 1, minHeight: 0, overflowY: "auto", background: color_white }}>
         {!payload ? (
-          <Typography sx={{ color: "#94a3b8" }}>Run a search to see visualization.</Typography>
+          <Box
+            sx={{
+              height: "100%",
+              minHeight: 260,
+              border: `1px dashed ${color_border}`,
+              borderRadius: 12,
+              background: color_background,
+              display: "grid",
+              placeItems: "center",
+              p: 2,
+            }}
+          >
+            <Box sx={{ textAlign: "center" }}>
+              <InsertChartOutlinedIcon sx={{ fontSize: 54, color: "#cbd5e1" }} />
+              <Typography sx={{ mt: 1, fontWeight: 900, color: color_text_secondary }}>
+                Run a search to see visualization.
+              </Typography>
+            </Box>
+          </Box>
         ) : aggregated.length === 0 ? (
-          <Typography sx={{ color: "#94a3b8" }}>No pending aggregation data.</Typography>
+          <Typography sx={{ color: color_text_secondary }}>No pending aggregation data.</Typography>
         ) : (
           <>
             <Box
               sx={{
-                border: "1px solid #eef2f7",
+                border: `1px solid ${color_border}`,
                 borderRadius: 12,
-                background: "#fff",
+                background: color_white,
                 overflow: "hidden",
-                "& .MuiChartsLegend-root": { display: "none !important" }, // ✅ prevents donut shrinking
+                "& .MuiChartsLegend-root": { display: "none !important" },
               }}
             >
               {vizType === "BAR" ? (
@@ -196,10 +240,10 @@ export default function FileActivityVisualization({
             </Box>
 
             <Box sx={{ mt: 1.25, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Typography sx={{ fontWeight: 900, fontSize: 13, color: "#64748b" }}>
+              <Typography sx={{ fontWeight: 900, fontSize: 13, color: color_text_secondary }}>
                 Breakdown
               </Typography>
-              <Typography sx={{ fontSize: 12, color: "#94a3b8" }}>
+              <Typography sx={{ fontSize: 12, color: color_text_light }}>
                 {aggregated.length > TOP_N ? `Top ${TOP_N} + Others` : `${aggregated.length} item(s)`}
               </Typography>
             </Box>
@@ -214,11 +258,11 @@ export default function FileActivityVisualization({
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      border: "1px solid #e5e7eb",
+                      border: `1px solid ${color_border}`,
                       borderRadius: 10,
                       px: 1.25,
                       py: 0.9,
-                      background: "#fff",
+                      background: color_white,
                       minWidth: 0,
                     }}
                   >
@@ -232,6 +276,7 @@ export default function FileActivityVisualization({
                         pr: 1,
                         minWidth: 0,
                         flex: 1,
+                        color: color_text_primary,
                       }}
                     >
                       {x.label}
@@ -240,7 +285,14 @@ export default function FileActivityVisualization({
                     <Chip
                       label={`${x.count}${total ? ` • ${pct}%` : ""}`}
                       size="small"
-                      sx={{ fontWeight: 900, flexShrink: 0 }}
+                      sx={{
+                        fontWeight: 900,
+                        flexShrink: 0,
+                        borderRadius: "10px",
+                        background: color_white_smoke,
+                        border: `1px solid ${color_border}`,
+                        color: color_text_primary,
+                      }}
                     />
                   </Box>
                 );

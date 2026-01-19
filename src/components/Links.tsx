@@ -1,6 +1,6 @@
 "use client";
 import styled from 'styled-components'
-import { color_primary, color_secondary } from '../constants/colors'
+import { color_primary, color_secondary, color_secondary_dark } from '../constants/colors'
 import { NavLink } from 'react-router-dom';
 
 export const LinkButton = styled.button`
@@ -73,7 +73,7 @@ export const HeaderLink = styled(NavLink)<{ fullWidth?: boolean }>`
   }
 
   &.active {
-    background-color: ${color_primary};
+    background-color: ${color_secondary_dark};
     color: white;
     font-weight: 600;
   }

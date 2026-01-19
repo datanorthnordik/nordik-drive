@@ -25,9 +25,12 @@ import CoronerPage from "./pages/CoronerPage/CoronerPage";
 import PendingRequests from "./pages/pending-requests/PendingRequests";
 import FileActivities from "./components/tables/FileActivities";
 import ActivityLogs from "./components/tables/ActivityLogs";
+import MyRequests from "./pages/pending-requests/MyRequests";
+import { useSelector } from "react-redux";
 
 
 function App() {
+  const {user} = useSelector((state:any)=> state.auth)
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
     <ThemeProvider theme={ctheme}>
@@ -141,7 +144,7 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout showHeader={true}>
-                <PendingRequests />
+                {user?.role == "Admin" ? <PendingRequests/>  : <MyRequests />}
               </Layout>
             </ProtectedRoute>
           }

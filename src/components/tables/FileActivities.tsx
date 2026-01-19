@@ -11,9 +11,23 @@ import {
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
+
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import FolderZipIcon from "@mui/icons-material/FolderZip";
-
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import DownloadIcon from "@mui/icons-material/Download";
+import ListAltIcon from "@mui/icons-material/ListAlt";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import TuneIcon from "@mui/icons-material/Tune";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import HourglassTopIcon from "@mui/icons-material/HourglassTop";
+import PersonIcon from "@mui/icons-material/Person";
+import DescriptionIcon from "@mui/icons-material/Description";
+import InsertChartOutlinedIcon from "@mui/icons-material/InsertChartOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 
 import {
   Box,
@@ -42,19 +56,6 @@ import {
 } from "@mui/material";
 
 import dayjs, { Dayjs } from "dayjs";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
-import DownloadIcon from "@mui/icons-material/Download";
-import ListAltIcon from "@mui/icons-material/ListAlt";
-import CloseIcon from "@mui/icons-material/Close";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import TuneIcon from "@mui/icons-material/Tune";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
-import HourglassTopIcon from "@mui/icons-material/HourglassTop";
-import PersonIcon from "@mui/icons-material/Person";
-import DescriptionIcon from "@mui/icons-material/Description";
 
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -62,7 +63,6 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
 import { FileButton } from "../buttons/Button";
-import { color_primary, color_white } from "../../constants/colors";
 import FileActivityVisualization from "../activity/FileActivityVisualization";
 
 import ImageGallery from "react-image-gallery";
@@ -70,6 +70,22 @@ import "react-image-gallery/styles/css/image-gallery.css";
 
 import DownloadUpdatesModal from "../models/DownloadUpdates";
 import DownloadMediaModal from "../models/DownloadMedias";
+
+import {
+  color_secondary,
+  color_secondary_dark,
+  color_border,
+  color_white,
+  color_light_gray,
+  color_white_smoke,
+  color_text_primary,
+  color_text_secondary,
+  color_text_light,
+  color_background,
+  color_black,
+  color_success,
+  color_primary,
+} from "../../constants/colors";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 const themeLightWarm = themeQuartz.withPart(colorSchemeLightWarm);
@@ -132,7 +148,6 @@ type PendingDownload = {
   filename: string;
   mime?: string;
 };
-
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -214,7 +229,6 @@ function deriveSelectedFileId(
   return "";
 }
 
-
 function mergeSelectedIntoOptions(options: SelectOption[], selected: string[]) {
   const map = new Map(options.map((o) => [o.value, o]));
   (selected || []).forEach((v) => {
@@ -223,7 +237,6 @@ function mergeSelectedIntoOptions(options: SelectOption[], selected: string[]) {
   });
   return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
 }
-
 
 /**
  * Clearer status UI:
@@ -236,7 +249,7 @@ function photoStatusMeta(status?: PhotoStatus) {
   if (status === "approved") {
     return {
       label: "APPROVED",
-      helper: "This photo is accepted",
+      helper: "This item is accepted",
       chipColor: "success" as const,
       icon: <CheckCircleIcon sx={{ fontSize: 18 }} />,
       border: "3px solid #16a34a",
@@ -249,7 +262,7 @@ function photoStatusMeta(status?: PhotoStatus) {
   if (status === "rejected") {
     return {
       label: "REJECTED",
-      helper: "This photo is not accepted",
+      helper: "This item is not accepted",
       chipColor: "error" as const,
       icon: <CancelIcon sx={{ fontSize: 18 }} />,
       border: "3px solid #dc2626",
@@ -285,14 +298,12 @@ function guessMimeFromFilename(name?: string) {
   return "";
 }
 
-
-export default function AdminFileEditRequests({
+export default function FileActivities({
   onParentModeChange,
 }: {
   onParentModeChange?: (mode: any) => void;
 }) {
-  const API_BASE =
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api";
+  const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
 
   const [mode, setMode] = useState<Mode>("CHANGES");
   const [fieldList, setFieldList] = useState<SelectOption[]>([]);
@@ -337,33 +348,38 @@ export default function AdminFileEditRequests({
   const [viewerOpen, setViewerOpen] = useState(false);
   const [startIndex, setStartIndex] = useState(0);
   const [viewerIndex, setViewerIndex] = useState(0);
-  // ✅ 2) ADD STATE (inside component, near photos state)
+
   const [documents, setDocuments] = useState<RequestDocument[]>([]);
   const [docViewerOpen, setDocViewerOpen] = useState(false);
-  const [docStartIndex, setDocStartIndex] = useState(0);
   const [docViewerIndex, setDocViewerIndex] = useState(0);
 
   const [docBlobUrl, setDocBlobUrl] = useState("");
   const lastDocBlobUrlRef = useRef<string>("");
+
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [mediaDownloadOpen, setMediaDownloadOpen] = useState(false);
   const [requestId, setRequestId] = useState<any>(null);
   const [pendingDownload, setPendingDownload] = useState<PendingDownload | null>(null);
   const [detailsZipLoading, setDetailsZipLoading] = useState(false);
 
-
   // Prefetch dropdown values
-  const { fetchData: fetchUsers, data: usersResp, loading: usersLoading } =
-    useFetch(`${API_BASE}/user`, "GET", false);
+  const { fetchData: fetchUsers, data: usersResp, loading: usersLoading } = useFetch(
+    `${API_BASE}/user`,
+    "GET",
+    false
+  );
 
-  const { fetchData: fetchFiles, data: filesResp, loading: filesLoading } =
-    useFetch(`${API_BASE}/file`, "GET", false);
+  const { fetchData: fetchFiles, data: filesResp, loading: filesLoading } = useFetch(
+    `${API_BASE}/file`,
+    "GET",
+    false
+  );
+
+  const { fetchData: fetchCommunities, data: communitiesResp, loading: communitiesLoading } =
+    useFetch(`${API_BASE}/communities`, "GET", false);
 
   // Main admin search API
-  const { loading, fetchData, data: resp } = useFetch(
-    `${API_BASE}/admin`,
-    "POST"
-  );
+  const { loading, fetchData, data: resp } = useFetch(`${API_BASE}/admin`, "POST");
 
   // Details API (change list)
   const {
@@ -379,7 +395,7 @@ export default function AdminFileEditRequests({
     false
   );
 
-  // ✅ 3) ADD API HOOK (near photo hook) — keep same logic pattern
+  // Docs for a request
   const { data: docData, fetchData: loadDocs } = useFetch(
     `${API_BASE}/file/edit/docs/${selectedRequest?.request_id}`,
     "GET",
@@ -400,16 +416,9 @@ export default function AdminFileEditRequests({
     error: mediaBlobError,
   } = useFetch<any>(`${API_BASE}/file/doc/download`, "POST", false);
 
-  const { fetchData: fetchCommunities, data: communitiesResp, loading: communitiesLoading } =
-    useFetch(`${API_BASE}/communities`, "GET", false);
-
-
   const currentDoc = documents[docViewerIndex];
   const currentDocMime =
     currentDoc?.mime_type || guessMimeFromFilename(currentDoc?.filename) || "";
-
-
-
 
   useEffect(() => {
     fetchUsers();
@@ -446,16 +455,12 @@ export default function AdminFileEditRequests({
     }
   }, [photoData]);
 
-  // ✅ 4) LOAD DOCS WHEN REQUEST CHANGES (same as photos)
+  // Load docs when request changes
   useEffect(() => {
     if (!selectedRequest?.request_id) return;
     loadDocs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRequest?.request_id]);
-
-  // ✅ 5) MAP DOC RESPONSE INTO STATE (same as photoData mapping)
-  // Assumes API returns: { documents: [...] }
-  // If your key is different (e.g., docs), change ONLY that key below.
 
   useEffect(() => {
     if ((docData as any)?.docs) {
@@ -470,7 +475,6 @@ export default function AdminFileEditRequests({
       setDocuments([]);
     }
   }, [docData]);
-
 
   const userOptions = useMemo((): SelectOption[] => {
     const r = usersResp as UsersResp | undefined;
@@ -492,28 +496,25 @@ export default function AdminFileEditRequests({
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [filesResp]);
 
-  // ✅ Requested: "Created By" should come from requested_by (user id) -> name
+  const communityOptions = useMemo<SelectOption[]>(() => {
+    const list = (communitiesResp as any)?.communities ?? [];
+    const opts = list
+      .map((c: any) => String(c?.name ?? "").trim())
+      .filter(Boolean)
+      .map((name: string) => ({ value: name, label: name }))
+      .sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
+    return opts;
+  }, [communitiesResp]);
+
+  const uploaderCommunityOptions = communityOptions;
+
+  // ✅ "Created By" from requested_by
   const createdByName = useMemo(() => {
     if (!selectedRequest) return "-";
     const id = selectedRequest.requested_by;
     if (id === null || id === undefined || id === "") return "-";
     return userOptions.find((u) => u.value === String(id))?.label ?? `User ${id}`;
   }, [selectedRequest, userOptions]);
-
-
-  function buildStringOptionsFromRows(key: string, list: any[]): SelectOption[] {
-    const uniq = new Set<string>();
-    for (const r of list || []) {
-      const v = r?.[key];
-      if (v === null || v === undefined) continue;
-      const s = String(v).trim();
-      if (s) uniq.add(s);
-    }
-    return Array.from(uniq)
-      .map((s) => ({ value: s, label: s }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }
-
 
   const normalizeBlob = (x: any): Blob | null => {
     if (!x) return null;
@@ -535,11 +536,11 @@ export default function AdminFileEditRequests({
     URL.revokeObjectURL(objectUrl);
   };
 
-  // ✅ Public helper: download by ID (works for photo + doc)
+  // ✅ Download by ID (photo or doc)
   const downloadMediaById = useCallback(
     (id: number, filename?: string, mime?: string) => {
       if (!id || Number.isNaN(id)) return;
-      if (mediaBlobLoading) return; // avoid overlap (simple guard)
+      if (mediaBlobLoading) return;
 
       setPendingDownload({
         id,
@@ -547,7 +548,6 @@ export default function AdminFileEditRequests({
         mime,
       });
 
-      // POST `${API_BASE}/doc/download/:id` as blob
       fetchMediaBlob(undefined, undefined, false, {
         path: id,
         responseType: "blob",
@@ -556,7 +556,6 @@ export default function AdminFileEditRequests({
     [fetchMediaBlob, mediaBlobLoading]
   );
 
-  // when blob arrives -> download it
   useEffect(() => {
     if (!pendingDownload) return;
     const b = normalizeBlob(mediaBlobData);
@@ -574,13 +573,9 @@ export default function AdminFileEditRequests({
   useEffect(() => {
     if (!pendingDownload) return;
     if (!mediaBlobError) return;
-
     console.error("Download failed", mediaBlobError);
     setPendingDownload(null);
   }, [mediaBlobError, pendingDownload]);
-
-
-
 
   const statusOptions: SelectOption[] = useMemo(
     () => [
@@ -599,20 +594,12 @@ export default function AdminFileEditRequests({
     []
   );
 
-  // selected file id (for field_key options)
   const selectedFileId = useMemo(
     () =>
-      deriveSelectedFileId(
-        clauses,
-        builderField,
-        builderOp,
-        builderValue,
-        builderValues
-      ),
+      deriveSelectedFileId(clauses, builderField, builderOp, builderValue, builderValues),
     [clauses, builderField, builderOp, builderValue, builderValues]
   );
 
-  // Build fieldList from selected file's ColumnsOrder
   useEffect(() => {
     if (!selectedFileId) {
       setFieldList([]);
@@ -654,12 +641,10 @@ export default function AdminFileEditRequests({
     setViewerIndex(0);
     setDocuments([]);
     setDocViewerOpen(false);
-    setDocStartIndex(0);
     setDocViewerIndex(0);
     clearDocPreview();
   };
 
-  // Available fields: show detail fields only when file_id exists
   const availableFields = useMemo(() => {
     return hasFileClause(clauses) || selectedFileId
       ? [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS]
@@ -696,9 +681,7 @@ export default function AdminFileEditRequests({
     if (fieldKey === "file_id") return fileOptions;
     if (fieldKey === "requested_by") return userOptions;
     if (fieldKey === "approved_by") return userOptions;
-
     if (fieldKey === "consent") return boolOptions;
-
     if (fieldKey === "field_key") return fieldList;
 
     if (fieldKey === "community") {
@@ -716,25 +699,10 @@ export default function AdminFileEditRequests({
 
   function getFieldLabel(fieldKey: string) {
     return (
-      [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === fieldKey)
-        ?.label ?? fieldKey
+      [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === fieldKey)?.label ??
+      fieldKey
     );
   }
-
-  const communityOptions = useMemo<SelectOption[]>(() => {
-    // Expecting: { communities: [{ name: "..." }, ...] }
-    const list = (communitiesResp as any)?.communities ?? [];
-    const opts = list
-      .map((c: any) => String(c?.name ?? "").trim())
-      .filter(Boolean)
-      .map((name: string) => ({ value: name, label: name }))
-      .sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
-
-    return opts;
-  }, [communitiesResp]);
-
-  const uploaderCommunityOptions = communityOptions;
-
 
   function getOpLabel(op: Operation, fieldType: FieldType) {
     return OPS_BY_TYPE[fieldType].find((x) => x.op === op)?.label ?? op;
@@ -742,8 +710,7 @@ export default function AdminFileEditRequests({
 
   function renderValueLabel(c: Clause): string {
     const field =
-      [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === c.field) ||
-      null;
+      [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === c.field) || null;
     const type = field?.type ?? "text";
 
     if (type === "date") {
@@ -753,9 +720,7 @@ export default function AdminFileEditRequests({
 
     if (c.op === "IN") {
       const opts = selectOptionsForField(c.field);
-      const labels = (c.values || []).map(
-        (v) => opts.find((o) => o.value === v)?.label ?? v
-      );
+      const labels = (c.values || []).map((v) => opts.find((o) => o.value === v)?.label ?? v);
       return labels.join(", ");
     }
 
@@ -770,8 +735,8 @@ export default function AdminFileEditRequests({
   const chipModels = useMemo(() => {
     return clauses.map((c) => {
       const fieldType =
-        [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === c.field)
-          ?.type ?? "text";
+        [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === c.field)?.type ??
+        "text";
       const fieldLabel = getFieldLabel(c.field);
       const opLabel = getOpLabel(c.op, fieldType);
       const valueLabel = renderValueLabel(c);
@@ -784,14 +749,7 @@ export default function AdminFileEditRequests({
 
       return { clause: c, label };
     });
-  }, [
-    clauses,
-    userOptions,
-    fileOptions,
-    communityOptions,
-    uploaderCommunityOptions,
-    fieldList,
-  ]);
+  }, [clauses, userOptions, fileOptions, communityOptions, uploaderCommunityOptions, fieldList]);
 
   const filterSummary = useMemo(() => {
     if (clauses.length === 0) return ["No filters"];
@@ -803,8 +761,8 @@ export default function AdminFileEditRequests({
     setBuilderOp(c.op);
 
     const fieldType =
-      [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === c.field)
-        ?.type ?? "text";
+      [...COMMON_FIELDS, ...FILE_CONTENT_FIELDS].find((f) => f.key === c.field)?.type ??
+      "text";
 
     if (fieldType === "date") {
       if (c.op === "BETWEEN") {
@@ -868,9 +826,7 @@ export default function AdminFileEditRequests({
 
     if (fieldType === "date") {
       if (builderOp === "BETWEEN") {
-        updated.start = builderStart
-          ? builderStart.format("YYYY-MM-DD")
-          : undefined;
+        updated.start = builderStart ? builderStart.format("YYYY-MM-DD") : undefined;
         updated.end = builderEnd ? builderEnd.format("YYYY-MM-DD") : undefined;
       }
     } else if (builderOp === "IN") {
@@ -926,8 +882,7 @@ export default function AdminFileEditRequests({
         field: "created_at",
         headerName: "Created At",
         width: 170,
-        valueFormatter: (p: any) =>
-          p.value ? dayjs(p.value).format("DD-MM-YYYY HH:mm") : "",
+        valueFormatter: (p: any) => (p.value ? dayjs(p.value).format("DD-MM-YYYY HH:mm") : ""),
       },
       {
         headerName: "Actions",
@@ -956,9 +911,10 @@ export default function AdminFileEditRequests({
                 // load change details for request
                 setDetailsLoadingLocal(true);
                 fetchDetails({ request_id: Number(req.request_id) });
+
+                // docs reset (logic preserved)
                 setDocuments([]);
                 setDocViewerOpen(false);
-                setDocStartIndex(0);
                 setDocViewerIndex(0);
                 clearDocPreview();
               }}
@@ -966,9 +922,9 @@ export default function AdminFileEditRequests({
                 textTransform: "none",
                 fontWeight: 900,
                 borderRadius: "10px",
+                background: color_secondary,
                 color: color_white,
-                background: "#6d28d9",
-                "&:hover": { background: "#5b21b6" },
+                "&:hover": { background: color_secondary_dark },
               }}
             >
               Details
@@ -1034,22 +990,25 @@ export default function AdminFileEditRequests({
     if (!selectedField || selectedField.type !== "select") return [];
     return selectOptionsForField(builderField);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    selectedField,
-    builderField,
-    userOptions,
-    fileOptions,
-    communityOptions,
-    fieldList,
-  ]);
+  }, [selectedField, builderField, userOptions, fileOptions, communityOptions, fieldList]);
 
-  const dangerBtnSx = {
+  const primaryBtnSx = {
     textTransform: "none",
     fontWeight: 900,
     borderRadius: "10px",
+    background: color_secondary,
     color: color_white,
-    background: color_primary,
-    "&:hover": { background: color_primary },
+    "&:hover": { background: color_secondary_dark },
+  } as const;
+
+  const secondaryBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    backgroundColor: color_white,
+    border: `1px solid ${color_secondary_dark}`,
+    color: color_text_primary,
+    "&:hover": { backgroundColor: color_white_smoke },
   } as const;
 
   const rightPct = 100 - leftPct;
@@ -1071,16 +1030,27 @@ export default function AdminFileEditRequests({
     [photos]
   );
 
-  // ✅ 6) VIEWER ITEMS (same ImageGallery usage)
-  const docGalleryItems = useMemo(
-    () =>
-      documents.map((doc: RequestDocument) => ({
-        original: `${API_BASE}/file/doc/${doc.id}`,  // ✅ endpoint for viewing
-        thumbnail: `${API_BASE}/file/doc/${doc.id}`, // ok even if not image; gallery just needs url
-        description: `${doc.filename ?? "Document"} (ID: ${doc.id})`,
-        originalClass: "gallery-image",
-      })),
-    [documents]
+  const clearDocPreview = useCallback(() => {
+    if (lastDocBlobUrlRef.current) {
+      URL.revokeObjectURL(lastDocBlobUrlRef.current);
+      lastDocBlobUrlRef.current = "";
+    }
+    setDocBlobUrl("");
+  }, []);
+
+  const openDocAtIndex = useCallback(
+    async (idx: number) => {
+      const doc = documents[idx];
+      if (!doc) return;
+
+      clearDocPreview();
+
+      await fetchDocBlob(undefined, undefined, false, {
+        path: doc.id,
+        responseType: "blob",
+      });
+    },
+    [documents, clearDocPreview, fetchDocBlob]
   );
 
   const handleOpenDocViewer = async (idx: number) => {
@@ -1100,34 +1070,6 @@ export default function AdminFileEditRequests({
     setDocViewerIndex(nextIdx);
     await openDocAtIndex(nextIdx);
   };
-
-
-
-
-  const clearDocPreview = useCallback(() => {
-    if (lastDocBlobUrlRef.current) {
-      URL.revokeObjectURL(lastDocBlobUrlRef.current);
-      lastDocBlobUrlRef.current = "";
-    }
-    setDocBlobUrl("");
-  }, []);
-
-  const openDocAtIndex = useCallback(
-    async (idx: number) => {
-      const doc = documents[idx];
-      if (!doc) return;
-
-      clearDocPreview();
-
-      // GET `${API_BASE}/file/doc/<id>` as blob
-      await fetchDocBlob(undefined, undefined, false, {
-        path: doc.id,
-        responseType: "blob",
-      });
-    },
-    [documents, clearDocPreview, fetchDocBlob]
-  );
-
 
   useEffect(() => {
     if (!docViewerOpen) return;
@@ -1152,8 +1094,6 @@ export default function AdminFileEditRequests({
     setDocBlobUrl(url);
   }, [docBlobData, docViewerOpen, currentDocMime]);
 
-
-
   const handleOpenViewer = (idx: number) => {
     setStartIndex(idx);
     setViewerIndex(idx);
@@ -1162,7 +1102,9 @@ export default function AdminFileEditRequests({
 
   return (
     <>
-      <Loader loading={loading || usersLoading || filesLoading || detailsLoading || communitiesLoading} />
+      <Loader
+        loading={loading || usersLoading || filesLoading || detailsLoading || communitiesLoading}
+      />
 
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Box
@@ -1173,24 +1115,25 @@ export default function AdminFileEditRequests({
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
-            gap: 1,
             minHeight: 0,
+            gap: 1,
+            background: color_background,
           }}
         >
-          {/* TOP BAR */}
+          {/* ✅ Top bar (like screenshot + synced with UserActivity) */}
           <Box
             sx={{
-              border: "1px solid #e5e7eb",
-              borderRadius: "12px",
-              background: color_white,
-              px: 1,
-              py: 0.75,
+              flexShrink: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 1,
               flexWrap: "wrap",
-              flexShrink: 0,
+              background: color_white,
+              border: `1px solid ${color_border}`,
+              borderRadius: "12px",
+              px: 1,
+              py: 0.75,
             }}
           >
             <ToggleButtonGroup
@@ -1205,6 +1148,8 @@ export default function AdminFileEditRequests({
                   borderRadius: "10px",
                   px: 1.2,
                   py: 0.6,
+                  background: color_white,
+                  border: `1px solid ${color_border}`,
                 },
               }}
             >
@@ -1219,46 +1164,41 @@ export default function AdminFileEditRequests({
                 icon={<TuneIcon />}
                 label={`Requests: ${totalRequests} | Changes: ${totalChanges}`}
                 size="small"
-                sx={{ fontWeight: 900 }}
+                sx={{
+                  fontWeight: 900,
+                  borderRadius: "10px",
+                  background: color_white,
+                  border: `1px solid ${color_border}`,
+                  color: color_text_primary,
+                }}
               />
 
               <Button
                 startIcon={<DownloadIcon />}
                 onClick={() => setDownloadOpen(true)}
-                sx={dangerBtnSx}
+                sx={primaryBtnSx}
               >
                 Download Updates
               </Button>
 
               <Button
-                startIcon={<FolderZipIcon />} // import FolderZipIcon in your page
+                startIcon={<FolderZipIcon />}
                 onClick={() => {
-                  setMediaDownloadOpen(true)
+                  setMediaDownloadOpen(true);
                   setRequestId(null);
                 }}
-                sx={dangerBtnSx}
+                sx={primaryBtnSx}
               >
                 Download Photos & Docs
               </Button>
-
             </Box>
           </Box>
 
-          {/* FILTER BUILDER */}
-          <Box
-            sx={{
-              border: "1px solid #e5e7eb",
-              borderRadius: "12px",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-              background: "#f7f9fc",
-              overflow: "hidden",
-              flexShrink: 0,
-            }}
-          >
+          {/* ✅ Filter area (collapsed summary / expanded builder) */}
+          {filtersCollapsed ? (
             <Box
               sx={{
-                px: 1.25,
-                py: 0.75,
+                flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1266,10 +1206,21 @@ export default function AdminFileEditRequests({
                 flexWrap: "wrap",
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                <Chip label={filterSummary[0]} size="small" sx={{ fontWeight: 900 }} />
-
-                {chipModels.slice(0, 5).map(({ clause, label }) => (
+              {/* Left: Search chip summary */}
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+                <Chip
+                  icon={<TuneIcon />}
+                  label={`Search (${filterSummary[0]})`}
+                  size="small"
+                  sx={{
+                    fontWeight: 900,
+                    borderRadius: "10px",
+                    background: color_white,
+                    border: `1px solid ${color_border}`,
+                    color: color_text_primary,
+                  }}
+                />
+                {chipModels.slice(0, 2).map(({ clause, label }) => (
                   <Chip
                     key={clause.id}
                     label={label}
@@ -1280,8 +1231,12 @@ export default function AdminFileEditRequests({
                     }}
                     onDelete={() => deleteClause(clause.id)}
                     deleteIcon={<DeleteIcon />}
+                    size="small"
                     sx={{
                       fontWeight: 800,
+                      borderRadius: "10px",
+                      background: color_white,
+                      border: `1px solid ${color_border}`,
                       maxWidth: 520,
                       "& .MuiChip-label": {
                         overflow: "hidden",
@@ -1291,10 +1246,23 @@ export default function AdminFileEditRequests({
                     }}
                   />
                 ))}
-                {chipModels.length > 5 && <Chip label={`+${chipModels.length - 5} more`} size="small" />}
+                {chipModels.length > 2 && (
+                  <Chip
+                    label={`+${chipModels.length - 2} more`}
+                    size="small"
+                    sx={{
+                      fontWeight: 800,
+                      borderRadius: "10px",
+                      background: color_white,
+                      border: `1px solid ${color_border}`,
+                      color: color_text_secondary,
+                    }}
+                  />
+                )}
               </Box>
 
-              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              {/* Right: General toggle + Edit search + Apply/Reset */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                 <ToggleButtonGroup
                   value="ADMIN_EDIT_REQUESTS"
                   exclusive
@@ -1307,6 +1275,8 @@ export default function AdminFileEditRequests({
                       borderRadius: "10px",
                       px: 1.2,
                       py: 0.6,
+                      background: color_white,
+                      border: `1px solid ${color_border}`,
                     },
                   }}
                 >
@@ -1316,336 +1286,463 @@ export default function AdminFileEditRequests({
                   </ToggleButton>
                 </ToggleButtonGroup>
 
-                {filtersCollapsed ? (
-                  <Button
-                    startIcon={<InfoOutlinedIcon />}
-                    onClick={() => setFiltersCollapsed(false)}
-                    sx={dangerBtnSx}
-                  >
-                    Edit filters
-                  </Button>
-                ) : (
-                  <Button onClick={() => setFiltersCollapsed(true)} sx={dangerBtnSx}>
-                    Hide filters
-                  </Button>
-                )}
+                <Button onClick={() => setFiltersCollapsed(false)} sx={primaryBtnSx}>
+                  Edit search
+                </Button>
 
-                <Button variant="contained" onClick={handleApply} sx={dangerBtnSx}>
+                <Button variant="contained" onClick={handleApply} sx={primaryBtnSx}>
                   Apply
                 </Button>
 
-                <Button onClick={resetFilters} sx={dangerBtnSx}>
+                <Button onClick={resetFilters} sx={secondaryBtnSx}>
                   Reset
                 </Button>
-
-                {!filtersCollapsed && (
-                  <IconButton onClick={() => setFiltersCollapsed(true)} size="small" title="Collapse">
-                    <ExpandLessIcon />
-                  </IconButton>
-                )}
               </Box>
             </Box>
-
-            {!filtersCollapsed && (
-              <>
-                <Divider />
-                <Box
+          ) : (
+            <Box
+              sx={{
+                flexShrink: 0,
+                display: "flex",
+                gap: 1,
+                flexWrap: "wrap",
+                alignItems: "center",
+                background: color_white_smoke,
+                border: `1px solid ${color_border}`,
+                padding: "8px 10px",
+                borderRadius: "12px",
+              }}
+            >
+              {/* Chips preview row */}
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+                <Chip
+                  icon={<TuneIcon />}
+                  label={filterSummary[0]}
+                  size="small"
                   sx={{
-                    px: 1.25,
-                    py: 1.0,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    flexWrap: "wrap",
+                    fontWeight: 900,
+                    borderRadius: "10px",
+                    background: color_white,
+                    border: `1px solid ${color_border}`,
+                    color: color_text_primary,
                   }}
+                />
+                {chipModels.slice(0, 5).map(({ clause, label }) => (
+                  <Chip
+                    key={clause.id}
+                    label={label}
+                    onClick={() => {
+                      setEditingId(clause.id);
+                      loadClauseIntoBuilder(clause);
+                    }}
+                    onDelete={() => deleteClause(clause.id)}
+                    deleteIcon={<DeleteIcon />}
+                    size="small"
+                    sx={{
+                      fontWeight: 800,
+                      borderRadius: "10px",
+                      background: color_white,
+                      border: `1px solid ${color_border}`,
+                      maxWidth: 520,
+                      "& .MuiChip-label": {
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: 440,
+                      },
+                    }}
+                  />
+                ))}
+                {chipModels.length > 5 && (
+                  <Chip
+                    label={`+${chipModels.length - 5} more`}
+                    size="small"
+                    sx={{
+                      fontWeight: 800,
+                      borderRadius: "10px",
+                      background: color_white,
+                      border: `1px solid ${color_border}`,
+                      color: color_text_secondary,
+                    }}
+                  />
+                )}
+              </Box>
+
+              <Divider flexItem orientation="vertical" sx={{ mx: 0.25, borderColor: color_border }} />
+
+              {/* Joiner */}
+              {clauses.length > 0 && !editingId && (
+                <FormControl size="small" sx={{ minWidth: 110 }}>
+                  <InputLabel>Join</InputLabel>
+                  <Select
+                    label="Join"
+                    value={nextJoiner}
+                    onChange={(e) => setNextJoiner(e.target.value as Joiner)}
+                  >
+                    <MenuItem value="AND">AND</MenuItem>
+                    <MenuItem value="OR">OR</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Field */}
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel>Field</InputLabel>
+                <Select
+                  label="Field"
+                  value={builderField}
+                  onChange={(e) => setBuilderField(String(e.target.value))}
                 >
-                  {clauses.length > 0 && !editingId && (
-                    <FormControl size="small" sx={{ minWidth: 110 }}>
-                      <InputLabel>Join</InputLabel>
-                      <Select
-                        label="Join"
-                        value={nextJoiner}
-                        onChange={(e) => setNextJoiner(e.target.value as Joiner)}
-                      >
-                        <MenuItem value="AND">AND</MenuItem>
-                        <MenuItem value="OR">OR</MenuItem>
-                      </Select>
-                    </FormControl>
-                  )}
+                  <MenuItem value="">Select field</MenuItem>
+                  {availableFields.map((f) => (
+                    <MenuItem key={f.key} value={f.key}>
+                      {f.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-                  <FormControl size="small" sx={{ minWidth: 220 }}>
-                    <InputLabel>Field</InputLabel>
-                    <Select
-                      label="Field"
-                      value={builderField}
-                      onChange={(e) => setBuilderField(String(e.target.value))}
-                    >
-                      <MenuItem value="">Select field</MenuItem>
-                      {availableFields.map((f) => (
-                        <MenuItem key={f.key} value={f.key}>
-                          {f.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+              {/* Op */}
+              <FormControl size="small" sx={{ minWidth: 190 }} disabled={!selectedField}>
+                <InputLabel>Op</InputLabel>
+                <Select
+                  label="Op"
+                  value={builderOp}
+                  onChange={(e) => setBuilderOp(e.target.value as Operation)}
+                >
+                  {opOptions.map((o) => (
+                    <MenuItem key={o.op} value={o.op}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-                  <FormControl size="small" sx={{ minWidth: 190 }} disabled={!selectedField}>
-                    <InputLabel>Op</InputLabel>
-                    <Select
-                      label="Op"
-                      value={builderOp}
-                      onChange={(e) => setBuilderOp(e.target.value as Operation)}
-                    >
-                      {opOptions.map((o) => (
-                        <MenuItem key={o.op} value={o.op}>
-                          {o.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  {/* Value */}
-                  {selectedField ? (
-                    selectedField.type === "date" ? (
-                      builderOp === "BETWEEN" ? (
-                        <>
-                          <DatePicker
-                            label="Start"
-                            value={builderStart}
-                            onChange={(val) => setBuilderStart(val)}
-                            slotProps={{ textField: { size: "small" } }}
-                          />
-                          <DatePicker
-                            label="End"
-                            value={builderEnd}
-                            onChange={(val) => setBuilderEnd(val)}
-                            slotProps={{ textField: { size: "small" } }}
-                          />
-                        </>
-                      ) : (
-                        <Chip
-                          label="No date input needed"
-                          size="small"
-                          sx={{
-                            fontWeight: 900,
-                            background: color_white,
-                            border: "1px solid #e5e7eb",
-                          }}
-                        />
-                      )
-                    ) : selectedField.type === "select" ? (
-                      builderOp === "IN" ? (
-                        <Autocomplete
-                          multiple
-                          freeSolo
-                          options={selectOptions}
-                          value={(builderValues || []).map(
-                            (v) =>
-                              selectOptions.find((o) => o.value === v) ??
-                              ({ value: v, label: v } as any)
-                          )}
-                          onChange={(_, vals) => {
-                            const next = (vals || []).map((x: any) =>
-                              typeof x === "string" ? x : x.value
-                            );
-                            setBuilderValues(next);
-                          }}
-                          disableCloseOnSelect
-                          filterSelectedOptions
-                          ListboxProps={{ style: { maxHeight: 320, overflow: "auto" } }}
-                          renderInput={(params) => (
-                            <TextField {...params} size="small" label="Values" sx={{ minWidth: 320 }} />
-                          )}
-                        />
-                      ) : (
-                        <Autocomplete
-                          freeSolo
-                          options={selectOptions}
-                          value={
-                            selectOptions.find((o) => o.value === builderValue) ??
-                            (builderValue
-                              ? ({ value: builderValue, label: builderValue } as any)
-                              : null)
-                          }
-                          onChange={(_, val: any) => {
-                            setBuilderValue(val ? (typeof val === "string" ? val : val.value) : "");
-                          }}
-                          ListboxProps={{ style: { maxHeight: 320, overflow: "auto" } }}
-                          renderInput={(params) => (
-                            <TextField {...params} size="small" label="Value" sx={{ minWidth: 320 }} />
-                          )}
-                        />
-                      )
-                    ) : (
-                      <TextField
-                        size="small"
-                        label="Value"
-                        value={builderValue}
-                        onChange={(e) => setBuilderValue(e.target.value)}
-                        sx={{ minWidth: 260 }}
+              {/* Value */}
+              {selectedField ? (
+                selectedField.type === "date" ? (
+                  builderOp === "BETWEEN" ? (
+                    <>
+                      <DatePicker
+                        label="Start"
+                        value={builderStart}
+                        onChange={(val) => setBuilderStart(val)}
+                        slotProps={{ textField: { size: "small" } }}
                       />
-                    )
+                      <DatePicker
+                        label="End"
+                        value={builderEnd}
+                        onChange={(val) => setBuilderEnd(val)}
+                        slotProps={{ textField: { size: "small" } }}
+                      />
+                    </>
                   ) : (
-                    <TextField size="small" label="Value" value={builderValue} disabled sx={{ minWidth: 260 }} />
-                  )}
-
-                  <Tooltip title={editingId ? "Update filter" : "Add filter"}>
-                    <span>
-                      <Button
-                        startIcon={<AddIcon />}
-                        variant="contained"
-                        onClick={upsertClause}
-                        disabled={!canAddOrUpdate()}
-                        sx={dangerBtnSx}
-                      >
-                        {editingId ? "Update" : "Add"}
-                      </Button>
-                    </span>
-                  </Tooltip>
-
-                  {editingId && (
-                    <Button
-                      onClick={clearBuilder}
+                    <Chip
+                      label="No date input needed"
+                      size="small"
                       sx={{
-                        ...dangerBtnSx,
-                        background: "#6b7280",
-                        "&:hover": { background: "#4b5563" },
+                        fontWeight: 900,
+                        borderRadius: "10px",
+                        background: color_white,
+                        border: `1px solid ${color_border}`,
+                        color: color_text_secondary,
                       }}
-                    >
-                      Cancel edit
-                    </Button>
-                  )}
-                </Box>
-              </>
-            )}
-          </Box>
+                    />
+                  )
+                ) : selectedField.type === "select" ? (
+                  builderOp === "IN" ? (
+                    <Autocomplete
+                      multiple
+                      freeSolo
+                      options={selectOptions}
+                      value={(builderValues || []).map(
+                        (v) =>
+                          selectOptions.find((o) => o.value === v) ??
+                          ({ value: v, label: v } as any)
+                      )}
+                      onChange={(_, vals) => {
+                        const next = (vals || []).map((x: any) =>
+                          typeof x === "string" ? x : x.value
+                        );
+                        setBuilderValues(next);
+                      }}
+                      disableCloseOnSelect
+                      filterSelectedOptions
+                      ListboxProps={{ style: { maxHeight: 320, overflow: "auto" } }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          label="Values"
+                          sx={{ minWidth: 320 }}
+                        />
+                      )}
+                    />
+                  ) : (
+                    <Autocomplete
+                      freeSolo
+                      options={selectOptions}
+                      value={
+                        selectOptions.find((o) => o.value === builderValue) ??
+                        (builderValue
+                          ? ({ value: builderValue, label: builderValue } as any)
+                          : null)
+                      }
+                      onChange={(_, val: any) => {
+                        setBuilderValue(val ? (typeof val === "string" ? val : val.value) : "");
+                      }}
+                      ListboxProps={{ style: { maxHeight: 320, overflow: "auto" } }}
+                      renderInput={(params) => (
+                        <TextField {...params} size="small" label="Value" sx={{ minWidth: 320 }} />
+                      )}
+                    />
+                  )
+                ) : (
+                  <TextField
+                    size="small"
+                    label="Value"
+                    value={builderValue}
+                    onChange={(e) => setBuilderValue(e.target.value)}
+                    sx={{ minWidth: 260 }}
+                  />
+                )
+              ) : (
+                <TextField size="small" label="Value" value={builderValue} disabled sx={{ minWidth: 260 }} />
+              )}
 
-          {/* MAIN SPLIT */}
+              {/* Add/Update */}
+              <Tooltip title={editingId ? "Update filter" : "Add filter"}>
+                <span>
+                  <Button
+                    startIcon={<AddIcon />}
+                    variant="contained"
+                    onClick={upsertClause}
+                    disabled={!canAddOrUpdate()}
+                    sx={primaryBtnSx}
+                  >
+                    {editingId ? "Update" : "Add"}
+                  </Button>
+                </span>
+              </Tooltip>
+
+              {editingId && (
+                <Button onClick={clearBuilder} sx={secondaryBtnSx}>
+                  Cancel edit
+                </Button>
+              )}
+
+              <Divider flexItem orientation="vertical" sx={{ mx: 0.25, borderColor: color_border }} />
+
+              {/* General + Apply/Reset + Collapse */}
+              <ToggleButtonGroup
+                value="ADMIN_EDIT_REQUESTS"
+                exclusive
+                onChange={handleModeSwitch}
+                size="small"
+                sx={{
+                  "& .MuiToggleButton-root": {
+                    textTransform: "none",
+                    fontWeight: 900,
+                    borderRadius: "10px",
+                    px: 1.2,
+                    py: 0.6,
+                    background: color_white,
+                    border: `1px solid ${color_border}`,
+                  },
+                }}
+              >
+                <ToggleButton value="GENERAL">
+                  <DashboardIcon sx={{ fontSize: 18, mr: 0.75 }} />
+                  General
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              <Button variant="contained" onClick={handleApply} sx={primaryBtnSx}>
+                Apply
+              </Button>
+
+              <Button onClick={resetFilters} sx={secondaryBtnSx}>
+                Reset
+              </Button>
+
+              <IconButton
+                onClick={() => setFiltersCollapsed(true)}
+                size="small"
+                sx={{ ml: "auto" }}
+                title="Collapse filters"
+              >
+                <ExpandLessIcon />
+              </IconButton>
+            </Box>
+          )}
+
+          {/* ✅ Outer panel like UserActivity + screenshot */}
           <Box
-            ref={containerRef}
             sx={{
               flex: 1,
               minHeight: 0,
-              borderRadius: "14px",
+              borderRadius: "10px",
               overflow: "hidden",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 10px 26px rgba(0,0,0,0.08)",
-              background: color_white,
+              border: `2px solid ${color_secondary}`,
+              background: color_white_smoke,
+              padding: 1,
               display: "flex",
             }}
           >
-            {/* Left grid */}
+            {/* Inner split container */}
             <Box
+              ref={containerRef}
               sx={{
-                width: `${leftPct}%`,
-                minWidth: 420,
-                display: "flex",
-                flexDirection: "column",
+                flex: 1,
                 minHeight: 0,
+                borderRadius: "8px",
+                overflow: "hidden",
+                border: `1px solid ${color_border}`,
+                background: color_white,
+                display: "flex",
               }}
             >
+              {/* Left: Requests */}
               <Box
                 sx={{
-                  px: 1.5,
-                  py: 1,
-                  borderBottom: "1px solid #eef2f7",
+                  width: `${leftPct}%`,
+                  minWidth: 360,
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "#fbfcfe",
-                  flexShrink: 0,
+                  flexDirection: "column",
+                  minHeight: 0,
+                  borderRight: `1px solid ${color_border}`,
+                  background: color_white,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                  <Typography sx={{ fontWeight: 900 }}>Requests</Typography>
-                  <Chip
-                    label={`${totalRequests} requests | ${totalChanges} changes (page ${currentPage}/${totalPages})`}
-                    size="small"
-                    sx={{ fontWeight: 900 }}
-                  />
-                </Box>
-
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <FileButton
-                    disabled={currentPage <= 1}
-                    onClick={() => fetchPage(currentPage - 1, buildRequestBody())}
-                  >
-                    Prev
-                  </FileButton>
-                  <FileButton
-                    disabled={currentPage >= totalPages}
-                    onClick={() => fetchPage(currentPage + 1, buildRequestBody())}
-                  >
-                    Next
-                  </FileButton>
-                </Box>
-              </Box>
-
-              <Box sx={{ flex: 1, minHeight: 0 }}>
-                <div
-                  className="ag-theme-quartz"
-                  style={{ width: "100%", height: "100%" }}
-                  {...themeLightWarm}
+                <Box
+                  sx={{
+                    px: 1.25,
+                    py: 0.9,
+                    borderBottom: `1px solid ${color_border}`,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    background: color_white,
+                    flexShrink: 0,
+                  }}
                 >
-                  <AgGridReact
-                    rowData={rows}
-                    columnDefs={columnDefs}
-                    defaultColDef={{ resizable: true, sortable: true, filter: true }}
-                    onGridReady={(params: GridReadyEvent) => void params.api}
-                    rowHeight={42}
-                    headerHeight={46}
-                    suppressRowClickSelection
-                    rowSelection="single"
-                    pagination={false}
-                    suppressPaginationPanel={true}
-                    domLayout="normal"
-                  />
-                </div>
+                  <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                    <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
+                      Requests
+                    </Typography>
+                    <Typography sx={{ fontSize: 12, color: color_text_light }}>
+                      {totalRequests} requests | {totalChanges} changes (page {currentPage}/{totalPages})
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <FileButton
+                      disabled={currentPage <= 1}
+                      onClick={() => fetchPage(currentPage - 1, buildRequestBody())}
+                    >
+                      PREV
+                    </FileButton>
+                    <FileButton
+                      disabled={currentPage >= totalPages}
+                      onClick={() => fetchPage(currentPage + 1, buildRequestBody())}
+                    >
+                      NEXT
+                    </FileButton>
+                  </Box>
+                </Box>
+
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                  <div
+                    className="ag-theme-quartz"
+                    style={{ width: "100%", height: "100%" }}
+                    {...(themeLightWarm as any)}
+                  >
+                    <AgGridReact
+                      rowData={rows}
+                      columnDefs={columnDefs}
+                      defaultColDef={{ resizable: true, sortable: true, filter: true }}
+                      onGridReady={(params: GridReadyEvent) => void params.api}
+                      rowHeight={42}
+                      headerHeight={46}
+                      suppressRowClickSelection
+                      rowSelection="single"
+                      pagination={false}
+                      suppressPaginationPanel={true}
+                      domLayout="normal"
+                    />
+                  </div>
+                </Box>
+              </Box>
+
+              {/* Splitter */}
+              <Box
+                onMouseDown={() => (draggingRef.current = true)}
+                sx={{
+                  width: 10,
+                  cursor: "col-resize",
+                  background: color_white_smoke,
+                  borderLeft: `1px solid ${color_border}`,
+                  borderRight: `1px solid ${color_border}`,
+                }}
+              />
+
+              {/* Right: Visualization */}
+              <Box
+                sx={{
+                  width: `${rightPct}%`,
+                  minWidth: 320,
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: 0,
+                  background: color_white,
+                }}
+              >
+                {/* Keep your existing logic + component */}
+                {payload ? (
+                  <FileActivityVisualization mode={mode} payload={payload} clauses={clauses} />
+                ) : (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "grid",
+                      placeItems: "center",
+                      p: 2,
+                      borderLeft: `1px solid ${color_border}`,
+                      background: color_white,
+                    }}
+                  >
+                    <Box sx={{ textAlign: "center" }}>
+                      <InsertChartOutlinedIcon sx={{ fontSize: 56, color: "#cbd5e1" }} />
+                      <Typography sx={{ mt: 1, fontWeight: 900, color: color_text_secondary }}>
+                        Run a search to see visualization.
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
               </Box>
             </Box>
-
-            {/* Splitter */}
-            <Box
-              onMouseDown={() => (draggingRef.current = true)}
-              sx={{
-                width: 10,
-                cursor: "col-resize",
-                background: "linear-gradient(to right, #ffffff, #f1f5f9, #ffffff)",
-                borderLeft: "1px solid #e5e7eb",
-                borderRight: "1px solid #e5e7eb",
-              }}
-            />
-
-            {/* Right panel */}
-            <Box
-              sx={{
-                width: `${rightPct}%`,
-                minWidth: 320,
-                display: "flex",
-                flexDirection: "column",
-                minHeight: 0,
-              }}
-            >
-              <FileActivityVisualization mode={mode} payload={payload} clauses={clauses} />
-            </Box>
-
-            <style>
-              {`
-                .ag-theme-quartz .ag-header-cell {
-                  background-color: #e8f1fb !important;
-                  font-weight: 900 !important;
-                  color: #0d47a1 !important;
-                }
-                .ag-theme-quartz .ag-paging-panel { display: none !important; }
-                .ag-theme-quartz .ag-row:hover { background-color: #f1f5f9 !important; }
-                .ag-theme-quartz .ag-row-selected { background-color: #dbeafe !important; }
-                .ag-theme-quartz .ag-root-wrapper { border: none !important; }
-              `}
-            </style>
           </Box>
+
+          {/* AG Grid theme tweaks using ONLY your colors */}
+          <style>
+            {`
+              .ag-theme-quartz .ag-header-cell {
+                background-color: ${color_background} !important;
+                font-weight: 900 !important;
+                color: ${color_secondary_dark} !important;
+              }
+              .ag-theme-quartz .ag-header-row {
+                border-bottom: 1px solid ${color_border} !important;
+              }
+              .ag-theme-quartz .ag-paging-panel { display: none !important; }
+              .ag-theme-quartz .ag-row:hover { background-color: ${color_light_gray} !important; }
+              .ag-theme-quartz .ag-row-selected { background-color: ${color_white_smoke} !important; }
+              .ag-theme-quartz .ag-root-wrapper { border: none !important; }
+              .ag-theme-quartz .ag-cell { color: ${color_text_primary} !important; }
+            `}
+          </style>
         </Box>
 
-        {/* DETAILS MODAL: changes + photos (READ ONLY) */}
+        {/* DETAILS MODAL: changes + photos + docs (READ ONLY) */}
         <Dialog
           open={detailsOpen}
           onClose={() => {
@@ -1658,7 +1755,6 @@ export default function AdminFileEditRequests({
             setViewerIndex(0);
             setDocuments([]);
             setDocViewerOpen(false);
-            setDocStartIndex(0);
             setDocViewerIndex(0);
             clearDocPreview();
           }}
@@ -1679,8 +1775,8 @@ export default function AdminFileEditRequests({
               justifyContent: "space-between",
               alignItems: "center",
               gap: 2,
-              background: "linear-gradient(90deg, #ffffff, #f8fafc)",
-              borderBottom: "1px solid #eef2f7",
+              background: color_white,
+              borderBottom: `1px solid ${color_border}`,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -1688,7 +1784,6 @@ export default function AdminFileEditRequests({
               Request Details #{selectedRequest?.request_id ?? "-"}
             </Box>
 
-            {/* ✅ RIGHT SIDE ACTIONS */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Button
                 startIcon={
@@ -1699,23 +1794,23 @@ export default function AdminFileEditRequests({
                   )
                 }
                 onClick={() => {
-                  setRequestId(selectedRequest?.request_id ?? null)
-                  setMediaDownloadOpen(true)
+                  setRequestId(selectedRequest?.request_id ?? null);
+                  setMediaDownloadOpen(true);
                 }}
                 disabled={!selectedRequest?.request_id || detailsZipLoading}
-                sx={dangerBtnSx}
+                sx={primaryBtnSx}
               >
                 {detailsZipLoading ? "Preparing..." : "Download All"}
               </Button>
             </Box>
           </DialogTitle>
 
-          <DialogContent dividers sx={{ background: "#fbfdff" }}>
+          <DialogContent dividers sx={{ background: color_white_smoke }}>
             {!selectedRequest ? (
-              <Typography sx={{ color: "#94a3b8" }}>No request selected.</Typography>
+              <Typography sx={{ color: color_text_secondary }}>No request selected.</Typography>
             ) : (
               <>
-                {/* Header cards (looks cleaner + uses requested_by) */}
+                {/* Header cards */}
                 <Box
                   sx={{
                     display: "grid",
@@ -1728,7 +1823,7 @@ export default function AdminFileEditRequests({
                     sx={{
                       p: 1.25,
                       borderRadius: "14px",
-                      border: "1px solid #e5e7eb",
+                      border: `1px solid ${color_border}`,
                       background: color_white,
                       display: "flex",
                       gap: 1,
@@ -1741,18 +1836,22 @@ export default function AdminFileEditRequests({
                         width: 42,
                         height: 42,
                         borderRadius: "12px",
-                        background: "linear-gradient(180deg, #eef2ff, #e0e7ff)",
+                        background: color_white_smoke,
                         display: "grid",
                         placeItems: "center",
-                        border: "1px solid #c7d2fe",
+                        border: `1px solid ${color_border}`,
                       }}
                     >
-                      <PersonIcon sx={{ color: "#3730a3" }} />
+                      <PersonIcon sx={{ color: color_secondary_dark }} />
                     </Box>
                     <Box>
-                      <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>Created By</Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#334155" }}>{createdByName}</Typography>
-                      <Typography sx={{ fontSize: 12, color: "#64748b" }}>
+                      <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
+                        Created By
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800, color: color_text_secondary }}>
+                        {createdByName}
+                      </Typography>
+                      <Typography sx={{ fontSize: 12, color: color_text_light }}>
                         Requested By ID: {selectedRequest.requested_by ?? "-"}
                       </Typography>
                     </Box>
@@ -1762,7 +1861,7 @@ export default function AdminFileEditRequests({
                     sx={{
                       p: 1.25,
                       borderRadius: "14px",
-                      border: "1px solid #e5e7eb",
+                      border: `1px solid ${color_border}`,
                       background: color_white,
                       display: "flex",
                       gap: 1,
@@ -1775,20 +1874,22 @@ export default function AdminFileEditRequests({
                         width: 42,
                         height: 42,
                         borderRadius: "12px",
-                        background: "linear-gradient(180deg, #ecfeff, #cffafe)",
+                        background: color_white_smoke,
                         display: "grid",
                         placeItems: "center",
-                        border: "1px solid #a5f3fc",
+                        border: `1px solid ${color_border}`,
                       }}
                     >
-                      <DescriptionIcon sx={{ color: "#155e75" }} />
+                      <DescriptionIcon sx={{ color: color_secondary_dark }} />
                     </Box>
                     <Box>
-                      <Typography sx={{ fontWeight: 900, color: "#0f172a" }}>File</Typography>
-                      <Typography sx={{ fontWeight: 800, color: "#334155" }}>
+                      <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
+                        File
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800, color: color_text_secondary }}>
                         {selectedRequest.file_name ?? "-"}
                       </Typography>
-                      <Typography sx={{ fontSize: 12, color: "#64748b" }}>
+                      <Typography sx={{ fontSize: 12, color: color_text_light }}>
                         Created At:{" "}
                         {selectedRequest.created_at
                           ? dayjs(selectedRequest.created_at).format("DD-MM-YYYY HH:mm")
@@ -1798,19 +1899,19 @@ export default function AdminFileEditRequests({
                   </Box>
                 </Box>
 
-                {/* CHANGES TABLE (READ ONLY) */}
+                {/* CHANGES TABLE */}
                 <Typography variant="h6" sx={{ mb: 1, fontWeight: 900 }}>
                   Field Changes
                 </Typography>
 
                 {detailsLoading || detailsLoadingLocal ? (
-                  <Typography sx={{ color: "#94a3b8" }}>Loading changes...</Typography>
+                  <Typography sx={{ color: color_text_secondary }}>Loading changes...</Typography>
                 ) : detailsRows.length === 0 ? (
-                  <Typography sx={{ color: "#94a3b8" }}>No change rows found.</Typography>
+                  <Typography sx={{ color: color_text_secondary }}>No change rows found.</Typography>
                 ) : (
                   <Box
                     sx={{
-                      border: "1px solid #e5e7eb",
+                      border: `1px solid ${color_border}`,
                       borderRadius: "14px",
                       overflow: "hidden",
                       background: color_white,
@@ -1820,14 +1921,35 @@ export default function AdminFileEditRequests({
                     <Box sx={{ maxHeight: 340, overflow: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
-                          <tr style={{ background: "#f1f5f9" }}>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900, color: "#0f172a" }}>
+                          <tr style={{ background: color_background }}>
+                            <th
+                              style={{
+                                textAlign: "left",
+                                padding: 12,
+                                fontWeight: 900,
+                                color: color_text_primary,
+                              }}
+                            >
                               Field
                             </th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900, color: "#0f172a" }}>
+                            <th
+                              style={{
+                                textAlign: "left",
+                                padding: 12,
+                                fontWeight: 900,
+                                color: color_text_primary,
+                              }}
+                            >
                               Old
                             </th>
-                            <th style={{ textAlign: "left", padding: 12, fontWeight: 900, color: "#0f172a" }}>
+                            <th
+                              style={{
+                                textAlign: "left",
+                                padding: 12,
+                                fontWeight: 900,
+                                color: color_text_primary,
+                              }}
+                            >
                               New
                             </th>
                           </tr>
@@ -1835,13 +1957,31 @@ export default function AdminFileEditRequests({
                         <tbody>
                           {detailsRows.map((d, idx) => (
                             <tr key={d.id ?? `${d.field_key}-${idx}`}>
-                              <td style={{ padding: 12, borderTop: "1px solid #eef2f7", color: "#0f172a" }}>
+                              <td
+                                style={{
+                                  padding: 12,
+                                  borderTop: `1px solid ${color_border}`,
+                                  color: color_text_primary,
+                                }}
+                              >
                                 {d.field_key ?? d.field_name ?? "-"}
                               </td>
-                              <td style={{ padding: 12, borderTop: "1px solid #eef2f7", color: "#334155" }}>
+                              <td
+                                style={{
+                                  padding: 12,
+                                  borderTop: `1px solid ${color_border}`,
+                                  color: color_text_secondary,
+                                }}
+                              >
                                 {d.old_value ?? <i>(empty)</i>}
                               </td>
-                              <td style={{ padding: 12, borderTop: "1px solid #eef2f7", color: "#334155" }}>
+                              <td
+                                style={{
+                                  padding: 12,
+                                  borderTop: `1px solid ${color_border}`,
+                                  color: color_text_secondary,
+                                }}
+                              >
                                 {d.new_value ?? <i>(empty)</i>}
                               </td>
                             </tr>
@@ -1857,7 +1997,6 @@ export default function AdminFileEditRequests({
                   Uploaded Photos
                 </Typography>
 
-                {/* Tiny legend to make meaning obvious */}
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
                   {(["approved", "rejected", null] as PhotoStatus[]).map((s) => {
                     const meta = photoStatusMeta(s);
@@ -1868,20 +2007,20 @@ export default function AdminFileEditRequests({
                         label={`${meta.label} — ${meta.helper}`}
                         color={meta.chipColor}
                         size="small"
-                        sx={{ fontWeight: 900 }}
+                        sx={{ fontWeight: 900, borderRadius: "10px" }}
                       />
                     );
                   })}
                 </Box>
 
                 {photos.length === 0 ? (
-                  <Typography sx={{ color: "#94a3b8" }}>No photos submitted.</Typography>
+                  <Typography sx={{ color: color_text_secondary }}>No photos submitted.</Typography>
                 ) : (
                   <Grid container spacing={1.5}>
                     {photos.map((photo, idx) => {
                       const meta = photoStatusMeta(photo.status ?? null);
                       return (
-                        <Grid key={photo.id}>
+                        <Grid key={photo.id} >
                           <Card
                             sx={{
                               position: "relative",
@@ -1899,7 +2038,6 @@ export default function AdminFileEditRequests({
                             }}
                             onClick={() => handleOpenViewer(idx)}
                           >
-                            {/* subtle tint layer to make status feel "real" */}
                             <Box
                               sx={{
                                 position: "absolute",
@@ -1917,7 +2055,6 @@ export default function AdminFileEditRequests({
                               sx={{ objectFit: "cover" }}
                             />
 
-                            {/* Strong status bar */}
                             <Box
                               sx={{
                                 position: "absolute",
@@ -1943,12 +2080,9 @@ export default function AdminFileEditRequests({
                                 <span>{meta.label}</span>
                               </Box>
 
-                              <span style={{ fontSize: 12, opacity: 0.95 }}>
-                                Photo #{photo.id}
-                              </span>
+                              <span style={{ fontSize: 12, opacity: 0.95 }}>Photo #{photo.id}</span>
                             </Box>
 
-                            {/* Gallery chip */}
                             {photo.is_gallery_photo && (
                               <Box sx={{ position: "absolute", top: 10, right: 10, zIndex: 3 }}>
                                 <Chip
@@ -1958,6 +2092,7 @@ export default function AdminFileEditRequests({
                                   sx={{
                                     fontWeight: 900,
                                     background: "rgba(255,255,255,0.92)",
+                                    borderRadius: "10px",
                                   }}
                                 />
                               </Box>
@@ -1978,15 +2113,16 @@ export default function AdminFileEditRequests({
                               label={meta.label}
                               color={meta.chipColor}
                               size="small"
-                              sx={{ fontWeight: 900 }}
+                              sx={{ fontWeight: 900, borderRadius: "10px" }}
                             />
 
                             <Button
                               size="small"
                               startIcon={<DownloadIcon fontSize="small" />}
-                              onClick={() => downloadMediaById(photo.id, `photo_${photo.id}.jpg`, "image/jpeg")}
-
-                              sx={dangerBtnSx}
+                              onClick={() =>
+                                downloadMediaById(photo.id, `photo_${photo.id}.jpg`, "image/jpeg")
+                              }
+                              sx={primaryBtnSx}
                             >
                               Download
                             </Button>
@@ -2002,7 +2138,6 @@ export default function AdminFileEditRequests({
                   Uploaded Documents
                 </Typography>
 
-                {/* Tiny legend (reuse same status UI) */}
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
                   {(["approved", "rejected", null] as PhotoStatus[]).map((s) => {
                     const meta = photoStatusMeta(s);
@@ -2013,14 +2148,14 @@ export default function AdminFileEditRequests({
                         label={`${meta.label} — ${meta.helper}`}
                         color={meta.chipColor}
                         size="small"
-                        sx={{ fontWeight: 900 }}
+                        sx={{ fontWeight: 900, borderRadius: "10px" }}
                       />
                     );
                   })}
                 </Box>
 
                 {documents.length === 0 ? (
-                  <Typography sx={{ color: "#94a3b8" }}>No documents submitted.</Typography>
+                  <Typography sx={{ color: color_text_secondary }}>No documents submitted.</Typography>
                 ) : (
                   <Grid container spacing={1.5}>
                     {documents.map((doc, idx) => {
@@ -2044,7 +2179,6 @@ export default function AdminFileEditRequests({
                             }}
                             onClick={() => handleOpenDocViewer(idx)}
                           >
-                            {/* subtle tint layer */}
                             <Box
                               sx={{
                                 position: "absolute",
@@ -2055,7 +2189,6 @@ export default function AdminFileEditRequests({
                               }}
                             />
 
-                            {/* Keep same CardMedia pattern but show an icon-ish "preview" area using existing CardMedia */}
                             <CardMedia
                               component="div"
                               sx={{
@@ -2065,10 +2198,9 @@ export default function AdminFileEditRequests({
                                 background: color_white,
                               }}
                             >
-                              <DescriptionIcon sx={{ fontSize: 64, color: "#334155" }} />
+                              <DescriptionIcon sx={{ fontSize: 64, color: color_text_secondary }} />
                             </CardMedia>
 
-                            {/* Strong status bar */}
                             <Box
                               sx={{
                                 position: "absolute",
@@ -2094,9 +2226,7 @@ export default function AdminFileEditRequests({
                                 <span>{meta.label}</span>
                               </Box>
 
-                              <span style={{ fontSize: 12, opacity: 0.95 }}>
-                                Doc #{doc.id}
-                              </span>
+                              <span style={{ fontSize: 12, opacity: 0.95 }}>Doc #{doc.id}</span>
                             </Box>
                           </Card>
 
@@ -2114,7 +2244,7 @@ export default function AdminFileEditRequests({
                               label={meta.label}
                               color={meta.chipColor}
                               size="small"
-                              sx={{ fontWeight: 900 }}
+                              sx={{ fontWeight: 900, borderRadius: "10px" }}
                             />
 
                             <Button
@@ -2127,8 +2257,7 @@ export default function AdminFileEditRequests({
                                   doc.mime_type || guessMimeFromFilename(doc.filename)
                                 )
                               }
-
-                              sx={dangerBtnSx}
+                              sx={primaryBtnSx}
                             >
                               Download
                             </Button>
@@ -2140,8 +2269,8 @@ export default function AdminFileEditRequests({
                                 mt: 0.6,
                                 fontSize: 12,
                                 fontWeight: 800,
-                                color: "#334155",
-                                maxWidth: 240,
+                                color: color_text_secondary,
+                                maxWidth: 260,
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -2156,12 +2285,11 @@ export default function AdminFileEditRequests({
                     })}
                   </Grid>
                 )}
-
               </>
             )}
           </DialogContent>
 
-          <DialogActions sx={{ p: 1.25, background: "#ffffff" }}>
+          <DialogActions sx={{ p: 1.25, background: color_white }}>
             <Button
               onClick={() => {
                 setDetailsOpen(false);
@@ -2173,112 +2301,243 @@ export default function AdminFileEditRequests({
                 setViewerIndex(0);
                 setDocuments([]);
                 setDocViewerOpen(false);
-                setDocStartIndex(0);
                 setDocViewerIndex(0);
                 clearDocPreview();
               }}
-              sx={dangerBtnSx}
+              sx={secondaryBtnSx}
             >
               Close
             </Button>
           </DialogActions>
         </Dialog>
 
-        {/* FULLSCREEN VIEWER (READ ONLY) */}
+        {/* FULLSCREEN PHOTO VIEWER (READ ONLY) */}
+        {/* FULLSCREEN PHOTO VIEWER (READ ONLY) — redesigned to match ApproveRequestModal */}
         {viewerOpen && (
           <Dialog open={true} onClose={() => setViewerOpen(false)} fullScreen>
+            {/* White header */}
             <DialogTitle
               sx={{
-                fontWeight: 900,
+                px: 2,
+                py: 1.25,
+                background: color_white,
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                background: "#0b1220",
-                color: color_white,
+                justifyContent: "space-between",
+                borderBottom: `1px solid ${color_border}`,
               }}
             >
-              Photo Viewer
-              <Button onClick={() => setViewerOpen(false)} sx={dangerBtnSx}>
-                Close
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  letterSpacing: 0.6,
+                  color: color_text_primary,
+                }}
+              >
+                PHOTO VIEWER
+              </Typography>
+
+              <Button
+                onClick={() => setViewerOpen(false)}
+                variant="outlined"
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 900,
+                  borderRadius: 2,
+                  px: 2,
+                  borderWidth: "2px",
+                  color: color_text_primary,
+                  borderColor: color_text_primary,
+                  background: color_white,
+                  "&:hover": {
+                    borderWidth: "2px",
+                    borderColor: color_text_primary,
+                    background: color_background,
+                  },
+                }}
+              >
+                ×&nbsp;CLOSE
               </Button>
             </DialogTitle>
 
-            <DialogContent sx={{ background: "#000" }}>
-              <ImageGallery
-                items={galleryItems}
-                startIndex={startIndex}
-                showPlayButton={false}
-                showFullscreenButton={false}
-                showThumbnails={false}
-                onSlide={(currentIndex) => setViewerIndex(currentIndex)}
-              />
+            {/* Dark stage */}
+            <DialogContent
+              sx={{
+                background: color_text_primary,
+                p: 0,
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+              }}
+            >
+              {/* Title above image */}
+              <Box
+                sx={{
+                  pt: 3,
+                  pb: 2,
+                  textAlign: "center",
+                  color: color_white,
+                  fontWeight: 900,
+                  fontSize: { xs: 18, md: 22 },
+                }}
+              >
+                Photo ID: {photos[viewerIndex]?.id ?? "-"}
+              </Box>
 
-              {/* Status label in viewer (icon + clearer) */}
-              {photos[viewerIndex] && (() => {
-                const meta = photoStatusMeta(photos[viewerIndex].status ?? null);
-                return (
-                  <div
-                    style={{
-                      position: "fixed",
-                      top: 82,
+              {/* Centered image area */}
+              <Box
+                sx={{
+                  flex: 1,
+                  minHeight: 0,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  px: 2,
+                  position: "relative",
+                }}
+              >
+                <Box
+                  sx={{
+                    width: "100%",
+                    maxWidth: 560,
+                    display: "flex",
+                    justifyContent: "center",
+                    "& .image-gallery": { width: "100%" },
+                    "& .image-gallery-slide-wrapper": { width: "100%" },
+                    "& .image-gallery-content": { width: "100%" },
+                    "& .image-gallery-slide": { background: "transparent" },
+                    "& .image-gallery-image": {
+                      maxHeight: "56vh",
+                      objectFit: "contain",
+                      borderRadius: 2,
+                      background: color_text_secondary,
+                    },
+
+                    // clean chrome
+                    "& .image-gallery-icon": { display: "none !important" },
+                    "& .image-gallery-thumbnails-wrapper": { display: "none !important" },
+                    "& .image-gallery-bullets": { display: "none !important" },
+                  }}
+                >
+                  <ImageGallery
+                    items={galleryItems}
+                    startIndex={startIndex}
+                    showPlayButton={false}
+                    showFullscreenButton={false}
+                    showThumbnails={false}
+                    showNav={false}
+                    showBullets={false}
+                    onSlide={(currentIndex) => setViewerIndex(currentIndex)}
+                  />
+                </Box>
+
+                {/* Status badge (same style as ApproveRequestModal) */}
+                {photos[viewerIndex] && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 0,
                       left: "50%",
                       transform: "translateX(-50%)",
-                      padding: "10px 16px",
-                      borderRadius: "999px",
-                      background: meta.viewerBg,
+                      px: 2.5,
+                      py: 1.1,
+                      borderRadius: 999,
+                      background: color_text_primary,
+                      border: `1px solid ${color_white}`,
                       color: color_white,
                       fontWeight: 900,
-                      fontSize: "0.95rem",
+                      fontSize: 12,
+                      letterSpacing: 0.4,
                       display: "flex",
                       alignItems: "center",
-                      gap: "10px",
-                      boxShadow: "0 14px 28px rgba(0,0,0,0.35)",
-                      border: "1px solid rgba(255,255,255,0.18)",
-                      backdropFilter: "blur(8px)",
+                      gap: 1.2,
+                      textAlign: "center",
                     }}
                   >
-                    <span style={{ display: "grid", placeItems: "center" }}>{meta.icon}</span>
-                    <span>{meta.label}</span>
-                    <span style={{ opacity: 0.9, fontWeight: 800, fontSize: "0.85rem" }}>
-                      — {meta.helper}
-                    </span>
-                  </div>
-                );
-              })()}
+                    <Box
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background:
+                          photos[viewerIndex].status === "approved"
+                            ? color_success
+                            : photos[viewerIndex].status === "rejected"
+                              ? color_primary
+                              : color_border,
+                      }}
+                    />
+                    <Box sx={{ lineHeight: 1.05 }}>
+                      {photos[viewerIndex].status === "approved"
+                        ? "APPROVED"
+                        : photos[viewerIndex].status === "rejected"
+                          ? "REJECTED"
+                          : "PENDING"}
+                      <br />
+                      REVIEW
+                    </Box>
+                  </Box>
+                )}
+              </Box>
 
-              {/* Download only */}
-              <div
-                style={{
-                  position: "fixed",
-                  bottom: "30px",
-                  left: "50%",
-                  transform: "translateX(-50%)",
+              {/* Bottom action (download only) */}
+              <Box
+                sx={{
+                  pb: 4,
+                  pt: 3,
                   display: "flex",
-                  gap: "20px",
+                  justifyContent: "center",
+                  px: 2,
                 }}
               >
                 <Button
                   variant="contained"
-                  startIcon={<DownloadIcon />}
-                  sx={{
-                    padding: "12px 28px",
-                    fontWeight: 900,
-                    borderRadius: "12px",
-                  }}
                   onClick={() => {
                     const p = photos[viewerIndex];
                     if (!p) return;
                     downloadMediaById(p.id, `photo_${p.id}.jpg`, "image/jpeg");
                   }}
+                  startIcon={
+                    <Box
+                      sx={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: "50%",
+                        background: color_white,
+                        display: "grid",
+                        placeItems: "center",
+                        color: color_text_primary,
+                        fontWeight: 900,
+                        lineHeight: 1,
+                      }}
+                    >
+                      <DownloadIcon fontSize="small" />
+                    </Box>
+                  }
+                  sx={{
+                    width: { xs: "90%", md: 360 },
+                    maxWidth: 420,
+                    height: 54,
+                    borderRadius: 2.5,
+                    textTransform: "none",
+                    fontWeight: 900,
+                    letterSpacing: 1,
+                    background: color_secondary,
+                    boxShadow: `0 10px 22px ${color_secondary_dark}`,
+                    "&:hover": { background: color_secondary_dark },
+                  }}
                 >
-                  Download
+                  DOWNLOAD PHOTO
                 </Button>
-              </div>
+              </Box>
             </DialogContent>
           </Dialog>
         )}
+
+
         {/* FULLSCREEN DOCUMENT VIEWER (READ ONLY) */}
-        {/* FULLSCREEN DOCUMENT VIEWER (READ ONLY) */}
+        {/* FULLSCREEN DOCUMENT VIEWER (READ ONLY) — redesigned to match ApproveRequestModal */}
         {docViewerOpen && currentDoc && (
           <Dialog
             open={true}
@@ -2287,93 +2546,218 @@ export default function AdminFileEditRequests({
               clearDocPreview();
             }}
             fullScreen
+            PaperProps={{ sx: { background: color_white } }}
           >
-            <DialogTitle
+            {/* Top header */}
+            <Box
               sx={{
-                fontWeight: 900,
+                px: { xs: 1.25, sm: 2 },
+                py: 1,
+                background: color_white,
+                borderBottom: `1px solid ${color_border}`,
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                background: "#0b1220",
-                color: color_white,
+                gap: 1.5,
               }}
             >
-              Document Viewer
-              <Button
-                onClick={() => {
-                  setDocViewerOpen(false);
-                  clearDocPreview();
-                }}
-                sx={dangerBtnSx}
-              >
-                Close
-              </Button>
-            </DialogTitle>
-
-            <DialogContent sx={{ background: "#000" }}>
-              {/* Header */}
-              <Box sx={{ mb: 1 }}>
-                <Typography sx={{ fontWeight: 900, color: color_white }}>
-                  {currentDoc.filename ?? `Document #${currentDoc.id}`}
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 900,
+                    color: color_text_primary,
+                    fontSize: 16,
+                    lineHeight: 1.2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: "70vw",
+                  }}
+                  title={currentDoc?.filename ?? `Document #${currentDoc?.id}`}
+                >
+                  {currentDoc?.filename ?? `Document #${currentDoc?.id}`}
                 </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.85, color: color_white }}>
-                  {currentDocMime || "unknown"} • ID: {currentDoc.id} • {docViewerIndex + 1}/{documents.length}
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    color: color_text_light,
+                    fontWeight: 700,
+                    mt: 0.15,
+                  }}
+                >
+                  {currentDocMime || "unknown"} • ID: {currentDoc?.id} • {docViewerIndex + 1}/
+                  {documents.length}
                 </Typography>
               </Box>
 
-              {/* Viewer */}
+              {/* Header buttons: Download + Close */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Button
+                  onClick={() =>
+                    downloadMediaById(
+                      currentDoc.id,
+                      currentDoc.filename ?? `document_${currentDoc.id}`,
+                      currentDocMime
+                    )
+                  }
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  disabled={docBlobLoading}
+                  sx={{
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    px: 2,
+                    background: color_secondary,
+                    "&:hover": { background: color_secondary_dark },
+                    "&.Mui-disabled": {
+                      opacity: 0.6,
+                      background: color_secondary,
+                      color: color_white,
+                    },
+                  }}
+                >
+                  Download
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setDocViewerOpen(false);
+                    clearDocPreview();
+                  }}
+                  variant="outlined"
+                  startIcon={<CloseIcon />}
+                  sx={{
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    borderWidth: 2,
+                    color: color_text_primary,
+                    backgroundColor: color_white,
+                    px: 2,
+                    "&:hover": {
+                      borderWidth: 2,
+                      backgroundColor: color_background,
+                    },
+                  }}
+                >
+                  Close
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Tip strip */}
+            <Box
+              sx={{
+                px: { xs: 1.25, sm: 2 },
+                py: 1,
+                background: color_text_primary,
+                color: color_white,
+                fontWeight: 800,
+                fontSize: 13,
+              }}
+            >
+              If preview doesn’t load (some types can’t embed), use “Download”.
+            </Box>
+
+            <Divider />
+
+            {/* Preview shell */}
+            <DialogContent
+              sx={{
+                p: { xs: 1.25, sm: 2 },
+                height: "calc(100vh - 112px)",
+                boxSizing: "border-box",
+                background: color_white,
+              }}
+            >
               <Box
                 sx={{
-                  mt: 2,
+                  height: "100%",
                   borderRadius: 2,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "#0b0b0b",
+                  border: `1px solid ${color_border}`,
+                  background: color_white,
                   overflow: "hidden",
-                  minHeight: "75vh",
+                  boxShadow: `0 8px 30px ${color_text_primary}`,
+                  position: "relative",
                 }}
               >
+                {/* Loading */}
                 {docBlobLoading && (
-                  <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2, color: color_white }}>
+                  <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
                     <CircularProgress size={24} />
-                    <Typography>Loading document...</Typography>
+                    <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+                      Loading document...
+                    </Typography>
                   </Box>
                 )}
 
+                {/* Error */}
                 {!docBlobLoading && docBlobError && (
-                  <Box sx={{ p: 3, color: color_white }}>
-                    <Typography sx={{ fontWeight: 800, mb: 1 }}>Failed to load document</Typography>
-                    <Typography sx={{ opacity: 0.85 }}>{String(docBlobError)}</Typography>
+                  <Box sx={{ p: 3 }}>
+                    <Typography sx={{ fontWeight: 900, mb: 1, color: color_text_primary }}>
+                      Failed to load document
+                    </Typography>
+                    <Typography sx={{ color: color_text_light }}>{String(docBlobError)}</Typography>
                   </Box>
                 )}
 
+                {/* Content */}
                 {!docBlobLoading && docBlobUrl && (
                   <>
                     {isPdfMime(currentDocMime) && (
                       <iframe
                         title="pdf-viewer"
                         src={docBlobUrl}
-                        style={{ width: "100%", height: "78vh", border: 0, background: color_white }}
+                        style={{ width: "100%", height: "100%", border: 0, background: "#fff" }}
                       />
                     )}
 
                     {isImageMime(currentDocMime) && (
-                      <Box sx={{ p: 2, display: "flex", justifyContent: "center" }}>
+                      <Box
+                        sx={{
+                          width: "100%",
+                          height: "100%",
+                          background: color_background,
+                          overflow: "auto",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          p: 2,
+                        }}
+                      >
                         <img
                           src={docBlobUrl}
-                          style={{ maxWidth: "100%", maxHeight: "78vh", objectFit: "contain" }}
-                          alt={currentDoc.filename}
+                          alt={currentDoc?.filename ?? "Document image"}
+                          style={{
+                            display: "block",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
+                            objectFit: "contain",
+                          }}
                         />
                       </Box>
                     )}
 
                     {!isPdfMime(currentDocMime) && !isImageMime(currentDocMime) && (
-                      <Box sx={{ p: 3, color: color_white }}>
-                        <Typography sx={{ fontWeight: 800, mb: 2 }}>
-                          Preview not supported for this file type.
+                      <Box
+                        sx={{
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          p: 3,
+                          textAlign: "center",
+                        }}
+                      >
+                        <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                          Preview not available for this file type.
                         </Typography>
+                        <Typography sx={{ color: color_text_light, mb: 2 }}>
+                          Use “Download”.
+                        </Typography>
+
                         <Button
-                          variant="contained"
-                          startIcon={<DownloadIcon />}
                           onClick={() =>
                             downloadMediaById(
                               currentDoc.id,
@@ -2381,7 +2765,13 @@ export default function AdminFileEditRequests({
                               currentDocMime
                             )
                           }
-                          sx={{ fontWeight: 900 }}
+                          variant="contained"
+                          startIcon={<DownloadIcon />}
+                          sx={{
+                            fontWeight: 900,
+                            background: color_secondary,
+                            "&:hover": { background: color_secondary_dark },
+                          }}
                         >
                           Download
                         </Button>
@@ -2389,30 +2779,60 @@ export default function AdminFileEditRequests({
                     )}
                   </>
                 )}
+
+                {/* Not loaded */}
+                {!docBlobLoading && !docBlobError && !docBlobUrl && (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      p: 3,
+                    }}
+                  >
+                    <Typography sx={{ color: color_text_light, fontWeight: 800 }}>
+                      Document not loaded yet.
+                    </Typography>
+                  </Box>
+                )}
               </Box>
 
-              {/* Bottom controls */}
+              {/* Bottom pill bar: Prev / Download / Next */}
               <Box
                 sx={{
                   position: "fixed",
-                  bottom: 24,
+                  bottom: 18,
                   left: "50%",
                   transform: "translateX(-50%)",
+                  zIndex: 1400,
                   display: "flex",
-                  gap: 2,
                   alignItems: "center",
-                  background: "rgba(0,0,0,0.55)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 3,
-                  p: 1.5,
+                  gap: 1,
+                  background: color_white,
+                  border: `1px solid ${color_border}`,
+                  borderRadius: 999,
+                  px: 1.25,
+                  py: 1,
+                  boxShadow: `0 12px 28px ${color_text_primary}`,
                   backdropFilter: "blur(8px)",
+                  maxWidth: "calc(100vw - 24px)",
+                  overflowX: "auto",
+                  WebkitOverflowScrolling: "touch",
                 }}
               >
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   onClick={handlePrevDoc}
                   disabled={docViewerIndex === 0 || docBlobLoading}
-                  sx={{ fontWeight: 900 }}
+                  sx={{
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    borderWidth: 2,
+                    borderColor: color_border,
+                    color: color_text_primary,
+                    "&:hover": { borderWidth: 2, backgroundColor: color_background },
+                  }}
                 >
                   ◀ Prev
                 </Button>
@@ -2427,18 +2847,30 @@ export default function AdminFileEditRequests({
                       currentDocMime
                     )
                   }
-
-                  sx={{ fontWeight: 900 }}
                   disabled={docBlobLoading}
+                  sx={{
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    background: color_secondary,
+                    "&:hover": { background: color_secondary_dark },
+                    "&.Mui-disabled": { background: color_secondary, color: color_white },
+                  }}
                 >
                   Download
                 </Button>
 
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   onClick={handleNextDoc}
                   disabled={docViewerIndex === documents.length - 1 || docBlobLoading}
-                  sx={{ fontWeight: 900 }}
+                  sx={{
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    borderWidth: 2,
+                    borderColor: color_border,
+                    color: color_text_primary,
+                    "&:hover": { borderWidth: 2, backgroundColor: color_background },
+                  }}
                 >
                   Next ▶
                 </Button>
@@ -2447,14 +2879,17 @@ export default function AdminFileEditRequests({
           </Dialog>
         )}
 
-        {downloadOpen && <DownloadUpdatesModal
-          open={downloadOpen}
-          onClose={() => setDownloadOpen(false)}
-          apiBase={API_BASE}
-          mode={mode}
-          clauses={clauses}
-          dangerBtnSx={dangerBtnSx}
-        />}
+
+        {downloadOpen && (
+          <DownloadUpdatesModal
+            open={downloadOpen}
+            onClose={() => setDownloadOpen(false)}
+            apiBase={API_BASE}
+            mode={mode}
+            clauses={clauses}
+            dangerBtnSx={primaryBtnSx}
+          />
+        )}
 
         {mediaDownloadOpen && (
           <DownloadMediaModal
@@ -2462,16 +2897,11 @@ export default function AdminFileEditRequests({
             onClose={() => setMediaDownloadOpen(false)}
             apiBase={API_BASE}
             clauses={requestId ? [] : clauses}
-            dangerBtnSx={dangerBtnSx}
+            dangerBtnSx={primaryBtnSx}
             requestId={requestId}
           />
         )}
-
-
-
       </LocalizationProvider>
-
-      {/* Splitter drag handlers already defined above */}
     </>
   );
 }

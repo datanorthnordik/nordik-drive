@@ -57,12 +57,12 @@ function HeaderNav({ onLinkClick }: HeaderNavProps) {
           </HeaderLink>
         )}
 
-        {user.role === 'Admin' && (
+        
           <HeaderLink to="/requests" onClick={onLinkClick}>
             <PendingActionsOutlinedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
             Requests
           </HeaderLink>
-        )}
+      
         
       </Stack>
     </NavWrapper>

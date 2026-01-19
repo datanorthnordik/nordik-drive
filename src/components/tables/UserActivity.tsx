@@ -29,7 +29,6 @@ import {
 
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import TuneIcon from "@mui/icons-material/Tune";
-import DashboardIcon from "@mui/icons-material/Dashboard";
 import FolderIcon from "@mui/icons-material/Folder";
 
 import dayjs, { Dayjs } from "dayjs";
@@ -42,6 +41,19 @@ import { FileButton } from "../buttons/Button";
 import { actions } from "../../constants/constants";
 import { parsePgTextArray } from "../activity/activityutils";
 import ActivityVisualization from "../activity/ActivityVisualization";
+
+import {
+  color_secondary,
+  color_secondary_dark,
+  color_border,
+  color_white,
+  color_light_gray,
+  color_white_smoke,
+  color_text_primary,
+  color_text_secondary,
+  color_text_light,
+  color_background,
+} from "../../constants/colors";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 const themeLightWarm = themeQuartz.withPart(colorSchemeLightWarm);
@@ -127,11 +139,11 @@ export default function UserActivity({
     false
   );
 
-  const {
-    fetchData: fetchCommunities,
-    data: communitiesResp,
-    loading: communitiesLoading,
-  } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/communities", "GET", false);
+  const { fetchData: fetchCommunities, data: communitiesResp, loading: communitiesLoading } = useFetch(
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
+    "GET",
+    false
+  );
 
   const { fetchData: fetchFiles, data: filesResp, loading: filesLoading } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
@@ -348,14 +360,14 @@ export default function UserActivity({
           preset === "LAST_7"
             ? "Last 7 days"
             : preset === "LAST_30"
-              ? "Last 30 days"
-              : preset === "THIS_MONTH"
-                ? "This month"
-                : preset === "LAST_MONTH"
-                  ? "Last month"
-                  : preset === "ALL"
-                    ? "All time"
-                    : "Custom"
+            ? "Last 30 days"
+            : preset === "THIS_MONTH"
+            ? "This month"
+            : preset === "LAST_MONTH"
+            ? "Last month"
+            : preset === "ALL"
+            ? "All time"
+            : "Custom"
         }`
       );
     }
@@ -382,40 +394,71 @@ export default function UserActivity({
             flexDirection: "column",
             minHeight: 0,
             gap: 1,
+            background: color_background,
           }}
         >
-          {/* ✅ Top compact bar (summary + switch + edit) */}
+          {/* ✅ Top row like screenshot */}
           {!showFilters ? (
             <Box
               sx={{
-                border: "1px solid #e5e7eb",
-                borderRadius: "12px",
-                px: 1,
-                py: 0.75,
-                background: "#fbfcfe",
                 flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 1,
+                flexWrap: "wrap",
               }}
             >
-              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
+              {/* left: Search + Time chips */}
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
                 <Chip
                   icon={<TuneIcon />}
-                  label={`Search (${filterSummary.length} filters)`}
+                  label={`Search (${filterSummary.length} filter${filterSummary.length === 1 ? "" : "s"})`}
                   size="small"
-                  sx={{ fontWeight: 900 }}
+                  sx={{
+                    fontWeight: 900,
+                    borderRadius: "10px",
+                    background: color_white,
+                    border: `1px solid ${color_border}`,
+                    color: color_text_primary,
+                  }}
                 />
-                {filterSummary.slice(0, 4).map((t) => (
-                  <Chip key={t} label={t} size="small" />
-                ))}
-                {filterSummary.length > 4 && (
-                  <Chip label={`+${filterSummary.length - 4} more`} size="small" />
+                {/* show just the Time chip always (like screenshot) */}
+                {filterSummary
+                  .filter((x) => x.startsWith("Time:"))
+                  .slice(0, 1)
+                  .map((t) => (
+                    <Chip
+                      key={t}
+                      label={t}
+                      size="small"
+                      sx={{
+                        fontWeight: 800,
+                        borderRadius: "10px",
+                        background: color_white,
+                        border: `1px solid ${color_border}`,
+                        color: color_text_primary,
+                      }}
+                    />
+                  ))}
+                {/* if you want the "+more" behaviour still */}
+                {filterSummary.length > 1 && (
+                  <Chip
+                    label={`+${filterSummary.length - 1} more`}
+                    size="small"
+                    sx={{
+                      fontWeight: 800,
+                      borderRadius: "10px",
+                      background: color_white,
+                      border: `1px solid ${color_border}`,
+                      color: color_text_secondary,
+                    }}
+                  />
                 )}
               </Box>
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              {/* right: File management + Edit search */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                 <ToggleButtonGroup
                   value={mode}
                   exclusive
@@ -428,6 +471,8 @@ export default function UserActivity({
                       borderRadius: "10px",
                       px: 1.2,
                       py: 0.6,
+                      background: color_white,
+                      border: `1px solid ${color_border}`,
                     },
                   }}
                 >
@@ -440,25 +485,30 @@ export default function UserActivity({
                 <Button
                   variant="contained"
                   onClick={() => setShowFilters(true)}
-                  sx={{ textTransform: "none", fontWeight: 900, borderRadius: "10px" }}
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 900,
+                    borderRadius: "10px",
+                    background: color_secondary,
+                    "&:hover": { background: color_secondary_dark },
+                  }}
                 >
                   Edit search
                 </Button>
               </Box>
             </Box>
           ) : (
-            // Expanded filters
+            // Expanded filters (kept all your controls/logic)
             <Box
               sx={{
                 display: "flex",
                 gap: 1,
                 flexWrap: "wrap",
                 alignItems: "center",
-                background: "#f7f9fc",
-                border: "1px solid #e5e7eb",
+                background: color_white_smoke,
+                border: `1px solid ${color_border}`,
                 padding: "8px 10px",
                 borderRadius: "12px",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
                 flexShrink: 0,
               }}
             >
@@ -518,7 +568,7 @@ export default function UserActivity({
                 </Select>
               </FormControl>
 
-              <Divider flexItem orientation="vertical" sx={{ mx: 0.25 }} />
+              <Divider flexItem orientation="vertical" sx={{ mx: 0.25, borderColor: color_border }} />
 
               <FormControl size="small" sx={{ minWidth: 160 }}>
                 <InputLabel>Time</InputLabel>
@@ -556,7 +606,13 @@ export default function UserActivity({
               <Button
                 variant="contained"
                 onClick={handleApply}
-                sx={{ textTransform: "none", fontWeight: 900, borderRadius: "10px" }}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 900,
+                  borderRadius: "10px",
+                  background: color_secondary,
+                  "&:hover": { background: color_secondary_dark },
+                }}
               >
                 Apply
               </Button>
@@ -567,16 +623,16 @@ export default function UserActivity({
                   textTransform: "none",
                   fontWeight: 900,
                   borderRadius: "10px",
-                  backgroundColor: "#fff",
-                  border: "1px solid #e5e7eb",
-                  color: "#d32f2f",
-                  "&:hover": { backgroundColor: "#fff5f5" },
+                  backgroundColor: color_white,
+                  border: `1px solid ${color_border}`,
+                  color: color_text_primary,
+                  "&:hover": { backgroundColor: color_white_smoke },
                 }}
               >
                 Reset
               </Button>
 
-              <Divider flexItem orientation="vertical" sx={{ mx: 0.25 }} />
+              <Divider flexItem orientation="vertical" sx={{ mx: 0.25, borderColor: color_border }} />
 
               <ToggleButtonGroup
                 value={mode}
@@ -590,6 +646,8 @@ export default function UserActivity({
                     borderRadius: "10px",
                     px: 1.2,
                     py: 0.6,
+                    background: color_white,
+                    border: `1px solid ${color_border}`,
                   },
                 }}
               >
@@ -610,97 +668,138 @@ export default function UserActivity({
             </Box>
           )}
 
-          {/* ✅ Split container takes ALL remaining height */}
+          {/* ✅ Outer panel like screenshot */}
           <Box
-            ref={containerRef}
             sx={{
               flex: 1,
               minHeight: 0,
-              borderRadius: "14px",
+              borderRadius: "10px",
               overflow: "hidden",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 10px 26px rgba(0,0,0,0.08)",
-              background: "#fff",
+              border: `2px solid ${color_secondary}`,
+              background: color_white_smoke,
+              padding: 1,
               display: "flex",
             }}
           >
-            {/* Left */}
-            <Box sx={{ width: `${leftPct}%`, minWidth: 360, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            {/* Inner split container */}
+            <Box
+              ref={containerRef}
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                borderRadius: "8px",
+                overflow: "hidden",
+                border: `1px solid ${color_border}`,
+                background: color_white,
+                display: "flex",
+              }}
+            >
+              {/* Left card: Logs */}
               <Box
                 sx={{
-                  px: 1.25,
-                  py: 0.75,
-                  borderBottom: "1px solid #eef2f7",
+                  width: `${leftPct}%`,
+                  minWidth: 360,
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  background: "#fbfcfe",
-                  flexShrink: 0,
+                  flexDirection: "column",
+                  minHeight: 0,
+                  borderRight: `1px solid ${color_border}`,
+                  background: color_white,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography sx={{ fontWeight: 900 }}>Logs</Typography>
-                  <Chip label={`${logData.length} rows (page ${currentPage}/${totalPages})`} size="small" sx={{ fontWeight: 900 }} />
+                <Box
+                  sx={{
+                    px: 1.25,
+                    py: 0.9,
+                    borderBottom: `1px solid ${color_border}`,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    background: color_white,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                    <Typography sx={{ fontWeight: 900, color: color_text_primary }}>Logs</Typography>
+                    <Typography sx={{ fontSize: 12, color: color_text_light }}>
+                      {logData.length} rows (page {currentPage}/{totalPages})
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <FileButton disabled={currentPage <= 1} onClick={() => fetchPage(currentPage - 1)}>
+                      PREV
+                    </FileButton>
+                    <FileButton disabled={currentPage >= totalPages} onClick={() => fetchPage(currentPage + 1)}>
+                      NEXT
+                    </FileButton>
+                  </Box>
                 </Box>
 
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <FileButton disabled={currentPage <= 1} onClick={() => fetchPage(currentPage - 1)}>
-                    Prev
-                  </FileButton>
-                  <FileButton disabled={currentPage >= totalPages} onClick={() => fetchPage(currentPage + 1)}>
-                    Next
-                  </FileButton>
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                  <div className="ag-theme-quartz" style={{ width: "100%", height: "100%" }}>
+                    <AgGridReact
+                      rowData={logData}
+                      columnDefs={columnDefs}
+                      defaultColDef={defaultColDef}
+                      onGridReady={onGridReady}
+                      rowHeight={42}
+                      headerHeight={46}
+                      suppressRowClickSelection
+                      rowSelection="single"
+                      pagination={false}
+                      suppressPaginationPanel={true}
+                      domLayout="normal"
+                    />
+                  </div>
                 </Box>
               </Box>
 
-              <Box sx={{ flex: 1, minHeight: 0 }}>
-                <div className="ag-theme-quartz" style={{ width: "100%", height: "100%" }} {...themeLightWarm}>
-                  <AgGridReact
-                    rowData={logData}
-                    columnDefs={columnDefs}
-                    defaultColDef={defaultColDef}
-                    onGridReady={onGridReady}
-                    rowHeight={42}
-                    headerHeight={46}
-                    suppressRowClickSelection
-                    rowSelection="single"
-                    pagination={false}
-                    suppressPaginationPanel={true}
-                    domLayout="normal"
-                  />
-                </div>
+              {/* Splitter (same behavior, styled) */}
+              <Box
+                onMouseDown={() => (draggingRef.current = true)}
+                sx={{
+                  width: 10,
+                  cursor: "col-resize",
+                  background: color_white_smoke,
+                  borderLeft: `1px solid ${color_border}`,
+                  borderRight: `1px solid ${color_border}`,
+                }}
+              />
+
+              {/* Right card: Visualization */}
+              <Box
+                sx={{
+                  width: `${rightPct}%`,
+                  minWidth: 320,
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: 0,
+                  background: color_white,
+                }}
+              >
+                <ActivityVisualization logData={logPayload} selectedCommunity={community} selectedAction={action} />
               </Box>
-            </Box>
-
-            {/* Splitter */}
-            <Box
-              onMouseDown={() => (draggingRef.current = true)}
-              sx={{
-                width: 10,
-                cursor: "col-resize",
-                background: "linear-gradient(to right, #ffffff, #f1f5f9, #ffffff)",
-                borderLeft: "1px solid #e5e7eb",
-                borderRight: "1px solid #e5e7eb",
-              }}
-            />
-
-            {/* Right */}
-            <Box sx={{ width: `${rightPct}%`, minWidth: 320, display: "flex", flexDirection: "column", minHeight: 0 }}>
-              <ActivityVisualization logData={logPayload} selectedCommunity={community} selectedAction={action} />
             </Box>
           </Box>
 
+          {/* AG Grid theme tweaks using ONLY your colors */}
           <style>
             {`
               .ag-theme-quartz .ag-header-cell {
-                background-color: #e8f1fb !important;
+                background-color: ${color_background} !important;
                 font-weight: 900 !important;
-                color: #0d47a1 !important;
+                color: ${color_secondary_dark} !important;
+              }
+              .ag-theme-quartz .ag-header-row {
+                border-bottom: 1px solid ${color_border} !important;
               }
               .ag-theme-quartz .ag-paging-panel { display: none !important; }
-              .ag-theme-quartz .ag-row:hover { background-color: #f1f5f9 !important; }
-              .ag-theme-quartz .ag-row-selected { background-color: #dbeafe !important; }
+              .ag-theme-quartz .ag-row:hover { background-color: ${color_light_gray} !important; }
+              .ag-theme-quartz .ag-row-selected { background-color: ${color_white_smoke} !important; }
               .ag-theme-quartz .ag-root-wrapper { border: none !important; }
+              .ag-theme-quartz .ag-cell {
+                color: ${color_text_primary} !important;
+              }
             `}
           </style>
         </Box>

@@ -9,8 +9,8 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 export const FileButton = styled(Button)`
-    border: 2px solid ${color_primary} !important;
-    color: ${color_primary} !important;
+    border: 2px solid ${color_secondary} !important;
+    color: ${color_secondary} !important;
     background: white !important;
     font-weight: bold;
 `

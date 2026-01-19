@@ -1,89 +1,163 @@
-import React from 'react';
-import { Box, Container, Typography, Card, CardContent } from '@mui/material';
-import { color_primary, color_secondary, header_height, header_mobile_height } from '../../constants/colors';
+// Acknowledgement.tsx
+import React, { useMemo, useState } from "react";
+import {
+  Box,
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  Stack,
+  useTheme,
+  useMediaQuery,
+} from "@mui/material";
+import { useNavigate } from "react-router-dom";
+
+import {
+  color_white,
+  color_light_gray,
+  color_white_smoke,
+  color_secondary,
+  color_secondary_dark,
+  color_border,
+  color_text_secondary,
+  color_black_light,
+  header_height,
+  header_mobile_height,
+} from "../../constants/colors";
 
 const Acknowledgement = () => {
-    return (
-        <Box
-            sx={{
-                minHeight: '100vh',
-                background: `
-          linear-gradient(
-            135deg,
-            rgba(166, 29, 51, 0.12) 0%,
-            rgba(0, 75, 156, 0.08) 30%,
-            rgba(166, 29, 51, 0.06) 70%,
-            rgba(0, 75, 156, 0.04) 100%
-          ),
-          radial-gradient(circle at 15% 85%, rgba(0, 75, 156, 0.15) 0%, transparent 40%),
-          radial-gradient(circle at 85% 15%, rgba(166, 29, 51, 0.12) 0%, transparent 40%),
-          radial-gradient(circle at 50% 50%, rgba(0, 75, 156, 0.05) 0%, transparent 60%)
-        `,
-                backgroundAttachment: 'fixed',
-                position: 'relative',
-                overflow: 'hidden',
-            }}
-        >
-            <Container
-                maxWidth="lg"
-                sx={{
-                    pt: { xs: `calc(${header_mobile_height} + 3rem)`, md: `calc(${header_height} + 3rem)` },
-                    pb: 6,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}
-            >
-                <Card
-                    sx={{
-                        maxWidth: 1100,
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,249,250,0.9) 100%)',
-                        backdropFilter: 'blur(20px)',
-                        borderRadius: 3,
-                        boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                    }}
-                >
-                    <CardContent sx={{ p: { xs: 4, md: 8 } }}>
-                        <Typography
-                            variant="h3"
-                            sx={{
-                                color: color_primary,
-                                fontWeight: 500,
-                                mb: 4,
-                                fontSize: { xs: '2rem', md: '3rem' }, // responsive title
-                                background: `linear-gradient(135deg, ${color_primary} 0%, ${color_secondary} 100%)`,
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                backgroundClip: 'text',
-                                textAlign: 'center',
-                            }}
-                        >
-                            Acknowledgement
-                        </Typography>
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
+  const [highContrast, setHighContrast] = useState(false);
 
-                        <Typography
-                            variant="body1"
-                            sx={{
-                                lineHeight: 2,
-                                fontSize: { xs: '1.4rem', md: '1.8rem' }, // slightly bigger on desktop
-                                textAlign: 'justify',
-                                color: '#1a1a1a',
-                            }}
-                        >
-                            The Children of Shingwauk Alumni Association’s (CSAA) mission is to provide for the
-                            well-being of the Children of Shingwauk Alumni who are former students of the Shingwauk
-                            and Wawanosh Indian Residential Schools, their families and their communities.
-                            The CSAA facilitates the ongoing development of a partnership with Algoma University
-                            and the other partners in fulfilling Chief Shingwauk’s vision of “Sharing, Healing and Learning.”
-                            The CSAA provides: A non-political voice for survivors concerns and interests to support, promote &
-                            enhance healing and reconciliation
-                        </Typography>
-                    </CardContent>
-                </Card>
-            </Container>
-        </Box>
-    );
+  const palette = useMemo(() => {
+    if (!highContrast) {
+      return {
+        pageBg: `linear-gradient(180deg, ${color_white_smoke} 0%, ${color_light_gray} 100%)`,
+        cardBg: color_white,
+        title: color_secondary_dark,
+        body: color_text_secondary,
+        border: color_border,
+      };
+    }
+    return {
+      pageBg: `linear-gradient(180deg, ${color_black_light} 0%, ${color_black_light} 100%)`,
+      cardBg: color_white,
+      title: color_secondary_dark,
+      body: color_black_light,
+      border: color_border,
+    };
+  }, [highContrast]);
+
+  return (
+    <Box sx={{ minHeight: "100vh", background: palette.pageBg }}>
+      <Container
+        maxWidth={false}
+        sx={{
+          pt: {
+            xs: `calc(${header_mobile_height} + 2.2rem)`,
+            md: `calc(${header_height} + 2.6rem)`,
+          },
+          pb: { xs: 4, md: 6 },
+          width: "100%",
+          mx: "auto",
+          px: { xs: 2, sm: 3, md: 4 },
+
+          // keep content readable on big monitors
+          maxWidth: { xs: "100%", md: 980, lg: 1040 },
+
+          // ✅ same “premium” large-screen behavior as ContactUs
+          display: "flex",
+          alignItems: { xs: "stretch", md: "center" },
+          justifyContent: "center",
+          minHeight: {
+            xs: "auto",
+            md: `calc(100vh - ${header_height} - 5.2rem)`,
+          },
+        }}
+      >
+        <Card
+          sx={{
+            width: "100%",
+            maxWidth: 860,
+            borderRadius: 2,
+            background: palette.cardBg,
+            border: `1px solid rgba(0,0,0,0.04)`,
+            boxShadow: "0 18px 34px rgba(0,0,0,0.12)",
+          }}
+        >
+          <CardContent sx={{ px: { xs: 3, md: 5 }, py: { xs: 3.5, md: 4.5 } }}>
+            <Box sx={{ textAlign: "center", mb: 2.2 }}>
+              <Typography
+                sx={{
+                  fontSize: { xs: 26, md: 30 },
+                  fontWeight: 900,
+                  color: palette.title,
+                  mb: 1,
+                }}
+              >
+                Acknowledgement
+              </Typography>
+
+              <Box
+                sx={{
+                  width: 44,
+                  height: 3,
+                  background: color_secondary,
+                  borderRadius: 2,
+                  mx: "auto",
+                }}
+              />
+            </Box>
+
+            {/* Body text bold + bigger (as you requested) */}
+            <Stack spacing={1.6} sx={{ px: { xs: 0, md: 1 } }}>
+              <Typography
+                sx={{
+                  fontSize: { xs: 16.2, md: 16.8 },
+                  lineHeight: 1.8,
+                  color: palette.body,
+                  fontWeight: 700,
+                }}
+              >
+                The Children of Shingwauk Alumni Association’s (CSAA) mission is to provide for the
+                well-being of the Children of Shingwauk Alumni who are former students of the Shingwauk
+                and Wawanosh Indian Residential Schools, their families and their communities.
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: { xs: 16.2, md: 16.8 },
+                  lineHeight: 1.8,
+                  color: palette.body,
+                  fontWeight: 700,
+                }}
+              >
+                The CSAA facilitates the ongoing development of a partnership with Algoma University and
+                the other partners in fulfilling Chief Shingwauk’s vision of{" "}
+                <Box component="span" sx={{ fontWeight: 900 }}>
+                  “Sharing, Healing and Learning.”
+                </Box>
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: { xs: 16.2, md: 16.8 },
+                  lineHeight: 1.8,
+                  color: palette.body,
+                  fontWeight: 700,
+                }}
+              >
+                The CSAA provides: A non-political voice for survivors’ concerns and interests to support,
+                promote &amp; enhance healing and reconciliation.
+              </Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      </Container>
+    </Box>
+  );
 };
 
 export default Acknowledgement;

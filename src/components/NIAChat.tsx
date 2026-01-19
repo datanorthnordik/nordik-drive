@@ -1,19 +1,37 @@
 "use client";
+
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Mic, Send, X, Bot } from "lucide-react";
-import { color_primary, color_secondary } from "../constants/colors";
 import { useSelector } from "react-redux";
 import useFetch from "../hooks/useFetch";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
-import { useSpeechSynthesis } from "react-speech-kit";
 import PauseIcon from "@mui/icons-material/Pause";
+import { useSpeechSynthesis } from "react-speech-kit";
+
 import { marked } from "marked";
 import { decode } from "he";
 import { motion } from "framer-motion";
+
 import Loader from "./Loader";
+
+import {
+  color_primary,
+  color_secondary,
+  color_primary_dark,
+  color_secondary_dark,
+  color_border,
+  color_white,
+  color_white_smoke,
+  color_black,
+  color_black_light,
+  color_text_light,
+  color_text_lighter,
+} from "../constants/colors";
 
 type Message = {
   from: "user" | "nia";
@@ -29,21 +47,30 @@ interface NIAChatProps {
 export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const finalTranscriptRef = useRef<string>("");
   const recognitionRef = useRef<any>(null);
+
   const [fullscreen, setFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [minimized, setMinimized] = useState(false);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+
   const [recordingState, setRecordingState] = useState<"idle" | "recording">(
     "idle"
   );
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+
   const { loading, fetchData, data } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat",
     "POST"
   );
-  const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
+
+  const { selectedFile, selectedCommunities } = useSelector(
+    (state: any) => state.file
+  );
+
   const { speak, voices, cancel, speaking } = useSpeechSynthesis();
   const [selectedVoice, setSelectedVoice] = useState<any>(null);
   const [selectedIndex, setSelectedIndex] = useState<any>(null);
@@ -59,14 +86,16 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // --- Scroll so the last user message is at the top ---
+  // --- Scroll so the last user message is at the top (kept as-is) ---
   const scrollLastUserToTop = () => {
     if (!messagesContainerRef.current) return;
     const container = messagesContainerRef.current;
-    // Find last user message element
-    const lastUserIndex = [...messages].map((m, i) => m.from === "user" ? i : -1)
+
+    const lastUserIndex = [...messages]
+      .map((m, i) => (m.from === "user" ? i : -1))
       .filter((i) => i !== -1)
       .pop();
+
     if (lastUserIndex !== undefined) {
       const el = messageRefs.current.get(lastUserIndex);
       if (el) {
@@ -121,6 +150,8 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
       setInput(finalTranscript + interimTranscript);
       finalTranscriptRef.current = finalTranscript + interimTranscript;
+
+      // keep your existing behavior
       setRecordingState("idle");
     };
 
@@ -147,35 +178,42 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   // --- Add user question and send to API ---
   const addUserAndNIAResponse = (msg: Message) => {
     setMessages((msgs) => [...msgs, msg]);
-    setTimeout(() => scrollLastUserToTop(), 50); // scroll after rendering
+    setTimeout(() => scrollLastUserToTop(), 50);
 
     const formData = new FormData();
-    formData.append("filename", selectedFile.filename);
+    formData.append("filename", selectedFile?.filename);
+
     if (msg.text) formData.append("question", msg.text);
-    if(selectedFile?.community_filter){
-      formData.append("communities", selectedCommunities);
+
+    // keep same behavior (don’t change API contract)
+    if (selectedFile?.community_filter) {
+      formData.append("communities", selectedCommunities as any);
     }
-    if (msg.audio) formData.append("audio", new File([msg.audio], "audio.webm"));
+
+    if (msg.audio)
+      formData.append("audio", new File([msg.audio], "audio.webm"));
+
     fetchData(formData);
   };
 
   // --- When API returns data (NIA's answer) ---
   useEffect(() => {
     if (data) {
-      setMessages((msgs) => [...msgs, { from: "nia", text: (data as any).answer }]);
+      setMessages((msgs) => [
+        ...msgs,
+        { from: "nia", text: (data as any).answer },
+      ]);
       setTimeout(() => scrollLastUserToTop(), 50);
     }
   }, [data]);
 
   useEffect(() => {
-    if (!speaking) {
-      setSelectedIndex(null);
-    }
+    if (!speaking) setSelectedIndex(null);
   }, [speaking]);
 
   useEffect(() => {
     if (voices.length > 0) {
-      setSelectedVoice(voices[2]);
+      setSelectedVoice(voices[2] || voices[0] || null);
     }
   }, [voices]);
 
@@ -185,56 +223,95 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setInput("");
   };
 
+  // ---------- Redesigned messages (UI only) ----------
   const renderedMessages = useMemo(
     () =>
-      messages.map((msg, idx) => (
-        <div
-          key={idx}
-          ref={(el) => {
-            if (el) messageRefs.current.set(idx, el);
-          }}
-          style={{
-            display: "flex",
-            gap: "20px",
-            alignSelf: msg.from === "user" ? "flex-end" : "flex-start",
-            maxWidth: "70%",
-          }}
-        >
+      messages.map((msg, idx) => {
+        const isUser = msg.from === "user";
+        return (
           <div
+            key={idx}
+            ref={(el) => {
+              if (el) messageRefs.current.set(idx, el);
+            }}
             style={{
-              padding: "12px 16px",
-              borderRadius: "18px",
-              background:
-                msg.from === "user"
-                  ? `linear-gradient(135deg, ${color_primary}, ${color_secondary})`
-                  : "rgba(0,0,0,0.6)",
-              color: "#fff",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: isUser ? "flex-end" : "flex-start",
+              gap: 6,
+              maxWidth: "100%",
             }}
           >
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
+            {/* Small label like UX */}
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 900,
+                color: isUser ? color_text_light : color_secondary,
+                paddingLeft: isUser ? 0 : 4,
+                paddingRight: isUser ? 4 : 0,
+                textTransform: "uppercase",
+                letterSpacing: 0.6,
+              }}
             >
-              {msg.text}
-            </ReactMarkdown>
+              {isUser ? "YOU" : "NIA ASSISTANT"}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                maxWidth: isUser ? "78%" : "82%",
+              }}
+            >
+              <div
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  background: isUser ? color_secondary : color_white,
+                  color: isUser ? color_white : color_black_light,
+                  border: isUser
+                    ? `1px solid ${color_secondary_dark}`
+                    : `1px solid ${color_border}`,
+                  boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
+                  lineHeight: 1.35,
+                  fontWeight: 700,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                >
+                  {msg.text || ""}
+                </ReactMarkdown>
+              </div>
+
+              {/* TTS controls (same functionality) */}
+              {msg.text && !isUser && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    paddingTop: 6,
+                  }}
+                >
+                  {selectedIndex === idx && speaking ? (
+                    <PauseIcon style={{ cursor: "pointer" }} onClick={cancel} />
+                  ) : (
+                    <VolumeUpIcon
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleAudio(msg.text, idx)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          <div>
-            {msg.text && msg.from !== "user" && (
-              <>
-                {selectedIndex === idx && speaking ? (
-                  <PauseIcon style={{ cursor: "pointer" }} onClick={cancel} />
-                ) : (
-                  <VolumeUpIcon
-                    style={{ cursor: "pointer" }}
-                    onClick={() => handleAudio(msg.text, idx)}
-                  />
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )),
-    [messages, selectedIndex, speaking]
+        );
+      }),
+    [messages, selectedIndex, speaking, cancel]
   );
 
   return (
@@ -248,66 +325,97 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
             left: minimized ? "auto" : isMobile ? "0" : fullscreen ? "0" : "auto",
             bottom: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
             width: minimized ? "100px" : isMobile ? "100%" : fullscreen ? "100%" : "50%",
-            height: minimized
-              ? "60px"
-              : isMobile
-                ? "100%"
-                : fullscreen
-                  ? "100%"
-                  : "auto",
-            borderRadius: "16px",
-            backdropFilter: "blur(40px) saturate(180%)",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.06))",
-            border: "1px solid rgba(255,255,255,0.15)",
+            height: minimized ? "60px" : isMobile ? "100%" : fullscreen ? "100%" : "auto",
+
+            borderRadius: 14,
+            background: color_white_smoke,
+            border: `1px solid ${color_border}`,
             display: "flex",
             flexDirection: "column",
             zIndex: 10000,
             overflow: "hidden",
+            boxShadow: "0 18px 50px rgba(0,0,0,0.18)",
           }}
         >
           <Loader loading={loading} />
-          {/* Header */}
+
+          {/* Header (UX look, same behavior/buttons) */}
           <div
             style={{
-              padding: "16px 20px",
-              background: `linear-gradient(90deg, ${color_primary}, ${color_secondary})`,
-              color: "#fff",
+              padding: minimized ? "10px 12px" : "14px 16px",
+              background: color_secondary,
+              color: color_white,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              fontWeight: "bold",
-              fontSize: "1.1rem",
+              fontWeight: 900,
+              borderBottom: `1px solid ${color_secondary_dark}`,
             }}
           >
-            {!minimized && <span>🤖 NIA – NORDIK Intelligent Assistant</span>}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {!minimized && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: color_white,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: color_secondary,
+                      border: `1px solid ${color_border}`,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Bot size={18} />
+                  </div>
+
+                  <div style={{ fontSize: 18, letterSpacing: 0.2 }}>
+                    NIA ASSISTANT
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {!isMobile && !minimized && (
                 <button
                   onClick={() => setFullscreen((prev) => !prev)}
                   style={{
                     background: "transparent",
                     border: "none",
-                    color: "white",
+                    color: color_white,
                     cursor: "pointer",
                     fontSize: "1.2rem",
+                    fontWeight: 900,
+                    lineHeight: 1,
+                    padding: 6,
                   }}
+                  aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                 >
                   {fullscreen ? "🗗" : "🗖"}
                 </button>
               )}
+
               <button
-                onClick={() => setMinimized(prev => !prev)}
+                onClick={() => setMinimized((prev) => !prev)}
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "white",
+                  color: color_white,
                   cursor: "pointer",
                   fontSize: "1.2rem",
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  padding: 6,
                 }}
+                aria-label={minimized ? "Restore" : "Minimize"}
               >
-                {minimized ? "🔼" : "🔽"}  {/* 🔽 = minimize, 🔼 = restore */}
+                {minimized ? "🔼" : "—"}
               </button>
+
               <X onClick={() => setOpen(false)} style={{ cursor: "pointer" }} />
             </div>
           </div>
@@ -317,100 +425,130 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
             ref={messagesContainerRef}
             style={{
               flex: 1,
-              padding: "20px",
+              padding: "16px",
               overflowY: "auto",
               display: "flex",
               flexDirection: "column",
-              gap: "12px",
+              gap: 14,
+              background: color_white_smoke,
             }}
           >
             {renderedMessages}
           </div>
 
-          {/* Input Area */}
+          {/* Input Area (UX look, same send/voice behavior) */}
           <div
             style={{
-              padding: "14px",
-              display: "flex",
-              gap: "10px",
-              background: "rgba(0,0,0,0.5)",
-              borderTop: "1px solid rgba(255,255,255,0.2)",
-              alignItems: "center",
+              padding: "14px 14px 12px",
+              background: color_white,
+              borderTop: `2px solid ${color_secondary}`,
             }}
           >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                recordingState === "recording"
-                  ? "🎙️ Listening..."
-                  : "Ask NIA..."
-              }
-              style={{
-                flex: 1,
-                padding: "12px 16px",
-                borderRadius: "30px",
-                border: "1px solid rgba(255,255,255,0.3)",
-                outline: "none",
-                fontSize: "0.95rem",
-                background: "rgba(0,0,0,0.6)",
-                color: "#fff",
-              }}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            />
-            <button
-              onClick={sendMessage}
-              style={{
-                background: `linear-gradient(135deg, ${color_primary}, ${color_secondary})`,
-                border: "none",
-                borderRadius: "50%",
-                width: "46px",
-                height: "46px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                cursor: "pointer",
-              }}
-            >
-              <Send size={18} />
-            </button>
-            {recordingState === "idle" ? (
-              <button
-                onClick={startAudioRecording}
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  recordingState === "recording"
+                    ? "🎙️ Listening..."
+                    : "Type your message here..."
+                }
                 style={{
-                  background: "rgba(255,255,255,0.15)",
-                  border: `1px solid ${color_primary}`,
-                  borderRadius: "50%",
-                  width: "46px",
-                  height: "46px",
+                  flex: 1,
+                  height: 48,
+                  padding: "0 14px",
+                  borderRadius: 12,
+                  border: `2px solid ${color_border}`,
+                  outline: "none",
+                  fontSize: 15,
+                  background: color_white,
+                  color: color_black_light,
+                  fontWeight: 800,
+                }}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              />
+
+              {/* Send */}
+              <button
+                onClick={sendMessage}
+                style={{
+                  width: 52,
+                  height: 48,
+                  borderRadius: 10,
+                  background: color_secondary,
+                  border: `1px solid ${color_secondary_dark}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: color_primary,
+                  color: color_white,
                   cursor: "pointer",
                 }}
+                aria-label="Send message"
               >
-                <Mic size={18} />
+                <Send size={18} />
               </button>
-            ) : (
-              <button
-                onClick={stopAudioRecording}
+
+              {/* Mic */}
+              {recordingState === "idle" ? (
+                <button
+                  onClick={startAudioRecording}
+                  style={{
+                    width: 52,
+                    height: 48,
+                    borderRadius: 10,
+                    background: color_black_light,
+                    border: `1px solid ${color_black}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: color_white,
+                    cursor: "pointer",
+                  }}
+                  aria-label="Start voice input"
+                >
+                  <Mic size={18} />
+                </button>
+              ) : (
+                <button
+                  onClick={stopAudioRecording}
+                  style={{
+                    width: 52,
+                    height: 48,
+                    borderRadius: 10,
+                    background: color_primary,
+                    border: `1px solid ${color_primary_dark}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: color_white,
+                    cursor: "pointer",
+                    fontWeight: 900,
+                  }}
+                  aria-label="Stop voice input"
+                >
+                  ⏹
+                </button>
+              )}
+            </div>
+
+            {!minimized && (
+              <div
                 style={{
-                  background: "rgba(255,0,0,0.2)",
-                  border: "1px solid red",
-                  borderRadius: "50%",
-                  width: "46px",
-                  height: "46px",
+                  marginTop: 10,
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  justifyContent: "center",
-                  color: "red",
-                  cursor: "pointer",
+                  gap: 12,
+                  fontSize: 12,
+                  color: color_text_light,
+                  fontWeight: 800,
                 }}
               >
-                ⏹
-              </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: color_secondary, fontWeight: 900 }}>i</span>
+                  <span>Tip: Tap the microphone to talk to NIA</span>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -418,7 +556,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     </>
   );
 }
-
 
 export function NIAChatTrigger({ setOpen }: { setOpen: (v: boolean) => void }) {
   return (
@@ -430,12 +567,12 @@ export function NIAChatTrigger({ setOpen }: { setOpen: (v: boolean) => void }) {
       whileTap={{ scale: 0.95 }}
       className="fixed bottom-6 right-6 flex items-center gap-3 px-5 h-16 rounded-full shadow-lg z-50 text-white font-semibold"
       style={{
-        background: "linear-gradient(135deg, #004B9C, #0454a9ff)",
+        background: `linear-gradient(135deg, ${color_secondary}, ${color_secondary_dark})`,
         border: "none",
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        padding: "10px 20px",
+        padding: "10px 15px",
         borderRadius: "20px",
         justifyContent: "center",
         alignItems: "center",
