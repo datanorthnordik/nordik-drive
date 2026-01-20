@@ -29,7 +29,6 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import LockIcon from "@mui/icons-material/Lock";
 import SearchIcon from "@mui/icons-material/Search";
 
-import { color_primary } from "../constants/colors";
 import { useDispatch, useSelector } from "react-redux";
 import useFetch from "../hooks/useFetch";
 import { AppDispatch } from "../store/store";

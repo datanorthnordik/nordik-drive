@@ -16,7 +16,6 @@ import {
   color_secondary_dark,
   color_primary_dark,
   color_background,
-  color_white_smoke,
 } from "../../constants/colors";
 
 type VizType = "PIE" | "DONUT" | "BAR";

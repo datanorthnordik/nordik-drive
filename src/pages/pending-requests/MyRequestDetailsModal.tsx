@@ -44,7 +44,12 @@ import {
   color_text_light,
   color_success,
   color_warning,
+  color_primary,
 } from "../../constants/colors";
+import PhotoViewerModal from "../viewers/PhotoViewer";
+import DocumentViewerModal from "../viewers/DocumentViewer";
+
+
 
 interface MyRequestDetailsModalProps {
   open: boolean;
@@ -61,6 +66,7 @@ interface RequestPhoto {
   mime_type?: string;
   approved_by?: string;
   approved_at?: string;
+  is_approved?: boolean;
 }
 
 interface RequestDoc {
@@ -71,6 +77,7 @@ interface RequestDoc {
   approved_by?: string;
   approved_at?: string;
   document_category?: string;
+  is_approved?: boolean;
 }
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
@@ -130,14 +137,14 @@ const categoryLabel = (cat?: string) => {
 
 const isZeroTime = (iso?: string) => !iso || String(iso).startsWith("0001-01-01");
 
-const deriveStatus = (requestStatus?: string, approvedAt?: string): ReviewStatus => {
+const deriveStatus = (requestStatus?: string, is_approved?: boolean): ReviewStatus => {
   const req = String(requestStatus || "").toLowerCase();
 
   // if request is approved/rejected and item still not approved => rejected (your rule)
   const isFinal = req.includes("approved") || req.includes("rejected");
-  if (isFinal && isZeroTime(approvedAt)) return "rejected";
+  if (isFinal && !is_approved) return "rejected";
 
-  if (!isZeroTime(approvedAt)) return "approved";
+  if (is_approved) return "approved";
 
   return "pending";
 };
@@ -153,8 +160,8 @@ const chipSx = (st: ReviewStatus) => {
   }
   if (st === "rejected") {
     return {
-      color: color_text_secondary,
-      backgroundColor: "rgba(107, 114, 128, 0.12)",
+      color: color_primary,
+      backgroundColor: "#f3967c1f",
       border: "1px solid rgba(107, 114, 128, 0.25)",
     };
   }
@@ -269,10 +276,9 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     setViewerOpen(true);
   };
 
-  const handleOpenDocViewer = async (idx: number) => {
+  const handleOpenDocViewer = (idx: number) => {
     setDocViewerIndex(idx);
     setDocViewerOpen(true);
-    await openDocAtIndex(idx);
   };
 
   const handlePrevDoc = async () => {
@@ -295,8 +301,8 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
       fileBlobData instanceof Blob
         ? fileBlobData
         : (fileBlobData as any)?.blob instanceof Blob
-        ? (fileBlobData as any).blob
-        : null;
+          ? (fileBlobData as any).blob
+          : null;
 
     if (!rawBlob) return;
 
@@ -489,7 +495,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             ) : (
               <Grid container spacing={1.5}>
                 {photos.map((photo, idx) => {
-                  const st = deriveStatus(request?.status, photo?.approved_at);
+                  const st = deriveStatus(request?.status, photo?.is_approved);
                   return (
                     <Grid key={photo.id}>
                       <Card
@@ -542,7 +548,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             ) : (
               <Grid container spacing={1.5}>
                 {docs.map((doc, idx) => {
-                  const st = deriveStatus(request?.status, doc?.approved_at);
+                  const st = deriveStatus(request?.status, doc?.is_approved);
                   return (
                     <Grid key={doc.id}>
                       <Box
@@ -593,472 +599,28 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         </DialogContent>
       </Dialog>
 
-      {/* PHOTO VIEWER (same feel as your ApproveRequestModal, but read-only + NO red) */}
-      {viewerOpen && (
-        <Dialog open={true} onClose={() => setViewerOpen(false)} fullScreen>
-          <DialogTitle
-            sx={{
-              px: 2,
-              py: 1.25,
-              background: color_white,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              borderBottom: `1px solid ${color_border}`,
-            }}
-          >
-            <Typography sx={{ fontWeight: 900, letterSpacing: 0.6, color: color_text_primary }}>
-              PHOTO VIEWER
-            </Typography>
+      <PhotoViewerModal
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        photos={photos}
+        startIndex={startIndex}
+        mode="view"
+        showThumbnails={true}
+        showStatusPill={false}
+        only_approved={false}
+      />
 
-            <Button
-              onClick={() => setViewerOpen(false)}
-              variant="outlined"
-              sx={{
-                textTransform: "none",
-                fontWeight: 900,
-                borderRadius: 2,
-                px: 2,
-                borderWidth: "2px",
-                color: color_text_primary,
-                borderColor: color_text_primary,
-                background: color_white,
-                "&:hover": {
-                  borderWidth: "2px",
-                  borderColor: color_text_primary,
-                  background: color_background,
-                },
-              }}
-            >
-              ×&nbsp;CLOSE
-            </Button>
-          </DialogTitle>
-
-          <DialogContent
-            sx={{
-              background: stageBg,
-              p: 0,
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-            }}
-          >
-            <Box
-              sx={{
-                pt: 3,
-                pb: 2,
-                textAlign: "center",
-                color: color_white,
-                fontWeight: 900,
-                fontSize: { xs: 18, md: 22 },
-              }}
-            >
-              Photo ID:{photos[viewerIndex]?.id ?? "-"}
-            </Box>
-
-            <Box
-              sx={{
-                flex: 1,
-                minHeight: 0,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                px: 2,
-              }}
-            >
-              <Box
-                sx={{
-                  width: "100%",
-                  maxWidth: 560,
-                  display: "flex",
-                  justifyContent: "center",
-                  "& .image-gallery": { width: "100%" },
-                  "& .image-gallery-slide": { background: "transparent" },
-                  "& .image-gallery-image": {
-                    maxHeight: "56vh",
-                    objectFit: "contain",
-                    borderRadius: 12,
-                    background: color_text_secondary,
-                  },
-                  "& .image-gallery-icon": { display: "none !important" },
-                  "& .image-gallery-thumbnails-wrapper": { display: "none !important" },
-                  "& .image-gallery-bullets": { display: "none !important" },
-                }}
-              >
-                <ImageGallery
-                  items={galleryItems}
-                  startIndex={startIndex}
-                  showPlayButton={false}
-                  showFullscreenButton={false}
-                  showThumbnails={false}
-                  showNav={false}
-                  showBullets={false}
-                  onSlide={(currentIndex) => setViewerIndex(currentIndex)}
-                />
-              </Box>
-
-              {photos[viewerIndex] && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 10,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    px: 2.5,
-                    py: 1.1,
-                    borderRadius: 999,
-                    background: stageBg,
-                    border: `1px solid ${color_white}`,
-                    color: color_white,
-                    fontWeight: 900,
-                    fontSize: 12,
-                    letterSpacing: 0.4,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.2,
-                    textAlign: "center",
-                  }}
-                >
-                  {(() => {
-                    const st = deriveStatus(request?.status, photos[viewerIndex]?.approved_at);
-                    return (
-                      <>
-                        <Box
-                          sx={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: "50%",
-                            background: st === "approved" ? color_success : st === "pending" ? color_warning : color_border,
-                          }}
-                        />
-                        <Box sx={{ lineHeight: 1.05 }}>
-                          {st.toUpperCase()}
-                          <br />
-                          VIEW
-                        </Box>
-                      </>
-                    );
-                  })()}
-                </Box>
-              )}
-            </Box>
-
-            <Box
-              sx={{
-                pb: 4,
-                pt: 3,
-                display: "flex",
-                justifyContent: "center",
-                gap: 2,
-                px: 2,
-              }}
-            >
-              <Button
-                variant="contained"
-                onClick={() => setViewerOpen(false)}
-                sx={{
-                  width: { xs: "92%", md: 360 },
-                  height: 54,
-                  borderRadius: 2.5,
-                  textTransform: "none",
-                  fontWeight: 900,
-                  letterSpacing: 0.6,
-                  background: color_secondary,
-                  "&:hover": { background: color_secondary_dark },
-                }}
-              >
-                Back
-              </Button>
-            </Box>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* DOC VIEWER (same design style as your component) */}
-      {docViewerOpen && currentDoc && (
-        <Dialog
-          open={true}
-          onClose={() => {
-            setDocViewerOpen(false);
-            clearPreview();
-          }}
-          fullScreen
-          PaperProps={{ sx: { background: color_white } }}
-        >
-          {/* Header */}
-          <Box
-            sx={{
-              px: { xs: 1.25, sm: 2 },
-              py: 1,
-              background: color_white,
-              borderBottom: `1px solid ${color_border}`,
-              display: "flex",
-              alignItems: "center",
-              gap: 1.5,
-            }}
-          >
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography
-                sx={{
-                  fontWeight: 900,
-                  color: color_text_primary,
-                  fontSize: 16,
-                  lineHeight: 1.2,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  maxWidth: "70vw",
-                }}
-                title={currentDoc?.file_name}
-              >
-                {currentDoc?.file_name || "Document"}
-              </Typography>
-
-              <Typography variant="caption" sx={{ display: "block", color: color_text_light, fontWeight: 600, mt: 0.15 }}>
-                {currentDocMime || "unknown"} • ID: {currentDoc?.id} • {docViewerIndex + 1}/{docs.length}
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Button
-                onClick={openDocInNewTab}
-                variant="outlined"
-                startIcon={<OpenInNewIcon />}
-                disabled={!docBlobUrl}
-                sx={{
-                  fontWeight: 900,
-                  textTransform: "uppercase",
-                  borderWidth: 2,
-                  color: color_white,
-                  background: color_secondary,
-                  px: 2,
-                  "&:hover": { background: color_secondary_dark, borderWidth: 2 },
-                  "&.Mui-disabled": { opacity: 0.6, color: color_white, background: color_secondary },
-                }}
-              >
-                Open
-              </Button>
-
-              <Button
-                onClick={openDocInNewTab}
-                variant="contained"
-                startIcon={<DownloadIcon />}
-                disabled={!docBlobUrl}
-                sx={{
-                  fontWeight: 900,
-                  textTransform: "uppercase",
-                  px: 2,
-                  background: color_secondary,
-                  "&:hover": { background: color_secondary_dark },
-                  "&.Mui-disabled": { opacity: 0.6, background: color_secondary },
-                }}
-              >
-                Download
-              </Button>
-
-              <Button
-                onClick={() => {
-                  setDocViewerOpen(false);
-                  clearPreview();
-                }}
-                variant="outlined"
-                startIcon={<CloseIcon />}
-                sx={{
-                  fontWeight: 900,
-                  textTransform: "uppercase",
-                  borderWidth: 2,
-                  color: color_text_primary,
-                  backgroundColor: color_white,
-                  px: 2,
-                  "&:hover": { borderWidth: 2, backgroundColor: color_background },
-                }}
-              >
-                Close
-              </Button>
-            </Box>
-          </Box>
-
-          <Box
-            sx={{
-              px: { xs: 1.25, sm: 2 },
-              py: 1,
-              background: color_text_primary,
-              color: color_white,
-              fontWeight: 700,
-              fontSize: 13,
-            }}
-          >
-            If preview doesn’t load, use “Open”.
-          </Box>
-
-          <Divider />
-
-          <DialogContent
-            sx={{
-              p: { xs: 1.25, sm: 2 },
-              height: "calc(100vh - 112px)",
-              boxSizing: "border-box",
-              background: color_white,
-            }}
-          >
-            <Box
-              sx={{
-                height: "100%",
-                borderRadius: 2,
-                border: `1px solid ${color_border}`,
-                background: color_white,
-                overflow: "hidden",
-                boxShadow: `0 8px 30px rgba(0,0,0,0.12)`,
-                position: "relative",
-              }}
-            >
-              {fileBlobLoading && (
-                <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
-                  <CircularProgress size={24} />
-                  <Typography sx={{ fontWeight: 700, color: color_text_primary }}>Loading document...</Typography>
-                </Box>
-              )}
-
-              {!fileBlobLoading && fileBlobError && (
-                <Box sx={{ p: 3 }}>
-                  <Typography sx={{ fontWeight: 900, mb: 1, color: color_text_primary }}>
-                    Failed to load document
-                  </Typography>
-                  <Typography sx={{ color: color_text_light }}>{String(fileBlobError)}</Typography>
-                </Box>
-              )}
-
-              {!fileBlobLoading && docBlobUrl && (
-                <>
-                  {isPdfMime(currentDocMime) && (
-                    <iframe title="pdf-viewer" src={docBlobUrl} style={{ width: "100%", height: "100%", border: 0 }} />
-                  )}
-
-                  {isImageMime(currentDocMime) && (
-                    <Box
-                      sx={{
-                        width: "100%",
-                        height: "100%",
-                        background: color_background,
-                        overflow: "auto",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        p: 2,
-                      }}
-                    >
-                      <img
-                        src={docBlobUrl}
-                        alt={currentDoc?.file_name}
-                        style={{ display: "block", maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
-                      />
-                    </Box>
-                  )}
-
-                  {!isPdfMime(currentDocMime) && !isImageMime(currentDocMime) && docTextPreview && (
-                    <Box sx={{ p: 2 }}>
-                      <pre
-                        style={{
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                          margin: 0,
-                          color: color_text_primary,
-                          fontFamily:
-                            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                          fontSize: 13,
-                        }}
-                      >
-                        {docTextPreview}
-                      </pre>
-                    </Box>
-                  )}
-
-                  {!isPdfMime(currentDocMime) && !isImageMime(currentDocMime) && !docTextPreview && (
-                    <Box
-                      sx={{
-                        height: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        p: 3,
-                        textAlign: "center",
-                      }}
-                    >
-                      <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
-                        Preview not available for this file type.
-                      </Typography>
-                      <Typography sx={{ color: color_text_light, mb: 2 }}>Use “Open” or “Download”.</Typography>
-
-                      <Button onClick={openDocInNewTab} variant="contained" startIcon={<OpenInNewIcon />} sx={primaryBtnSx}>
-                        Open
-                      </Button>
-                    </Box>
-                  )}
-                </>
-              )}
-
-              {!fileBlobLoading && !fileBlobError && !docBlobUrl && (
-                <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", p: 3 }}>
-                  <Typography sx={{ color: color_text_light, fontWeight: 700 }}>Document not loaded yet.</Typography>
-                </Box>
-              )}
-            </Box>
-
-            {/* Bottom nav */}
-            <Box
-              sx={{
-                position: "fixed",
-                bottom: 18,
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 1400,
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                background: color_white,
-                border: `1px solid ${color_border}`,
-                borderRadius: 999,
-                px: 1.25,
-                py: 1,
-                boxShadow: `0 12px 28px rgba(0,0,0,0.15)`,
-                maxWidth: "calc(100vw - 24px)",
-                overflowX: "auto",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              <Button
-                variant="outlined"
-                onClick={handlePrevDoc}
-                disabled={docViewerIndex === 0 || fileBlobLoading}
-                sx={{ fontWeight: 900, textTransform: "uppercase", borderWidth: 2 }}
-              >
-                ◀ Prev
-              </Button>
-
-              <Button
-                variant="outlined"
-                onClick={openDocInNewTab}
-                disabled={!docBlobUrl}
-                startIcon={<OpenInNewIcon />}
-                sx={{ fontWeight: 900, backgroundColor: color_white, textTransform: "uppercase", borderWidth: 2, borderColor: color_secondary, color: color_secondary }}
-              >
-                View
-              </Button>
-
-              <Button
-                variant="outlined"
-                onClick={handleNextDoc}
-                disabled={docViewerIndex === docs.length - 1 || fileBlobLoading}
-                sx={{ fontWeight: 900, textTransform: "uppercase", borderWidth: 2 }}
-              >
-                Next ▶
-              </Button>
-            </Box>
-          </DialogContent>
-        </Dialog>
-      )}
+      <DocumentViewerModal
+        open={docViewerOpen}
+        onClose={() => setDocViewerOpen(false)}
+        docs={docs}
+        startIndex={docViewerIndex}
+        mode="view"
+        apiBase={API_BASE}
+        blobEndpointPath="/api/file/doc"
+        showApproveReject={false}
+        bottomOpenLabel="View"
+      />
     </>
   );
 };
