@@ -28,7 +28,6 @@ import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import useFetch from "../../hooks/useFetch";
 import toast from "react-hot-toast";
 
-import ImageGallery from "react-image-gallery";
 import "react-image-gallery/styles/css/image-gallery.css";
 
 import {

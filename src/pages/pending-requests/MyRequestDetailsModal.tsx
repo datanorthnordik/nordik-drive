@@ -620,6 +620,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         blobEndpointPath="/api/file/doc"
         showApproveReject={false}
         bottomOpenLabel="View"
+        only_approved={false}
       />
     </>
   );
