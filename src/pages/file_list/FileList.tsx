@@ -262,7 +262,7 @@ const FileList = () => {
                   gap: 1,
                 }}
               >
-                <FolderIcon sx={{ color: color_primary }} />
+                <FolderIcon sx={{ color: color_secondary }} />
                 Community Records
               </Typography>
 
@@ -296,7 +296,7 @@ const FileList = () => {
                   gap: 1,
                 }}
               >
-                <LockIcon sx={{ color: "#dc3545" }} />
+                <LockIcon sx={{ color: color_secondary }} />
                 Community Records (Confidential)
               </Typography>
 

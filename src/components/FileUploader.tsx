@@ -249,7 +249,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
 
               <DropZoneLabel htmlFor={inputId} aria-label="Select files to upload">
                 <Box>
-                  <CloudUpload sx={{ fontSize: 56, color: color_primary, opacity: 0.9 }} />
+                  <CloudUpload sx={{ fontSize: 56, color: color_secondary, opacity: 0.9 }} />
                   <Typography sx={{ mt: 1, fontWeight: 800, color: "#0f172a" }}>
                     Drag & Drop files here
                   </Typography>
@@ -266,10 +266,10 @@ const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
                       textTransform: "none",
                       fontWeight: 800,
                       borderRadius: 1.5,
-                      background: color_primary,
+                      background: color_secondary,
                       px: 2.25,
                       boxShadow: "none",
-                      "&:hover": { background: color_primary, boxShadow: "none", opacity: 0.92 },
+                      "&:hover": { background: color_secondary, boxShadow: "none", opacity: 0.92 },
                     }}
                     onClick={(e) => {
                       // ✅ keep button from submitting form

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Mic, Send, X, Bot } from "lucide-react";
 import { useSelector } from "react-redux";
 import useFetch from "../hooks/useFetch";
@@ -30,7 +30,6 @@ import {
   color_black,
   color_black_light,
   color_text_light,
-  color_text_lighter,
 } from "../constants/colors";
 
 type Message = {
@@ -44,6 +43,102 @@ interface NIAChatProps {
   setOpen: (v: boolean) => void;
 }
 
+/** Sensitive-topic detector used ONLY for delivery (rate/pitch/pauses), not for changing text */
+const SENSITIVE_RE =
+  /\b(died|dead|death|passed away|killed|fatal|funeral|mourning|grief|condolences|trag(?:edy|ic)|accident|crash|shooting|massacre|homicide|suicide|school\s+(?:shooting|attack)|victim(?:s)?|missing|injured|injuries|survivor(?:s)?|memorial)\b/i;
+
+function isSensitiveTopic(text: string) {
+  return SENSITIVE_RE.test(text || "");
+}
+
+async function markdownToPlainText(md: string) {
+  let htmlText = await marked(md || "");
+  htmlText = decode(htmlText);
+  let text = htmlText.replace(/<[^>]+>/g, "");
+  text = text.replace(/\r/g, "");
+  return text;
+}
+
+/** Chunking for smoother, calmer delivery (NO word changes; only splits) */
+function splitIntoChunks(text: string, maxLen = 220) {
+  const t = (text || "").trim();
+  if (!t) return [];
+
+  const sentences = t.split(/(?<=[.!?])\s+/g).filter(Boolean);
+  const chunks: string[] = [];
+  let cur = "";
+
+  const pushCur = () => {
+    const c = cur.trim();
+    if (c) chunks.push(c);
+    cur = "";
+  };
+
+  for (const s0 of sentences) {
+    const s = s0.trim();
+    if (!s) continue;
+
+    if ((cur + " " + s).trim().length <= maxLen) {
+      cur = (cur + " " + s).trim();
+      continue;
+    }
+
+    pushCur();
+
+    if (s.length > maxLen) {
+      const words = s.split(/\s+/g).filter(Boolean);
+      let part = "";
+      for (const w of words) {
+        if ((part + " " + w).trim().length <= maxLen) {
+          part = (part + " " + w).trim();
+        } else {
+          if (part) chunks.push(part);
+          part = w;
+        }
+      }
+      if (part) chunks.push(part);
+    } else {
+      cur = s;
+    }
+  }
+
+  pushCur();
+  return chunks;
+}
+
+function pickBestVoice(voices: SpeechSynthesisVoice[]) {
+  if (!voices || voices.length === 0) return null;
+
+  const isEnglish = (v: SpeechSynthesisVoice) => /en(-|_)us|en-us|en\b/i.test(v.lang || "");
+
+  const score = (v: SpeechSynthesisVoice) => {
+    const n = (v.name || "").toLowerCase();
+    const lang = (v.lang || "").toLowerCase();
+
+    // Prefer English US, but allow other English
+    let s = isEnglish(v) ? 30 : lang.startsWith("en") ? 18 : 0;
+
+    // Prefer more natural providers/labels
+    if (n.includes("google")) s += 10;
+    if (n.includes("microsoft")) s += 8;
+    if (n.includes("natural")) s += 6;
+    if (n.includes("neural")) s += 6;
+    if (n.includes("enhanced")) s += 4;
+
+    // Often “warmer” voices (varies by OS/browser, harmless if absent)
+    if (n.includes("female")) s += 4;
+    if (n.includes("zira") || n.includes("susan") || n.includes("samantha")) s += 4;
+
+    // Prefer default voice slightly
+    if ((v as any).default) s += 2;
+
+    return s;
+  };
+
+  const sorted = [...voices].sort((a, b) => score(b) - score(a));
+  return sorted[0] || voices[0];
+}
+
 export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const finalTranscriptRef = useRef<string>("");
   const recognitionRef = useRef<any>(null);
@@ -55,9 +150,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
 
-  const [recordingState, setRecordingState] = useState<"idle" | "recording">(
-    "idle"
-  );
+  const [recordingState, setRecordingState] = useState<"idle" | "recording">("idle");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
@@ -67,18 +160,21 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     "POST"
   );
 
-  const { selectedFile, selectedCommunities } = useSelector(
-    (state: any) => state.file
-  );
+  const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
 
-  const { speak, voices, cancel, speaking } = useSpeechSynthesis();
-  const [selectedVoice, setSelectedVoice] = useState<any>(null);
-  const [selectedIndex, setSelectedIndex] = useState<any>(null);
+  // useSpeechSynthesis only to retrieve voices (we speak via native speechSynthesis for better control)
+  const { voices } = useSpeechSynthesis();
+  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
+
+  const [speaking, setSpeaking] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const ttsQueueRef = useRef<SpeechSynthesisUtterance[]>([]);
+  const pauseMsRef = useRef<number>(0);
 
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // --- Detect mobile ---
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
     checkMobile();
@@ -86,7 +182,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // --- Scroll so the last user message is at the top (kept as-is) ---
   const scrollLastUserToTop = () => {
     if (!messagesContainerRef.current) return;
     const container = messagesContainerRef.current;
@@ -107,6 +202,12 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     }
   };
 
+  useEffect(() => {
+    if (voices.length > 0 && !selectedVoice) {
+      setSelectedVoice(pickBestVoice(voices) as any);
+    }
+  }, [voices, selectedVoice]);
+
   const startAudioRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream);
@@ -121,8 +222,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setRecordingState("recording");
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Speech recognition is not supported in this browser");
@@ -141,17 +241,13 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
       for (let i = 0; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
+        if (event.results[i].isFinal) finalTranscript += transcript;
+        else interimTranscript += transcript;
       }
 
       setInput(finalTranscript + interimTranscript);
       finalTranscriptRef.current = finalTranscript + interimTranscript;
 
-      // keep your existing behavior
       setRecordingState("idle");
     };
 
@@ -167,15 +263,86 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setRecordingState("idle");
   };
 
-  const handleAudio = async (answer: any, index: number) => {
-    let htmlText = await marked(answer);
-    htmlText = decode(htmlText);
-    const text = htmlText.replace(/<[^>]+>/g, "");
-    speak({ text, voice: selectedVoice });
-    setSelectedIndex(index);
-  };
+  const cancelTTS = useCallback(() => {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+    ttsQueueRef.current = [];
+    pauseMsRef.current = 0;
+    setSpeaking(false);
+    setSelectedIndex(null);
+  }, []);
 
-  // --- Add user question and send to API ---
+  const speakQueued = useCallback(
+    (utterances: SpeechSynthesisUtterance[], messageIndex: number, pauseMs: number) => {
+      cancelTTS();
+      if (!utterances.length) return;
+
+      ttsQueueRef.current = utterances;
+      pauseMsRef.current = pauseMs;
+
+      setSelectedIndex(messageIndex);
+      setSpeaking(true);
+
+      const speakNext = () => {
+        const next = ttsQueueRef.current.shift();
+        if (!next) {
+          setSpeaking(false);
+          setSelectedIndex(null);
+          return;
+        }
+
+        next.onend = () => {
+          const p = pauseMsRef.current || 0;
+          if (p > 0) setTimeout(speakNext, p);
+          else speakNext();
+        };
+
+        next.onerror = () => {
+          setSpeaking(false);
+          setSelectedIndex(null);
+        };
+
+        window.speechSynthesis.speak(next);
+      };
+
+      speakNext();
+    },
+    [cancelTTS]
+  );
+
+  const handleAudio = useCallback(
+    async (answer: string, index: number) => {
+      const plain = await markdownToPlainText(answer || "");
+      const sensitive = isSensitiveTopic(plain);
+
+      // More empathetic delivery for sensitive topics:
+      // - smaller chunks (more breath)
+      // - slower rate
+      // - slightly lower pitch
+      // - small pauses between chunks
+      const maxLen = sensitive ? 160 : 220;
+      const chunks = splitIntoChunks(plain, maxLen);
+
+      const rate = sensitive ? 0.78 : 1.0;
+      const pitch = sensitive ? 0.85 : 1.0;
+      const volume = sensitive ? 0.92 : 1.0;
+      const pauseMs = sensitive ? 220 : 60;
+
+      const utterances = chunks.map((c) => {
+        const u = new SpeechSynthesisUtterance(c);
+        if (selectedVoice) u.voice = selectedVoice;
+        u.rate = rate;
+        u.pitch = pitch;
+        u.volume = volume;
+        return u;
+      });
+
+      speakQueued(utterances, index, pauseMs);
+    },
+    [selectedVoice, speakQueued]
+  );
+
   const addUserAndNIAResponse = (msg: Message) => {
     setMessages((msgs) => [...msgs, msg]);
     setTimeout(() => scrollLastUserToTop(), 50);
@@ -185,37 +352,21 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
     if (msg.text) formData.append("question", msg.text);
 
-    // keep same behavior (don’t change API contract)
     if (selectedFile?.community_filter) {
       formData.append("communities", selectedCommunities as any);
     }
 
-    if (msg.audio)
-      formData.append("audio", new File([msg.audio], "audio.webm"));
+    if (msg.audio) formData.append("audio", new File([msg.audio], "audio.webm"));
 
     fetchData(formData);
   };
 
-  // --- When API returns data (NIA's answer) ---
   useEffect(() => {
     if (data) {
-      setMessages((msgs) => [
-        ...msgs,
-        { from: "nia", text: (data as any).answer },
-      ]);
+      setMessages((msgs) => [...msgs, { from: "nia", text: (data as any).answer }]);
       setTimeout(() => scrollLastUserToTop(), 50);
     }
   }, [data]);
-
-  useEffect(() => {
-    if (!speaking) setSelectedIndex(null);
-  }, [speaking]);
-
-  useEffect(() => {
-    if (voices.length > 0) {
-      setSelectedVoice(voices[2] || voices[0] || null);
-    }
-  }, [voices]);
 
   const sendMessage = () => {
     if (!input.trim()) return;
@@ -223,7 +374,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setInput("");
   };
 
-  // ---------- Redesigned messages (UI only) ----------
   const renderedMessages = useMemo(
     () =>
       messages.map((msg, idx) => {
@@ -242,7 +392,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
               maxWidth: "100%",
             }}
           >
-            {/* Small label like UX */}
             <div
               style={{
                 fontSize: 12,
@@ -271,39 +420,24 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                   borderRadius: 14,
                   background: isUser ? color_secondary : color_white,
                   color: isUser ? color_white : color_black_light,
-                  border: isUser
-                    ? `1px solid ${color_secondary_dark}`
-                    : `1px solid ${color_border}`,
+                  border: isUser ? `1px solid ${color_secondary_dark}` : `1px solid ${color_border}`,
                   boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
                   lineHeight: 1.35,
                   fontWeight: 700,
                   overflowWrap: "anywhere",
                 }}
               >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeHighlight]}
-                >
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                   {msg.text || ""}
                 </ReactMarkdown>
               </div>
 
-              {/* TTS controls (same functionality) */}
               {msg.text && !isUser && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    paddingTop: 6,
-                  }}
-                >
+                <div style={{ display: "flex", alignItems: "center", paddingTop: 6 }}>
                   {selectedIndex === idx && speaking ? (
-                    <PauseIcon style={{ cursor: "pointer" }} onClick={cancel} />
+                    <PauseIcon style={{ cursor: "pointer" }} onClick={cancelTTS} />
                   ) : (
-                    <VolumeUpIcon
-                      style={{ cursor: "pointer" }}
-                      onClick={() => handleAudio(msg.text, idx)}
-                    />
+                    <VolumeUpIcon style={{ cursor: "pointer" }} onClick={() => handleAudio(msg.text || "", idx)} />
                   )}
                 </div>
               )}
@@ -311,7 +445,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
           </div>
         );
       }),
-    [messages, selectedIndex, speaking, cancel]
+    [messages, selectedIndex, speaking, cancelTTS, handleAudio]
   );
 
   return (
@@ -326,7 +460,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
             bottom: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
             width: minimized ? "100px" : isMobile ? "100%" : fullscreen ? "100%" : "50%",
             height: minimized ? "60px" : isMobile ? "100%" : fullscreen ? "100%" : "auto",
-
             borderRadius: 14,
             background: color_white_smoke,
             border: `1px solid ${color_border}`,
@@ -339,7 +472,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
         >
           <Loader loading={loading} />
 
-          {/* Header (UX look, same behavior/buttons) */}
           <div
             style={{
               padding: minimized ? "10px 12px" : "14px 16px",
@@ -371,10 +503,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                   >
                     <Bot size={18} />
                   </div>
-
-                  <div style={{ fontSize: 18, letterSpacing: 0.2 }}>
-                    NIA ASSISTANT
-                  </div>
+                  <div style={{ fontSize: 18, letterSpacing: 0.2 }}>NIA ASSISTANT</div>
                 </div>
               </div>
             )}
@@ -416,11 +545,16 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                 {minimized ? "🔼" : "—"}
               </button>
 
-              <X onClick={() => setOpen(false)} style={{ cursor: "pointer" }} />
+              <X
+                onClick={() => {
+                  cancelTTS();
+                  setOpen(false);
+                }}
+                style={{ cursor: "pointer" }}
+              />
             </div>
           </div>
 
-          {/* Messages */}
           <div
             ref={messagesContainerRef}
             style={{
@@ -436,7 +570,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
             {renderedMessages}
           </div>
 
-          {/* Input Area (UX look, same send/voice behavior) */}
           <div
             style={{
               padding: "14px 14px 12px",
@@ -448,11 +581,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  recordingState === "recording"
-                    ? "🎙️ Listening..."
-                    : "Type your message here..."
-                }
+                placeholder={recordingState === "recording" ? "🎙️ Listening..." : "Type your message here..."}
                 style={{
                   flex: 1,
                   height: 48,
@@ -468,7 +597,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               />
 
-              {/* Send */}
               <button
                 onClick={sendMessage}
                 style={{
@@ -488,7 +616,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                 <Send size={18} />
               </button>
 
-              {/* Mic */}
               {recordingState === "idle" ? (
                 <button
                   onClick={startAudioRecording}
@@ -582,8 +709,7 @@ export function NIAChatTrigger({ setOpen }: { setOpen: (v: boolean) => void }) {
       <motion.div
         className="absolute inset-0 rounded-full"
         style={{
-          background:
-            "radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 70%)",
+          background: "radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 70%)",
         }}
         animate={{ opacity: [0.2, 0.7, 0.2] }}
         transition={{ duration: 2.5, repeat: Infinity }}
