@@ -192,7 +192,7 @@ export interface DocumentViewerModalProps {
 
     // safety: show up to N chars for text preview
     maxTextChars?: number;
-    only_approved?:boolean
+    only_approved?: boolean
 }
 
 const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
@@ -475,6 +475,8 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         "&.Mui-disabled": { background: color_secondary, color: color_white, opacity: 0.7 },
     } as const;
 
+
+
     const rejectBtnSx = {
         fontWeight: 900,
         textTransform: "uppercase",
@@ -483,12 +485,6 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         "&.Mui-disabled": { background: color_primary, color: color_white, opacity: 0.7 },
     } as const;
 
-    const pillBtnBase = {
-        fontWeight: 900,
-        textTransform: "uppercase",
-        borderWidth: 2,
-        "&:hover": { borderWidth: 2, backgroundColor: color_background },
-    } as const;
 
     return (
         <Dialog
@@ -839,6 +835,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                             maxWidth: "calc(100vw - 24px)",
                             overflowX: "auto",
                             WebkitOverflowScrolling: "touch",
+                            width: "max-content"
                         }}
                     >
                         {showPrevNext && (
@@ -846,7 +843,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                                 variant="outlined"
                                 onClick={handlePrev}
                                 disabled={index === 0 || fileBlobLoading}
-                                sx={pillBtnBase}
+                                sx={approveBtnSx}
                             >
                                 ◀ Prev
                             </Button>
@@ -880,13 +877,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                                 onClick={openInNewTab}
                                 disabled={!docBlobUrl}
                                 startIcon={<OpenInNewIcon />}
-                                sx={{
-                                    ...pillBtnBase,
-                                    borderColor: color_secondary,
-                                    color: color_secondary,
-                                    backgroundColor: color_white,
-                                    "&:hover": { borderWidth: 2, backgroundColor: color_background },
-                                }}
+                                sx={approveBtnSx}
                             >
                                 {bottomOpenLabel}
                             </Button>
@@ -897,7 +888,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                                 variant="outlined"
                                 onClick={handleNext}
                                 disabled={index === docs.length - 1 || fileBlobLoading}
-                                sx={pillBtnBase}
+                                sx={approveBtnSx}
                             >
                                 Next ▶
                             </Button>
@@ -913,15 +904,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                                 )
                             }
                             disabled={!canDownloadAll || zipLoading}
-                            sx={{
-                                fontWeight: 900,
-                                textTransform: "uppercase",
-                                px: 2,
-                                background: color_secondary,
-                                "&:hover": { background: color_secondary_dark },
-                                "&.Mui-disabled": { opacity: 0.6, background: color_secondary },
-                                whiteSpace: "nowrap",
-                            }}
+                            sx={approveBtnSx}
                         >
                             Download All
                         </Button>

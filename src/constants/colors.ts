@@ -31,3 +31,25 @@ export const color_warning = "#f39c12"; // Warning color
 export const color_warning_light = "#FFE0B2"
 export const color_success_dark = "#166534"
 export const color_success_darker = "#166534"
+
+// FileList accessibility / color-blind friendly surfaces
+export const color_card_border_soft = "rgba(0, 0, 0, 0.08)"; // subtle border
+export const color_overlay_white_80 = "rgba(255, 255, 255, 0.8)"; // page overlay
+
+// FileList category accents (PUBLIC vs CONFIDENTIAL)
+export const color_public_accent = color_secondary; // blue
+export const color_confidential_accent = color_primary; // burgundy
+
+// Badge colors with strong contrast (white text)
+export const color_public_badge_bg = color_secondary_dark; // dark blue bg
+export const color_confidential_badge_bg = color_primary_dark; // dark burgundy bg
+export const color_badge_text_on_dark = color_white;
+
+// Soft tints for backgrounds (keep readable, not color-only)
+export const color_public_card_bg = color_white;
+export const color_confidential_card_bg = "#FFF5F5"; // very light burgundy tint
+export const color_public_icon_bg = color_light_blue; // already defined in your file
+export const color_confidential_icon_bg = "#FDE2E2"; // light burgundy tint
+
+// Focus ring (keyboard accessibility)
+export const color_focus_ring = color_secondary_dark;

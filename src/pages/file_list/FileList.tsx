@@ -15,11 +15,32 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "../../store/store";
 import { setSelectedFile } from "../../store/auth/fileSlice";
+
 import {
   color_primary,
   color_secondary,
   header_height,
   header_mobile_height,
+
+  // existing
+  color_white,
+  color_black,
+  color_text_primary,
+  color_text_secondary,
+
+  // new constants you’ll add
+  color_card_border_soft,
+  color_overlay_white_80,
+  color_public_accent,
+  color_confidential_accent,
+  color_public_badge_bg,
+  color_confidential_badge_bg,
+  color_badge_text_on_dark,
+  color_public_card_bg,
+  color_confidential_card_bg,
+  color_public_icon_bg,
+  color_confidential_icon_bg,
+  color_focus_ring,
 } from "../../constants/colors";
 
 import useFetch from "../../hooks/useFetch";
@@ -33,6 +54,15 @@ interface FileType {
   community_filter: boolean;
   id: number;
 }
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const h = hex.replace("#", "");
+  const bigint = parseInt(h, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 const FileList = () => {
   const navigate = useNavigate();
@@ -113,21 +143,48 @@ const FileList = () => {
   const renderFileCard = (file: FileType, isConfidential: boolean) => {
     const isSelected = file.filename === selectedFile?.filename;
 
+    const accent = isConfidential ? color_confidential_accent : color_public_accent;
+    const cardBg = isConfidential ? color_confidential_card_bg : color_public_card_bg;
+    const iconBg = isConfidential ? color_confidential_icon_bg : color_public_icon_bg;
+    const badgeBg = isConfidential ? color_confidential_badge_bg : color_public_badge_bg;
+
+    const a11yLabel = `${file.filename}. ${isConfidential ? "Confidential" : "Public"}. ${
+      isSelected ? "Selected" : "Not selected"
+    }.`;
+
     return (
       <Card
+        role="button"
+        aria-label={a11yLabel}
+        aria-pressed={isSelected}
+        tabIndex={0}
         onClick={() => onSelectFile(file)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelectFile(file);
+          }
+        }}
+        onFocus={() => speak(`${file.filename}, ${isConfidential ? "Confidential" : "Public"}`)}
         sx={{
           cursor: "pointer",
           borderRadius: 2,
-          borderLeft: `5px solid ${isConfidential ? "#dc3545" : color_primary}`,
-          backgroundColor: isConfidential ? "#fff5f5" : "#ffffff",
-          border: isSelected
-            ? `2px solid ${isConfidential ? "#dc3545" : color_primary}`
-            : "1px solid rgba(0,0,0,0.08)",
-          boxShadow: "none",
-          transition: "border-color 0.2s ease",
+          borderLeft: `6px solid ${accent}`,
+          backgroundColor: cardBg,
+
+          border: isSelected ? `2px solid ${accent}` : `1px solid ${color_card_border_soft}`,
+          boxShadow: isSelected ? `0 0 0 3px ${hexToRgba(accent, 0.18)}` : "none",
+
+          transition: "border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease",
           "&:hover": {
-            borderColor: isConfidential ? "#dc3545" : color_primary,
+            borderColor: accent,
+            transform: "translateY(-1px)",
+          },
+
+          // Strong keyboard focus ring (not color-only: it’s a visible outline)
+          "&:focus-visible": {
+            outline: `3px solid ${color_focus_ring}`,
+            outlineOffset: "3px",
           },
         }}
       >
@@ -139,22 +196,18 @@ const FileList = () => {
             p: 2,
             "&:last-child": { pb: 2 },
           }}
-          tabIndex={0}
-          onFocus={() =>
-            speak(`${file.filename}, ${isConfidential ? "Confidential" : "Public"}`)
-          }
         >
-          {/* Icon */}
+          {/* Icon (already a non-color cue) */}
           <Box
             sx={{
               width: 44,
               height: 44,
               borderRadius: 1.5,
-              backgroundColor: isConfidential ? "#fde2e2" : "#e8f0fe",
+              backgroundColor: iconBg,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: isConfidential ? "#dc3545" : color_primary,
+              color: accent,
               flexShrink: 0,
             }}
           >
@@ -165,10 +218,10 @@ const FileList = () => {
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               sx={{
-                fontWeight: 600,
+                fontWeight: 700,
                 fontSize: "0.95rem",
                 mb: 0.5,
-                color: "#1f2937",
+                color: color_text_primary,
                 wordBreak: "break-word",
               }}
             >
@@ -181,9 +234,14 @@ const FileList = () => {
               sx={{
                 height: 22,
                 fontSize: "0.7rem",
-                fontWeight: 600,
-                backgroundColor: isConfidential ? "#dc3545" : "#e8f0fe",
-                color: isConfidential ? "#fff" : color_primary,
+                fontWeight: 700,
+
+                // High-contrast badge (passes better than white on bright orange/red)
+                backgroundColor: badgeBg,
+                color: color_badge_text_on_dark,
+
+                // Add border to help in low-saturation situations
+                border: `1px solid ${hexToRgba(color_black, 0.12)}`,
               }}
             />
           </Box>
@@ -206,11 +264,11 @@ const FileList = () => {
           backgroundImage: `
             linear-gradient(
               135deg,
-              rgba(0, 75, 156, 0.1) 0%,
-              rgba(166, 29, 51, 0.06) 25%,
-              rgba(0, 75, 156, 0.04) 50%,
-              rgba(166, 29, 51, 0.08) 75%,
-              rgba(0, 75, 156, 0.05) 100%
+              ${hexToRgba(color_secondary, 0.1)} 0%,
+              ${hexToRgba(color_primary, 0.06)} 25%,
+              ${hexToRgba(color_secondary, 0.04)} 50%,
+              ${hexToRgba(color_primary, 0.08)} 75%,
+              ${hexToRgba(color_secondary, 0.05)} 100%
             ),
             url("Copy of 2018 Reunion.jpg")
           `,
@@ -226,7 +284,7 @@ const FileList = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(255, 255, 255, 0.8)",
+            backgroundColor: color_overlay_white_80,
             zIndex: 0,
           },
 
@@ -255,8 +313,8 @@ const FileList = () => {
                 sx={{
                   mb: 2.5,
                   fontSize: { xs: "1.6rem", sm: "1.9rem" },
-                  fontWeight: 700,
-                  color: "#0f172a",
+                  fontWeight: 800,
+                  color: color_text_primary,
                   display: "flex",
                   alignItems: "center",
                   gap: 1,
@@ -289,8 +347,8 @@ const FileList = () => {
                 sx={{
                   mb: 2.5,
                   fontSize: { xs: "1.6rem", sm: "1.9rem" },
-                  fontWeight: 700,
-                  color: "#0f172a",
+                  fontWeight: 800,
+                  color: color_text_primary,
                   display: "flex",
                   alignItems: "center",
                   gap: 1,

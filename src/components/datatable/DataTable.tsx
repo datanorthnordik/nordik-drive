@@ -43,7 +43,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setCommunities } from "../../store/auth/fileSlice";
 import { AppDispatch } from "../../store/store";
 
-import AddInfoForm from "./AddInfoForm";
+import AddInfoForm from "./add-info-dialog/AddInfoForm";
 import SmartSearchSuggestions from "./SmartSearchSuggestions";
 
 import DocumentUrlViewerModal from "../photoview/URLDocumentViewer";

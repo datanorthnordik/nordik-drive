@@ -167,7 +167,7 @@ export default function DownloadMediaModal({
     };
 
     if (useRequest) {
-      body.request_id = requestId;
+      body.request_ids = [requestId];
     } else {
       body.clauses = clauses || [];
     }

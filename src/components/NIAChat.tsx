@@ -11,7 +11,6 @@ import rehypeHighlight from "rehype-highlight";
 
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import PauseIcon from "@mui/icons-material/Pause";
-import { useSpeechSynthesis } from "react-speech-kit";
 
 import { marked } from "marked";
 import { decode } from "he";
@@ -35,20 +34,13 @@ import {
 type Message = {
   from: "user" | "nia";
   text?: string;
-  audio?: Blob;
+  audio?: Blob; // voice input (existing)
+  ttsUrl?: string; // cached object URL for replay
 };
 
 interface NIAChatProps {
   open: boolean;
   setOpen: (v: boolean) => void;
-}
-
-/** Sensitive-topic detector used ONLY for delivery (rate/pitch/pauses), not for changing text */
-const SENSITIVE_RE =
-  /\b(died|dead|death|passed away|killed|fatal|funeral|mourning|grief|condolences|trag(?:edy|ic)|accident|crash|shooting|massacre|homicide|suicide|school\s+(?:shooting|attack)|victim(?:s)?|missing|injured|injuries|survivor(?:s)?|memorial)\b/i;
-
-function isSensitiveTopic(text: string) {
-  return SENSITIVE_RE.test(text || "");
 }
 
 async function markdownToPlainText(md: string) {
@@ -59,84 +51,56 @@ async function markdownToPlainText(md: string) {
   return text;
 }
 
-/** Chunking for smoother, calmer delivery (NO word changes; only splits) */
-function splitIntoChunks(text: string, maxLen = 220) {
-  const t = (text || "").trim();
-  if (!t) return [];
-
-  const sentences = t.split(/(?<=[.!?])\s+/g).filter(Boolean);
-  const chunks: string[] = [];
-  let cur = "";
-
-  const pushCur = () => {
-    const c = cur.trim();
-    if (c) chunks.push(c);
-    cur = "";
-  };
-
-  for (const s0 of sentences) {
-    const s = s0.trim();
-    if (!s) continue;
-
-    if ((cur + " " + s).trim().length <= maxLen) {
-      cur = (cur + " " + s).trim();
-      continue;
-    }
-
-    pushCur();
-
-    if (s.length > maxLen) {
-      const words = s.split(/\s+/g).filter(Boolean);
-      let part = "";
-      for (const w of words) {
-        if ((part + " " + w).trim().length <= maxLen) {
-          part = (part + " " + w).trim();
-        } else {
-          if (part) chunks.push(part);
-          part = w;
-        }
-      }
-      if (part) chunks.push(part);
-    } else {
-      cur = s;
-    }
-  }
-
-  pushCur();
-  return chunks;
+/** Prefer user's locale English (e.g., en-CA / en-US) */
+function getPreferredSpeechLang() {
+  return "en-CA";
 }
 
-function pickBestVoice(voices: SpeechSynthesisVoice[]) {
-  if (!voices || voices.length === 0) return null;
+/** Detect audio mime from first bytes so playback works even if backend sets octet-stream */
+function detectAudioMime(buf: ArrayBuffer): string {
+  const u = new Uint8Array(buf);
+  const s4 = (i: number) =>
+    String.fromCharCode(u[i] || 0, u[i + 1] || 0, u[i + 2] || 0, u[i + 3] || 0);
 
-  const isEnglish = (v: SpeechSynthesisVoice) => /en(-|_)us|en-us|en\b/i.test(v.lang || "");
+  // WAV: "RIFF" .... "WAVE"
+  if (u.byteLength >= 12 && s4(0) === "RIFF" && s4(8) === "WAVE") return "audio/wav";
 
-  const score = (v: SpeechSynthesisVoice) => {
-    const n = (v.name || "").toLowerCase();
-    const lang = (v.lang || "").toLowerCase();
+  // OGG: "OggS"
+  if (u.byteLength >= 4 && s4(0) === "OggS") return "audio/ogg";
 
-    // Prefer English US, but allow other English
-    let s = isEnglish(v) ? 30 : lang.startsWith("en") ? 18 : 0;
+  // FLAC: "fLaC"
+  if (u.byteLength >= 4 && s4(0) === "fLaC") return "audio/flac";
 
-    // Prefer more natural providers/labels
-    if (n.includes("google")) s += 10;
-    if (n.includes("microsoft")) s += 8;
-    if (n.includes("natural")) s += 6;
-    if (n.includes("neural")) s += 6;
-    if (n.includes("enhanced")) s += 4;
+  // MP3: "ID3" or frame sync 0xFFEx
+  if (
+    u.byteLength >= 3 &&
+    u[0] === 0x49 && // I
+    u[1] === 0x44 && // D
+    u[2] === 0x33 // 3
+  )
+    return "audio/mpeg";
 
-    // Often “warmer” voices (varies by OS/browser, harmless if absent)
-    if (n.includes("female")) s += 4;
-    if (n.includes("zira") || n.includes("susan") || n.includes("samantha")) s += 4;
+  if (u.byteLength >= 2 && u[0] === 0xff && (u[1] & 0xe0) === 0xe0) return "audio/mpeg";
 
-    // Prefer default voice slightly
-    if ((v as any).default) s += 2;
+  // Fallback (most common)
+  return "audio/mpeg";
+}
 
-    return s;
-  };
-
-  const sorted = [...voices].sort((a, b) => score(b) - score(a));
-  return sorted[0] || voices[0];
+// Small inline spinner (shown while generating audio)
+function TinySpinner() {
+  return (
+    <div
+      aria-label="Generating audio"
+      style={{
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        border: `2px solid ${color_border}`,
+        borderTopColor: color_secondary,
+        animation: "niaSpin 0.9s linear infinite",
+      }}
+    />
+  );
 }
 
 export default function NIAChat({ open, setOpen }: NIAChatProps) {
@@ -155,25 +119,38 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
 
+  // Chat endpoint (existing)
   const { loading, fetchData, data } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat",
     "POST"
   );
 
+  // TTS endpoint (binary)
+  const {
+    data: ttsData,
+    loading: ttsReqLoading,
+    error: ttsError,
+    fetchData: fetchTTS,
+  } = useFetch<ArrayBuffer>(
+    "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat/tts",
+    "POST"
+  );
+
   const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
 
-  // useSpeechSynthesis only to retrieve voices (we speak via native speechSynthesis for better control)
-  const { voices } = useSpeechSynthesis();
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-
-  const [speaking, setSpeaking] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-
-  const ttsQueueRef = useRef<SpeechSynthesisUtterance[]>([]);
-  const pauseMsRef = useRef<number>(0);
+  const preferredLangRef = useRef<string>(getPreferredSpeechLang());
 
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // --- TTS play + cache state ---
+  const [ttsPlayingIndex, setTtsPlayingIndex] = useState<number | null>(null);
+  const [ttsLoadingIndex, setTtsLoadingIndex] = useState<number | null>(null);
+
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+
+  // track which message requested TTS
+  const ttsRequestIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -202,12 +179,6 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     }
   };
 
-  useEffect(() => {
-    if (voices.length > 0 && !selectedVoice) {
-      setSelectedVoice(pickBestVoice(voices) as any);
-    }
-  }, [voices, selectedVoice]);
-
   const startAudioRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream);
@@ -226,11 +197,12 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
     if (!SpeechRecognition) {
       alert("Speech recognition is not supported in this browser");
+      setRecordingState("idle");
       return;
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
+    recognition.lang = preferredLangRef.current || "en-US";
     recognition.interimResults = true;
 
     finalTranscriptRef.current = "";
@@ -247,11 +219,13 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
       setInput(finalTranscript + interimTranscript);
       finalTranscriptRef.current = finalTranscript + interimTranscript;
-
-      setRecordingState("idle");
     };
 
-    recognition.onerror = (err: any) => console.error(err);
+    recognition.onend = () => setRecordingState("idle");
+    recognition.onerror = (err: any) => {
+      console.error(err);
+      setRecordingState("idle");
+    };
 
     recognitionRef.current = recognition;
     recognition.start();
@@ -263,86 +237,59 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setRecordingState("idle");
   };
 
-  const cancelTTS = useCallback(() => {
-    try {
-      window.speechSynthesis.cancel();
-    } catch {}
-    ttsQueueRef.current = [];
-    pauseMsRef.current = 0;
-    setSpeaking(false);
-    setSelectedIndex(null);
+  const stopTTS = useCallback(() => {
+    const a = audioElRef.current;
+    if (a) {
+      try {
+        a.pause();
+        a.currentTime = 0;
+      } catch {}
+    }
+    setTtsPlayingIndex(null);
   }, []);
 
-  const speakQueued = useCallback(
-    (utterances: SpeechSynthesisUtterance[], messageIndex: number, pauseMs: number) => {
-      cancelTTS();
-      if (!utterances.length) return;
+  const playUrl = useCallback(
+    async (url: string, idx: number) => {
+      // stop other audio first
+      if (ttsPlayingIndex !== null && ttsPlayingIndex !== idx) stopTTS();
 
-      ttsQueueRef.current = utterances;
-      pauseMsRef.current = pauseMs;
+      let a = audioElRef.current;
+      if (!a) {
+        a = new Audio();
+        a.preload = "auto";
+        audioElRef.current = a;
+      }
 
-      setSelectedIndex(messageIndex);
-      setSpeaking(true);
+      // toggle stop if already playing this one
+      if (ttsPlayingIndex === idx && a && !a.paused) {
+        stopTTS();
+        return false;
+      }
 
-      const speakNext = () => {
-        const next = ttsQueueRef.current.shift();
-        if (!next) {
-          setSpeaking(false);
-          setSelectedIndex(null);
-          return;
-        }
+      a.src = url;
+      try {
+        a.load(); // helps some browsers
+      } catch {}
 
-        next.onend = () => {
-          const p = pauseMsRef.current || 0;
-          if (p > 0) setTimeout(speakNext, p);
-          else speakNext();
-        };
+      a.onended = () => setTtsPlayingIndex(null);
+      a.onerror = () => setTtsPlayingIndex(null);
 
-        next.onerror = () => {
-          setSpeaking(false);
-          setSelectedIndex(null);
-        };
+      setTtsPlayingIndex(idx);
 
-        window.speechSynthesis.speak(next);
-      };
-
-      speakNext();
+      try {
+        await a.play();
+        return true;
+      } catch (e) {
+        // Autoplay blocked or mime decode failed
+        console.warn("Audio play failed:", e);
+        setTtsPlayingIndex(null);
+        return false;
+      }
     },
-    [cancelTTS]
+    [stopTTS, ttsPlayingIndex]
   );
 
-  const handleAudio = useCallback(
-    async (answer: string, index: number) => {
-      const plain = await markdownToPlainText(answer || "");
-      const sensitive = isSensitiveTopic(plain);
-
-      // More empathetic delivery for sensitive topics:
-      // - smaller chunks (more breath)
-      // - slower rate
-      // - slightly lower pitch
-      // - small pauses between chunks
-      const maxLen = sensitive ? 160 : 220;
-      const chunks = splitIntoChunks(plain, maxLen);
-
-      const rate = sensitive ? 0.78 : 1.0;
-      const pitch = sensitive ? 0.85 : 1.0;
-      const volume = sensitive ? 0.92 : 1.0;
-      const pauseMs = sensitive ? 220 : 60;
-
-      const utterances = chunks.map((c) => {
-        const u = new SpeechSynthesisUtterance(c);
-        if (selectedVoice) u.voice = selectedVoice;
-        u.rate = rate;
-        u.pitch = pitch;
-        u.volume = volume;
-        return u;
-      });
-
-      speakQueued(utterances, index, pauseMs);
-    },
-    [selectedVoice, speakQueued]
-  );
-
+  // Chat send (existing)
   const addUserAndNIAResponse = (msg: Message) => {
     setMessages((msgs) => [...msgs, msg]);
     setTimeout(() => scrollLastUserToTop(), 50);
@@ -374,10 +321,107 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     setInput("");
   };
 
+  // Request TTS once, cache, then replay
+  const handleAudio = useCallback(
+    async (answer: string, idx: number) => {
+      if (!answer) return;
+
+      // Cached -> just play
+      const cachedUrl = messages[idx]?.ttsUrl;
+      if (cachedUrl) {
+        await playUrl(cachedUrl, idx);
+        return;
+      }
+
+      // If any TTS request is already in progress, avoid race (one at a time)
+      if (ttsLoadingIndex !== null) return;
+
+      setTtsLoadingIndex(idx);
+      ttsRequestIndexRef.current = idx;
+
+      const plain = await markdownToPlainText(answer);
+
+      const fd = new FormData();
+      fd.append("text", plain);
+      fd.append("model", "gemini-2.5-flash-tts");
+      fd.append("voice", "Albenib");
+      fd.append("language", "en-US");
+      fd.append("style", "empathetic and more human like");
+
+      fetchTTS(fd, undefined, false, { responseType: "arraybuffer" });
+    },
+    [fetchTTS, messages, playUrl, ttsLoadingIndex]
+  );
+
+  // When TTS returns, detect mime, cache, and try autoplay (if blocked, user can click again)
+  useEffect(() => {
+    if (!ttsData) return;
+
+    const idx = ttsRequestIndexRef.current;
+    if (idx === null || idx === undefined) return;
+
+    const buf = ttsData;
+
+    if (!(buf instanceof ArrayBuffer) || buf.byteLength === 0) {
+      console.warn("TTS returned empty audio buffer");
+      setTtsLoadingIndex(null);
+      ttsRequestIndexRef.current = null;
+      return;
+    }
+
+    const mime = detectAudioMime(buf);
+    const blob = new Blob([buf], { type: mime });
+    const url = URL.createObjectURL(blob);
+
+    // Cache into the message
+    setMessages((prev) =>
+      prev.map((m, i) => (i === idx ? { ...m, ttsUrl: url } : m))
+    );
+
+    // Try autoplay; if blocked, user clicks again to play (now cached)
+    (async () => {
+      await playUrl(url, idx);
+    })();
+
+    setTtsLoadingIndex(null);
+    ttsRequestIndexRef.current = null;
+  }, [ttsData, playUrl]);
+
+  useEffect(() => {
+    if (!ttsError) return;
+    console.error("TTS error:", ttsError);
+    setTtsLoadingIndex(null);
+    ttsRequestIndexRef.current = null;
+  }, [ttsError]);
+
+  // Cleanup object URLs on close/unmount
+  const revokeAllTtsUrls = useCallback((list: Message[]) => {
+    list.forEach((m) => {
+      if (m.ttsUrl) {
+        try {
+          URL.revokeObjectURL(m.ttsUrl);
+        } catch {}
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopTTS();
+      revokeAllTtsUrls(messages);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const renderedMessages = useMemo(
     () =>
       messages.map((msg, idx) => {
         const isUser = msg.from === "user";
+        const showAudioControls = !!msg.text && !isUser;
+
+        const isThisLoading = ttsLoadingIndex === idx;
+        const isThisPlaying = ttsPlayingIndex === idx;
+
         return (
           <div
             key={idx}
@@ -420,7 +464,9 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                   borderRadius: 14,
                   background: isUser ? color_secondary : color_white,
                   color: isUser ? color_white : color_black_light,
-                  border: isUser ? `1px solid ${color_secondary_dark}` : `1px solid ${color_border}`,
+                  border: isUser
+                    ? `1px solid ${color_secondary_dark}`
+                    : `1px solid ${color_border}`,
                   boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
                   lineHeight: 1.35,
                   fontWeight: 700,
@@ -432,12 +478,17 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                 </ReactMarkdown>
               </div>
 
-              {msg.text && !isUser && (
+              {showAudioControls && (
                 <div style={{ display: "flex", alignItems: "center", paddingTop: 6 }}>
-                  {selectedIndex === idx && speaking ? (
-                    <PauseIcon style={{ cursor: "pointer" }} onClick={cancelTTS} />
+                  {isThisLoading ? (
+                    <TinySpinner />
+                  ) : isThisPlaying ? (
+                    <PauseIcon style={{ cursor: "pointer" }} onClick={stopTTS} />
                   ) : (
-                    <VolumeUpIcon style={{ cursor: "pointer" }} onClick={() => handleAudio(msg.text || "", idx)} />
+                    <VolumeUpIcon
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleAudio(msg.text || "", idx)}
+                    />
                   )}
                 </div>
               )}
@@ -445,11 +496,15 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
           </div>
         );
       }),
-    [messages, selectedIndex, speaking, cancelTTS, handleAudio]
+    [messages, ttsLoadingIndex, ttsPlayingIndex, handleAudio, stopTTS]
   );
 
   return (
     <>
+      <style>{`
+        @keyframes niaSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+
       {open && (
         <div
           style={{
@@ -547,7 +602,11 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
               <X
                 onClick={() => {
-                  cancelTTS();
+                  stopTTS();
+                  setMessages((prev) => {
+                    revokeAllTtsUrls(prev);
+                    return prev.map((m) => ({ ...m, ttsUrl: undefined }));
+                  });
                   setOpen(false);
                 }}
                 style={{ cursor: "pointer" }}
@@ -581,7 +640,9 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={recordingState === "recording" ? "🎙️ Listening..." : "Type your message here..."}
+                placeholder={
+                  recordingState === "recording" ? "🎙️ Listening..." : "Type your message here..."
+                }
                 style={{
                   flex: 1,
                   height: 48,
