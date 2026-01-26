@@ -92,7 +92,7 @@ const PasswordResetModal: React.FC<Props> = ({ open, onClose }) => {
 
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs" data-testid="reset-modal">
       <DialogTitle>Password Reset</DialogTitle>
       <DialogContent>
         <form

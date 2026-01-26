@@ -14,7 +14,6 @@ import { AuthContainer } from "../../components/containers/Containers";
 import toast from "react-hot-toast";
 import { signup_success } from "../../constants/messages";
 
-// ✅ use ONLY constants (no hardcoded colors)
 import {
   color_secondary,
   color_text_primary,
