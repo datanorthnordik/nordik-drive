@@ -10,12 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
       - run: npm ci --legacy-peer-deps
       - run: npm run test:unit:ci
 
@@ -25,17 +23,15 @@ jobs:
     needs: unit
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - run: npm ci --legacy-peer-deps
-
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
+          install-command: npm ci --legacy-peer-deps
           start: npm start
           wait-on: http://localhost:3000
           browser: chrome
