@@ -5,8 +5,8 @@ import ctheme from "./theme/theme";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
-import Login from "./pages/login/Login";
-import Signup from "./pages/signup/Signup";
+import Login from "./pages/auth/Login";
+import Signup from "./pages/auth/Signup";
 import DataView from "./pages/dataview/DataView";
 import NotFoundPage from "./components/NotFound";
 import Layout from "./components/Layout";

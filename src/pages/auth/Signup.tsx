@@ -1,17 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
-import {
-  Button,
-  TextField,
-  Box,
-  Typography,
-  InputAdornment,
-  IconButton,
-  Divider,
-} from "@mui/material";
+import { Button, TextField, Box, Typography } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { AuthWrapper, FormWrapper } from "../../components/Wrappers";
@@ -34,19 +24,37 @@ import {
   color_background,
 } from "../../constants/colors";
 
-/* ===========================
-   Validation Schema
-=========================== */
-const schema = yup.object().shape({
+import {
+  AuthLogosHeader,
+  AuthTitle,
+  AuthControlledTextField,
+  AuthPasswordField,
+  AuthPrimaryButton,
+  OrDivider,
+} from "./AuthShared";
+
+type SignupFormValues = {
+  firstname: string;
+  lastname: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  community: string[];
+};
+
+const schema = yup.object({
   firstname: yup.string().required("First name is required"),
   lastname: yup.string().required("Last name is required"),
   email: yup.string().email("Invalid email").required("Email is required"),
-  password: yup.string().required("Password is required").min(4, "Password must be at least 6 characters"),
+  password: yup
+    .string()
+    .required("Password is required")
+    .min(6, "Password must be at least 6 characters"),
   confirmPassword: yup
     .string()
     .required("Confirm Password is required")
     .oneOf([yup.ref("password")], "Passwords must match"),
-  community: yup.array().of(yup.string().trim().required("Please select or type a community")),
+  community: yup.array().of(yup.string().trim().required("Please select or type a community")).required(),
 });
 
 function Signup() {
@@ -54,15 +62,17 @@ function Signup() {
     handleSubmit,
     control,
     formState: { errors },
-  } = useForm({
+  } = useForm<SignupFormValues>({
     resolver: yupResolver(schema),
     defaultValues: {
+      firstname: "",
+      lastname: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
       community: [""],
     },
   });
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { data, loading, error, fetchData } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/signup",
@@ -95,24 +105,22 @@ function Signup() {
 
   const normalizeName = (v: any) => (typeof v === "string" ? v.trim() : "");
   const existsInOptions = (name: string) =>
-    communityOptions.some(
-      (o: string) => o.trim().toLowerCase() === name.trim().toLowerCase()
-    );
+    communityOptions.some((o: string) => o.trim().toLowerCase() === name.trim().toLowerCase());
 
-  const onSubmit = async (formData: any) => {
+  const onSubmit = async (formData: SignupFormValues) => {
     const cleaned = (formData.community || [])
-      .map((x: string) => (x || "").trim())
-      .filter((x: string) => x.length > 0);
+      .map((x) => (x || "").trim())
+      .filter((x) => x.length > 0);
 
     const seen = new Set<string>();
-    const unique = cleaned.filter((n: string) => {
+    const unique = cleaned.filter((n) => {
       const k = n.toLowerCase();
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
 
-    const missing = unique.filter((name: string) => !existsInOptions(name));
+    const missing = unique.filter((name) => !existsInOptions(name));
 
     if (missing.length > 0) {
       await addCommunity({ communities: missing }, null, true);
@@ -138,198 +146,55 @@ function Signup() {
       <Loader loading={loading} />
 
       <AuthWrapper>
-        {/* Logos Section (keep previous sizes) */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "2rem",
-            flexWrap: "wrap",
-            marginBottom: "1.25rem",
-          }}
-        >
-          <Box sx={{ height: "120px", maxWidth: "200px" }}>
-            <img
-              src="/logo-1.png"
-              alt="Children of Shingwauk Alumni Association"
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            />
-          </Box>
+        <AuthLogosHeader mb={1.25} />
 
-          <Box sx={{ height: "60px", maxWidth: "220px" }}>
-            <img
-              src="https://nordikinstitute.com/wp-content/uploads/2020/04/NordikFinalLogo-640x160.png"
-              alt="Nordik Institute"
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            />
-          </Box>
-        </Box>
-
-        {/* Title (center like UX) */}
-        <Typography
-          sx={{
-            textAlign: "center",
-            fontWeight: 800,
-            fontSize: "1.35rem",
-            color: color_text_primary,
-            mb: 1.5,
-          }}
-        >
+        <AuthTitle fontSize="1.35rem" mb={1.5} fontWeight={800}>
           Create a new account
-        </Typography>
+        </AuthTitle>
 
         <FormWrapper onSubmit={handleSubmit(onSubmit)}>
-          {/* First/Last in a row like UX */}
           <TextGroup>
-            <Controller
+            <AuthControlledTextField
               name="firstname"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  style={{ width: "50%" }}
-                  {...field}
-                  label="First name"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.firstname}
-                  helperText={errors.firstname?.message}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      backgroundColor: color_white,
-                    },
-                  }}
-                />
-              )}
+              control={control as any}
+              label="First name"
+              errorMessage={errors.firstname?.message}
+              textFieldProps={{ style: { width: "50%" } }}
             />
 
-            <Controller
+            <AuthControlledTextField
               name="lastname"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  style={{ width: "50%" }}
-                  {...field}
-                  label="Last name"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.lastname}
-                  helperText={errors.lastname?.message}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      backgroundColor: color_white,
-                    },
-                  }}
-                />
-              )}
+              control={control as any}
+              label="Last name"
+              errorMessage={errors.lastname?.message}
+              textFieldProps={{ style: { width: "50%" } }}
             />
           </TextGroup>
 
-          {/* Email */}
-          <Controller
+          <AuthControlledTextField
             name="email"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="Email address"
-                variant="outlined"
-                fullWidth
-                margin="normal"
-                error={!!errors.email}
-                helperText={errors.email?.message}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 2,
-                    backgroundColor: color_white,
-                  },
-                }}
-              />
-            )}
+            control={control as any}
+            label="Email address"
+            errorMessage={errors.email?.message}
           />
 
-          {/* Passwords side-by-side like UX */}
           <TextGroup>
-            <Controller
+            <AuthPasswordField
               name="password"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Password"
-                  type={showPassword ? "text" : "password"}
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.password}
-                  helperText={errors.password?.message}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      backgroundColor: color_white,
-                    },
-                  }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword((p) => !p)}
-                          edge="end"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              )}
+              control={control as any}
+              label="Password"
+              errorMessage={errors.password?.message}
             />
 
-            <Controller
+            <AuthPasswordField
               name="confirmPassword"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Confirm Password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.confirmPassword}
-                  helperText={errors.confirmPassword?.message}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: 2,
-                      backgroundColor: color_white,
-                    },
-                  }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowConfirmPassword((p) => !p)}
-                          edge="end"
-                          aria-label={
-                            showConfirmPassword ? "Hide confirm password" : "Show confirm password"
-                          }
-                        >
-                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              )}
+              control={control as any}
+              label="Confirm Password"
+              errorMessage={errors.confirmPassword?.message}
             />
           </TextGroup>
 
-          {/* Community Info Card (like UX blue-header section but using constants only) */}
+          {/* Community Info Card */}
           <Box
             sx={{
               width: "100%",
@@ -365,9 +230,9 @@ function Signup() {
               const safeItems = items.length === 0 ? [""] : items;
 
               const setAtIndex = (index: number, raw: any) => {
-                const cleaned = normalizeName(raw);
+                const cleanedName = normalizeName(raw);
                 const next = [...safeItems];
-                next[index] = cleaned;
+                next[index] = cleanedName;
                 field.onChange(next);
               };
 
@@ -424,7 +289,6 @@ function Signup() {
                         )}
                       />
 
-                      {/* X button like UX (using only constants) */}
                       <Button
                         onClick={() => removeRow(idx)}
                         aria-label="Remove community"
@@ -444,7 +308,6 @@ function Signup() {
                     </Box>
                   ))}
 
-                  {/* Add another community row like UX */}
                   <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}>
                     <Button
                       onClick={addRow}
@@ -470,36 +333,12 @@ function Signup() {
             }}
           />
 
-          {/* SIGN UP button (blue, full width like UX) */}
-          <Button
-            type="submit"
-            variant="contained"
-            sx={{
-              width: "100%",
-              mt: 2,
-              mb: 1.25,
-              borderRadius: 2,
-              fontWeight: 900,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              py: 1.3,
-              backgroundColor: `${color_secondary} !important`,
-              boxShadow: "none",
-            }}
-          >
+          <AuthPrimaryButton type="submit" sx={{ mt: 2, mb: 1.25, height: "auto", py: 1.3 }}>
             SIGN UP
-          </Button>
+          </AuthPrimaryButton>
 
-          {/* OR divider like UX */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 1.75 }}>
-            <Divider sx={{ flex: 1, borderColor: color_border }} />
-            <Typography sx={{ fontSize: 12, fontWeight: 900, color: color_text_secondary }}>
-              OR
-            </Typography>
-            <Divider sx={{ flex: 1, borderColor: color_border }} />
-          </Box>
+          <OrDivider my={1.75} dividerColor={color_border} textColor={color_text_secondary} />
 
-          {/* Already have an account link */}
           <Box sx={{ textAlign: "center", mb: 0.5 }}>
             <LinkButton role="button" onClick={() => navigate("/")}>
               Already have an account?

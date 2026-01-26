@@ -53,3 +53,5 @@ export const color_confidential_icon_bg = "#FDE2E2"; // light burgundy tint
 
 // Focus ring (keyboard accessibility)
 export const color_focus_ring = color_secondary_dark;
+export const shadow_auth_button = "0 10px 18px rgba(0,0,0,0.14)";
+

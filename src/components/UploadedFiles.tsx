@@ -33,7 +33,7 @@ import { useDispatch, useSelector } from "react-redux";
 import useFetch from "../hooks/useFetch";
 import { AppDispatch } from "../store/store";
 import { setFiles } from "../store/auth/fileSlice";
-import AccessModal from "./models/AccessManagementModal";
+import AccessModal from "./models/access_model/AccessManagementModal";
 import FileVersionHistoryModal from "./models/FileHistoryModal";
 import ReplaceFileModal from "./models/ReplaceFileModal";
 import ConfirmModal from "./models/ConfirmModal";

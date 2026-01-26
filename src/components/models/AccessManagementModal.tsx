@@ -206,6 +206,7 @@ const AccessModal: React.FC<AccessModalProps> = ({
           open={openAssingnConfirm}
           onConfirm={handleAssign}
           onCancel={closeAssignModal}
+          title="Assign Access"
         />
       )}
 
@@ -215,6 +216,7 @@ const AccessModal: React.FC<AccessModalProps> = ({
           open={openRevokeConfirm}
           onConfirm={handleRevoke}
           onCancel={closeRevokeModal}
+          title="Revoke Access"
         />
       )}
 

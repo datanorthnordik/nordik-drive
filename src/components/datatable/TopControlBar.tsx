@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Box, Button, IconButton, InputAdornment, TextField } from "@mui/material";
+import { Box, Button, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import { ArrowLeft, ChevronUp, ChevronDown, Download, Mic, MicOff, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -14,8 +14,6 @@ import {
   color_white_smoke,
   dark_grey,
   color_text_light,
-  header_height,
-  header_mobile_height,
   color_black_light,
 } from "../../constants/colors";
 
@@ -291,18 +289,74 @@ export default function TopControlsBar({
         </Box>
       </IconButton>
 
-      {/* NIA slot */}
+      {/* NIA slot + tiny indicator */}
       <Box
         sx={{
-          height: 46,
-          display: "flex",
-          alignItems: "center",
           flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 0.25,
+          height: "auto",
+          lineHeight: 1,
         }}
       >
         <div className="nia-slot">
           <NIAChatTrigger setOpen={setNiaOpen} />
         </div>
+
+        {/* small indicator (compact, subtle, non-ugly) */}
+        <Box
+          onClick={() => setNiaOpen(true)}
+          role="button"
+          aria-label="Talk to NIA"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") setNiaOpen(true);
+          }}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.6,
+            px: 1,
+            py: "2px",
+            borderRadius: 999,
+            border: `1px solid ${color_border}`,
+            background: color_white,
+            cursor: "pointer",
+            userSelect: "none",
+            maxWidth: 120,
+            "&:hover": { background: color_white_smoke, borderColor: color_secondary },
+            "&:focus-visible": {
+              outline: `2px solid ${color_secondary}`,
+              outlineOffset: 2,
+            },
+          }}
+        >
+          <Box
+            sx={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: color_secondary,
+              flexShrink: 0,
+            }}
+          />
+          <Typography
+            sx={{
+              fontSize: 11,
+              fontWeight: 900,
+              color: color_black_light,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              lineHeight: 1.1,
+            }}
+          >
+            Talk to NIA
+          </Typography>
+        </Box>
       </Box>
 
       {/* Results pill */}
