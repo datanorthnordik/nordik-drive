@@ -61,7 +61,9 @@
     "eject": "react-scripts eject",
     "cy:open": "cypress open",
     "cy:run": "cypress run",
-    "test:e2e": "start-server-and-test start http://localhost:3000 cy:run"
+    "test:e2e": "start-server-and-test start http://localhost:3000 cy:run",
+    "test:unit": "react-scripts test",
+    "test:unit:ci": "react-scripts test --watchAll=false --coverage"
   },
   "eslintConfig": {
     "extends": [
