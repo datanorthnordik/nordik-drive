@@ -529,7 +529,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   const handleOpenDocViewer = (idx: number) => {
     setDocViewerIndex(idx);
     setDocViewerOpen(true);
+    openDocAtIndex(idx); // fire and forget
   };
+
 
   const handlePrevDoc = async () => {
     const nextIdx = Math.max(docViewerIndex - 1, 0);
@@ -621,6 +623,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         onClose={onClose}
         fullWidth
         maxWidth="md"
+        data-testid="approve-request-dialog"
         PaperProps={{
           sx: {
             borderRadius: 2,
@@ -743,6 +746,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
                       <TableCell sx={{ py: 0.75 }}>
                         <TextField
+                          inputProps={{ "data-testid": `field-input-${index}` }}
                           fullWidth
                           size="small"
                           value={d.new_value}
@@ -807,6 +811,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                         boxShadow: shadowForStatus(photo.status),
                         backgroundColor: color_white,
                       }}
+                      data-testid={`photo-card-${photo.id}`}
                       onClick={() => handleOpenViewer(idx)}
                     >
                       <CardMedia
@@ -825,6 +830,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                                 ? "Rejected"
                                 : "Pending"
                           }
+                          data-testid={`photo-status-${photo.id}`}
                           sx={statusChipSx(photo.status)}
                         />
                         <Typography sx={{ fontSize: "0.72rem", fontWeight: 900, color: color_text_light }}>
@@ -876,7 +882,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                         boxShadow: shadowForStatus(doc.status),
                       }}
                     >
-                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+                      <Box data-testid={`doc-card-${doc.id}`} sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
                         <Chip size="small" label={categoryLabel(doc.document_category)} sx={{ fontWeight: 900 }} />
                         <Chip size="small" label={formatBytes(doc.size_bytes)} sx={{ fontWeight: 900 }} />
                         <Chip
@@ -888,6 +894,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                                 ? "Rejected"
                                 : "Pending"
                           }
+                          data-testid={`doc-status-${doc.id}`}
                           sx={statusChipSx(doc.status)}
                         />
                         <Typography sx={{ fontSize: "0.72rem", fontWeight: 900, color: color_text_light }}>
@@ -911,6 +918,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
                       <Box sx={{ display: "flex", gap: 1, mt: 1.25, flexWrap: "wrap" }}>
                         <Button
+                          data-testid={`doc-view-${doc.id}`}
                           variant="outlined"
                           onClick={() => handleOpenDocViewer(idx)}
                           sx={viewBtnSx}
@@ -919,6 +927,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                         </Button>
 
                         <Button
+                          data-testid={`doc-approve-${doc.id}`}
                           variant="contained"
                           onClick={() =>
                             setDocs((prev) =>
@@ -933,6 +942,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                         </Button>
 
                         <Button
+                          data-testid={`doc-reject-${doc.id}`}
                           variant="contained"
                           onClick={() =>
                             setDocs((prev) =>
@@ -963,11 +973,12 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             gap: 1,
           }}
         >
-          <Button onClick={onClose} sx={cancelBtnSx}>
+          <Button data-testid="cancel-btn" onClick={onClose} sx={cancelBtnSx}>
             Cancel
           </Button>
 
           <Button
+            data-testid="approve-all-btn"
             variant="contained"
             onClick={handleApprove}
             disabled={loading || reviewLoading}
@@ -1020,3 +1031,17 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 };
 
 export default ApproveRequestModal;
+
+// Names constansts for test
+export const __test__ = {
+  formatBytes,
+  categoryLabel,
+  guessMimeFromFilename,
+  extensionFromMime,
+  ensureHasExtension,
+  isImageMime,
+  isPdfMime,
+  isDocxMime,
+  isExcelMime,
+};
+

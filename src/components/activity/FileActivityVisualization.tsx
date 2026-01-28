@@ -126,7 +126,7 @@ export default function FileActivityVisualization({
   );
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <Box data-testid="file-viz-root" sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
       {/* Header (screenshot style) */}
       <Box
         sx={{
@@ -144,11 +144,12 @@ export default function FileActivityVisualization({
       >
         <Box sx={{ display: "flex", flexDirection: "column" }}>
           <Typography sx={{ fontWeight: 900, color: color_text_primary }}>Visualization</Typography>
-          <Typography sx={{ color: color_text_light, fontSize: 13 }}>{title}</Typography>
+          <Typography data-testid="file-viz-title" sx={{ color: color_text_light, fontSize: 13 }}>{title}</Typography>
         </Box>
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
           <Chip
+            data-testid="file-viz-total"
             label={`${total} pending`}
             size="small"
             sx={{
@@ -163,7 +164,7 @@ export default function FileActivityVisualization({
           {allowedDimensions.length > 1 && (
             <FormControl size="small" sx={{ minWidth: 160 }}>
               <InputLabel>Group</InputLabel>
-              <Select label="Group" value={dimension} onChange={(e) => setDimension(e.target.value as Dimension)}>
+              <Select data-testid="file-viz-group-select" label="Group" value={dimension} onChange={(e) => setDimension(e.target.value as Dimension)}>
                 <MenuItem value="BY_FILE">File</MenuItem>
                 <MenuItem value="BY_FIELD">Field</MenuItem>
               </Select>
@@ -172,7 +173,7 @@ export default function FileActivityVisualization({
 
           <FormControl size="small" sx={{ minWidth: 140 }}>
             <InputLabel>Chart</InputLabel>
-            <Select label="Chart" value={vizType} onChange={(e) => setVizType(e.target.value as VizType)}>
+            <Select data-testid="file-viz-chart-select" label="Chart" value={vizType} onChange={(e) => setVizType(e.target.value as VizType)}>
               <MenuItem value="DONUT">Donut</MenuItem>
               <MenuItem value="PIE">Pie</MenuItem>
               <MenuItem value="BAR">Bar</MenuItem>
@@ -185,6 +186,7 @@ export default function FileActivityVisualization({
       <Box sx={{ p: 1.25, flex: 1, minHeight: 0, overflowY: "auto", background: color_white }}>
         {!payload ? (
           <Box
+            data-testid="file-viz-placeholder"
             sx={{
               height: "100%",
               minHeight: 260,
@@ -204,10 +206,11 @@ export default function FileActivityVisualization({
             </Box>
           </Box>
         ) : aggregated.length === 0 ? (
-          <Typography sx={{ color: color_text_secondary }}>No pending aggregation data.</Typography>
+          <Typography data-testid="file-viz-no-data" sx={{ color: color_text_secondary }}>No pending aggregation data.</Typography>
         ) : (
           <>
             <Box
+              data-testid="file-viz-chart-box"
               sx={{
                 border: `1px solid ${color_border}`,
                 borderRadius: 12,
@@ -248,12 +251,13 @@ export default function FileActivityVisualization({
               </Typography>
             </Box>
 
-            <Box sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {aggregated.map((x) => {
+            <Box data-testid="file-viz-breakdown" sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}>
+              {aggregated.map((x, i) => {
                 const pct = total > 0 ? Math.round((x.count / total) * 100) : 0;
                 return (
                   <Box
                     key={x.label}
+                    data-testid={`file-viz-row-${i}`}
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -268,6 +272,7 @@ export default function FileActivityVisualization({
                   >
                     <Typography
                       title={x.label}
+                      data-testid={`file-viz-row-label-${i}`}
                       sx={{
                         fontWeight: 800,
                         overflow: "hidden",
@@ -285,6 +290,7 @@ export default function FileActivityVisualization({
                     <Chip
                       label={`${x.count}${total ? ` • ${pct}%` : ""}`}
                       size="small"
+                      data-testid={`file-viz-row-metric-${i}`}
                       sx={{
                         fontWeight: 900,
                         flexShrink: 0,

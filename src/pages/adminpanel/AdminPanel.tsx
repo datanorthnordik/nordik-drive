@@ -2,7 +2,7 @@
 // AdminPanel.tsx (FULL CODE)
 // ==============================
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Tabs, Tab, Paper, Typography } from "@mui/material";
+import { Box, Tabs, Tab, Paper } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../store/store";
 import { setFiles } from "../../store/auth/fileSlice";
@@ -58,6 +58,7 @@ const AdminPanel = () => {
       <AdminPanelWrapper>
         {/* ✅ Fixed workspace area below header (no page scroll) */}
         <Box
+          data-testid="admin-workspace"
           sx={{
             position: "fixed",
             top,

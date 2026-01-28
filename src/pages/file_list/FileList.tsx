@@ -155,6 +155,7 @@ const FileList = () => {
     return (
       <Card
         role="button"
+        key={file.filename}
         aria-label={a11yLabel}
         aria-pressed={isSelected}
         tabIndex={0}

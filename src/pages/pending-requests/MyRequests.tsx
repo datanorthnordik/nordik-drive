@@ -1,4 +1,3 @@
-// MyRequests.tsx
 "use client";
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
@@ -224,6 +223,7 @@ const MyRequests: React.FC = () => {
             size="small"
             placeholder="Search by file or request id..."
             value={searchText}
+            data-testid="search-input"
             onChange={(e) => setSearchText(e.target.value)}
             sx={{
               width: { xs: "100%", sm: 360 },
@@ -256,6 +256,7 @@ const MyRequests: React.FC = () => {
           <Tabs
             value={tab}
             onChange={(_, v) => setTab(v)}
+            data-testid="myrequests-tabs"
             sx={{
               minHeight: 44,
               "& .MuiTab-root": {
@@ -275,8 +276,8 @@ const MyRequests: React.FC = () => {
               "& .MuiTabs-indicator": { display: "none" },
             }}
           >
-            <Tab value="pending" label={`Pending (${pending.length})`} />
-            <Tab value="approved" label={`Approved/Rejected (${approvedRejected.length})`} />
+            <Tab data-testid="tab-pending" value="pending" label={`Pending (${pending.length})`} />
+            <Tab data-testid="tab-approved" value="approved" label={`Approved/Rejected (${approvedRejected.length})`} />
           </Tabs>
 
           <Divider sx={{ mt: 1, borderColor: color_border }} />
@@ -311,6 +312,7 @@ const MyRequests: React.FC = () => {
               <Button
                 onClick={refreshBoth}
                 variant="contained"
+                data-testid="refresh-btn"
                 sx={{
                   mt: 1.5,
                   textTransform: "none",
@@ -330,6 +332,7 @@ const MyRequests: React.FC = () => {
                 return (
                   <Paper
                     key={req.request_id}
+                    data-testid={`request-row-${req.request_id}`}
                     elevation={0}
                     sx={{
                       p: 1.5,
@@ -361,6 +364,7 @@ const MyRequests: React.FC = () => {
 
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
                         <Chip
+                          data-testid={`status-chip-${req.request_id}`}
                           label={chip.label}
                           size="small"
                           sx={{
@@ -372,6 +376,7 @@ const MyRequests: React.FC = () => {
                           }}
                         />
                         <Button
+                          data-testid={`details-btn-${req.request_id}`}
                           onClick={() => setSelectedRequest(req)}
                           variant="contained"
                           sx={{
