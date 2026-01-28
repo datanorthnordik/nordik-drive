@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import DataGrid from "../../components/datatable/DataTable";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
@@ -16,10 +16,10 @@ export default function(){
     const rowData = data ? (data as any).map((item:any)=> ({...item.row_data, "id": item.id})) : []
     
     return (
-        <>
+        <React.Fragment >
          <Loader loading={loading}/>
-         <DataGrid rowData={rowData}/>
-        </>
-        
+         <DataGrid data-testid="grid" rowData={rowData}/>
+        </React.Fragment>
+
     )
 }

@@ -13,6 +13,7 @@ import { NavContainer } from "../NavContainer";
 import { Link } from "react-router-dom";
 
 import { useTheme, useMediaQuery } from "@mui/material";
+import { useSelector } from "react-redux";
 
 const AppToolbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -23,6 +24,8 @@ const AppToolbar = () => {
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
+
+  const {selectedFile} = useSelector((state: any) => state.file);
 
   const drawer = (
     <Box
@@ -105,14 +108,14 @@ const AppToolbar = () => {
               />
             </a>
 
-            <Link to="/coroner">
+            {(!selectedFile || selectedFile.filename == "Confirmed- Shingwauk (Wawanosh)") &&<Link to="/coroner">
               <img
                 src="/image001.png"
                 alt="Ontario Office of the Chief Coroner"
                 // ✅ responsive height for the 2nd logo too
                 style={{ height: isMobile ? "2.7rem" : "4.9rem" }}
               />
-            </Link>
+            </Link>}
           </Box>
 
           {/* CENTER (Desktop Navigation) */}

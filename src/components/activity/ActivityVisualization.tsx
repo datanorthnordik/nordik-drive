@@ -127,9 +127,11 @@ export default function ActivityVisualization({
   const accentPalette = [color_secondary, color_primary, color_secondary_dark, color_primary_dark];
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <Box  data-testid="activity-viz-root" 
+      sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
       {/* Header + controls (PendingRequests feel: white header, subtle divider) */}
       <Box
+        data-testid="activity-viz-header"
         sx={{
           px: 1.25,
           py: 1,
@@ -145,13 +147,14 @@ export default function ActivityVisualization({
           <Typography sx={{ fontWeight: 800, fontSize: 14, color: color_text_primary }}>
             Visualization
           </Typography>
-          <Typography sx={{ color: color_text_secondary, fontSize: 12, lineHeight: 1.25 }}>
+          <Typography data-testid="activity-viz-title" sx={{ color: color_text_secondary, fontSize: 12, lineHeight: 1.25 }}>
             {title}
           </Typography>
         </Box>
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
           <Chip
+            data-testid="activity-viz-total"
             label={`${total} events`}
             size="small"
             sx={{
@@ -167,6 +170,7 @@ export default function ActivityVisualization({
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Group by</InputLabel>
             <Select
+              data-testid="activity-viz-dimension-select"
               label="Group by"
               value={dimension}
               onChange={(e) => setDimension(e.target.value as Dimension)}
@@ -187,6 +191,7 @@ export default function ActivityVisualization({
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Chart</InputLabel>
             <Select
+              data-testid="activity-viz-chart-select"
               label="Chart"
               value={vizType}
               onChange={(e) => setVizType(e.target.value as VizType)}
@@ -207,11 +212,12 @@ export default function ActivityVisualization({
       {/* ONE scroll area */}
       <Box sx={{ p: 1.25, flex: 1, minHeight: 0, overflowY: "auto", backgroundColor: color_white }}>
         {aggregated.length === 0 ? (
-          <Typography sx={{ color: color_text_light, fontSize: 13 }}>No data to visualize.</Typography>
+          <Typography data-testid="activity-viz-empty" sx={{ color: color_text_light, fontSize: 13 }}>No data to visualize.</Typography>
         ) : (
           <>
             {/* Chart box */}
             <Box
+              data-testid="activity-viz-chart-box"
               sx={{
                 border: `1px solid ${color_border}`,
                 borderRadius: 2,
@@ -261,13 +267,14 @@ export default function ActivityVisualization({
             </Box>
 
             {/* Breakdown rows */}
-            <Box sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}>
+            <Box data-testid="activity-viz-breakdown" sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}>
               {aggregated.map((x, i) => {
                 const pct = total > 0 ? Math.round((x.count / total) * 100) : 0;
                 const accent = accentPalette[i % accentPalette.length];
 
                 return (
                   <Box
+                    data-testid={`activity-viz-row-${i}`}
                     key={x.label}
                     sx={{
                       display: "flex",
@@ -293,6 +300,7 @@ export default function ActivityVisualization({
                       }}
                     >
                       <Typography
+                        data-testid={`activity-viz-row-label-${i}`}
                         title={x.label}
                         sx={{
                           fontWeight: 800,
@@ -308,6 +316,7 @@ export default function ActivityVisualization({
 
                       <Box sx={{ display: "flex", gap: 0.75, alignItems: "center" }}>
                         <Chip
+                          data-testid={`activity-viz-row-count-${i}`}
                           label={`${x.count}`}
                           size="small"
                           sx={{
@@ -320,6 +329,7 @@ export default function ActivityVisualization({
                           }}
                         />
                         <Chip
+                          data-testid={`activity-viz-row-pct-${i}`}
                           label={`${pct}%`}
                           size="small"
                           sx={{

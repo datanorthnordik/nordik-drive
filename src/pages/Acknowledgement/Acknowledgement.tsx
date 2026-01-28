@@ -26,9 +26,6 @@ import {
 } from "../../constants/colors";
 
 const Acknowledgement = () => {
-  const navigate = useNavigate();
-  const theme = useTheme();
-  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
   const [highContrast, setHighContrast] = useState(false);
 
   const palette = useMemo(() => {
