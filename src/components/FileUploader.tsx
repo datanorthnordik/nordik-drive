@@ -42,7 +42,7 @@ interface FileUploaderProps {
   setNewFile: (filename: string) => void;
 }
 
-/** ✅ Make the dropzone a label (native file picker) */
+/**  Make the dropzone a label (native file picker) */
 const DropZoneLabel = styled.label`
   border: 2px dashed ${color_secondary};
   border-radius: 12px;
@@ -156,7 +156,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
       { shouldValidate: false }
     );
 
-    // ✅ allow selecting same file again
+    //  allow selecting same file again
     e.target.value = "";
   };
 
@@ -272,9 +272,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
                       "&:hover": { background: color_secondary, boxShadow: "none", opacity: 0.92 },
                     }}
                     onClick={(e) => {
-                      // ✅ keep button from submitting form
+                      //  keep button from submitting form
                       e.preventDefault();
-                      // ✅ open picker programmatically as a backup (optional)
+                      //  open picker programmatically as a backup (optional)
                       inputRef.current?.click();
                     }}
                   >

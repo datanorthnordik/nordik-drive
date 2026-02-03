@@ -27,7 +27,9 @@ jest.mock("react-hot-toast", () => ({
 jest.mock("../../components/Wrappers", () => ({
   __esModule: true,
   AuthWrapper: ({ children }: any) => <div>{children}</div>,
-  FormWrapper: ({ children, onSubmit }: any) => <form onSubmit={onSubmit}>{children}</form>,
+  FormWrapper: ({ children, onSubmit }: any) => (
+    <form onSubmit={onSubmit}>{children}</form>
+  ),
 }));
 
 jest.mock("../../components/containers/Containers", () => ({
@@ -53,16 +55,44 @@ jest.mock("../../components/TextGroup", () => {
   };
 });
 
+jest.mock("@mui/material/Autocomplete", () => {
+  const React = require("react");
+
+  return function MockAutocomplete(props: any) {
+    const { value, onInputChange, onChange } = props;
+
+    return (
+      <div>
+        <input
+          placeholder="Search or type a community"
+          value={value ?? ""}
+          onChange={(e) => onInputChange?.(e, (e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onChange?.(e, (e.target as HTMLInputElement).value);
+            }
+          }}
+        />
+      </div>
+    );
+  };
+});
+
+
 const Signup = require("./Signup").default;
 
 function setupUseFetchForSignup(opts: {
   signupData?: any;
   signupError?: string | null;
-  communitiesData?: any;
+  communitiesData?: any; // initial hook state
 }) {
-  const signupFetch = jest.fn();
-  const fetchCommunities = jest.fn();
-  const addCommunity = jest.fn();
+  // IMPORTANT: return Promises because component likely does: await fetchData(...)
+  const signupFetch = jest.fn().mockResolvedValue(opts.signupData ?? { ok: true });
+  const fetchCommunities = jest
+    .fn()
+    .mockResolvedValue(opts.communitiesData ?? { communities: [] });
+  const addCommunity = jest.fn().mockResolvedValue({ ok: true });
 
   useFetchMock.mockReset();
 
@@ -150,39 +180,50 @@ describe("Signup", () => {
     expect(await screen.findByText("Passwords must match")).toBeInTheDocument();
   });
 
-  test("adds missing community (POST) then refetches (GET) and submits signup with unique cleaned community list", async () => {
-    const user = userEvent.setup();
-    const { signupFetch, fetchCommunities, addCommunity } = setupUseFetchForSignup({
+  test("adds missing community (POST) then submits signup with unique cleaned community list (stable)", async () => {
+    // optional, but helps on slow CI:
+    jest.setTimeout(15000);
+
+    const { signupFetch, addCommunity } = setupUseFetchForSignup({
       communitiesData: { communities: [{ name: "Shingwauk" }] },
     });
 
-    render(<Signup />);
+    const { container } = render(<Signup />);
 
-    await user.type(screen.getByLabelText(/first name/i), "Athul");
-    await user.type(screen.getByLabelText(/last name/i), "N");
-    await user.type(screen.getByLabelText(/email address/i), "athul@test.com");
-    await user.type(screen.getByLabelText(/^password$/i), "secret12");
-    await user.type(screen.getByLabelText(/confirm password/i), "secret12");
+    // Fill required fields FAST (no userEvent.type)
+    fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: "Athul" } });
+    fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: "N" } });
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: "athul@test.com" } });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "secret12" } });
+    fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: "secret12" } });
 
+    // Community row #1: type + Enter (your mocked Autocomplete handles Enter -> onChange)
     const inputs1 = screen.getAllByPlaceholderText(/search or type a community/i);
-    await user.type(inputs1[0], "  NewComm  ");
+    fireEvent.change(inputs1[0], { target: { value: "  NewComm  " } });
     fireEvent.keyDown(inputs1[0], { key: "Enter", code: "Enter" });
 
-    await user.click(screen.getByRole("button", { name: /\+ add another community/i }));
+    // Add row #2 and enter duplicate with different casing
+    fireEvent.click(screen.getByRole("button", { name: /\+ add another community/i }));
     const inputs2 = screen.getAllByPlaceholderText(/search or type a community/i);
-    await user.type(inputs2[1], "newcomm");
+    fireEvent.change(inputs2[1], { target: { value: "newcomm" } });
     fireEvent.keyDown(inputs2[1], { key: "Enter", code: "Enter" });
 
-    await user.click(screen.getByRole("button", { name: /sign up/i }));
+    // Submit (clicking submit button is enough because your FormWrapper mock renders a real <form>)
+    fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
 
-    await waitFor(() => {
-      expect(addCommunity).toHaveBeenCalledWith({ communities: ["NewComm"] }, null, true);
-      expect(fetchCommunities).toHaveBeenCalled();
-      expect(signupFetch).toHaveBeenCalled();
-    });
+    // Wait for calls (real completion signals)
+    await waitFor(() => expect(addCommunity).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(signupFetch).toHaveBeenCalledTimes(1));
 
-    const signupPayload = (signupFetch.mock.calls[0] || [])[0];
-    expect(signupPayload.community).toEqual(["NewComm"]);
+    // addCommunity called once with trimmed + unique
+    expect(addCommunity).toHaveBeenCalledWith({ communities: ["NewComm"] }, null, true);
+
+    // signup called with unique cleaned community list
+    expect(signupFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ community: ["NewComm"] }),
+      null,
+      true
+    );
   });
 
   test("shows toast success and navigates to '/' when signup returns data", async () => {

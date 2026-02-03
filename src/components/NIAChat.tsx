@@ -16,6 +16,7 @@ import { marked } from "marked";
 import { decode } from "he";
 import { motion } from "framer-motion";
 
+
 import Loader from "./Loader";
 
 import {
@@ -31,6 +32,7 @@ import {
   color_text_light,
 } from "../constants/colors";
 
+
 type Message = {
   from: "user" | "nia";
   text?: string;
@@ -44,12 +46,19 @@ interface NIAChatProps {
 }
 
 async function markdownToPlainText(md: string) {
-  let htmlText = await marked(md || "");
-  htmlText = decode(htmlText);
-  let text = htmlText.replace(/<[^>]+>/g, "");
-  text = text.replace(/\r/g, "");
-  return text;
+  const safeMd = typeof md === "string" ? md : "";
+
+  const maybeHtml = await (marked as any)(safeMd);
+  const htmlAsString =
+    typeof maybeHtml === "string" ? maybeHtml : String(maybeHtml ?? "");
+
+  const decoded = decode(htmlAsString);
+  const decodedAsString =
+    typeof decoded === "string" ? decoded : String(decoded ?? "");
+
+  return decodedAsString.replace(/<[^>]+>/g, "").replace(/\r/g, "");
 }
+
 
 /** Prefer user's locale English (e.g., en-CA / en-US) */
 function getPreferredSpeechLang() {
@@ -243,7 +252,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
       try {
         a.pause();
         a.currentTime = 0;
-      } catch {}
+      } catch { }
     }
     setTtsPlayingIndex(null);
   }, []);
@@ -269,7 +278,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
       a.src = url;
       try {
         a.load(); // helps some browsers
-      } catch {}
+      } catch { }
 
       a.onended = () => setTtsPlayingIndex(null);
       a.onerror = () => setTtsPlayingIndex(null);
@@ -326,20 +335,26 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     async (answer: string, idx: number) => {
       if (!answer) return;
 
-      // Cached -> just play
       const cachedUrl = messages[idx]?.ttsUrl;
       if (cachedUrl) {
         await playUrl(cachedUrl, idx);
         return;
       }
 
-      // If any TTS request is already in progress, avoid race (one at a time)
       if (ttsLoadingIndex !== null) return;
 
       setTtsLoadingIndex(idx);
       ttsRequestIndexRef.current = idx;
 
-      const plain = await markdownToPlainText(answer);
+      let plain = "";
+      try {
+        plain = await markdownToPlainText(answer);
+      } catch (e) {
+        console.error("markdownToPlainText failed:", e);
+        setTtsLoadingIndex(null);
+        ttsRequestIndexRef.current = null;
+        return;
+      }
 
       const fd = new FormData();
       fd.append("text", plain);
@@ -352,6 +367,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     },
     [fetchTTS, messages, playUrl, ttsLoadingIndex]
   );
+
 
   // When TTS returns, detect mime, cache, and try autoplay (if blocked, user can click again)
   useEffect(() => {
@@ -400,7 +416,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
       if (m.ttsUrl) {
         try {
           URL.revokeObjectURL(m.ttsUrl);
-        } catch {}
+        } catch { }
       }
     });
   }, []);

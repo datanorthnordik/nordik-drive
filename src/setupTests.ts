@@ -35,7 +35,7 @@ afterAll(() => {
 });
 
 
-// ✅ Prevent CRA/Jest from trying to parse axios ESM in node_modules
+//  Prevent CRA/Jest from trying to parse axios ESM in node_modules
 jest.mock("axios", () => {
   const mockAxiosInstance = {
     request: jest.fn(),

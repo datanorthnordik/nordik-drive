@@ -123,7 +123,7 @@ export default function ActivityVisualization({
     [aggregated]
   );
 
-  // ✅ Only allowed colors: cycle through your prim/sec variants
+  //  Only allowed colors: cycle through your prim/sec variants
   const accentPalette = [color_secondary, color_primary, color_secondary_dark, color_primary_dark];
 
   return (
@@ -136,7 +136,7 @@ export default function ActivityVisualization({
           px: 1.25,
           py: 1,
           borderBottom: `1px solid ${color_border}`,
-          backgroundColor: color_white, // ✅ match PendingRequests header area
+          backgroundColor: color_white, //  match PendingRequests header area
           display: "flex",
           flexDirection: "column",
           gap: 0.75,

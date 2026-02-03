@@ -115,7 +115,7 @@ const FileVersionHistoryModal: React.FC<FileVersionHistoryModalProps> = ({
             boxShadow: "0 18px 60px rgba(0,0,0,0.18)",
             display: "flex",
             flexDirection: "column",
-            maxHeight: "90vh", // ✅ prevents footer from going off-screen
+            maxHeight: "90vh", //  prevents footer from going off-screen
           },
         }}
       >
@@ -164,7 +164,7 @@ const FileVersionHistoryModal: React.FC<FileVersionHistoryModalProps> = ({
 
         <Divider />
 
-        {/* ✅ Make content scrollable so footer stays fixed */}
+        {/*  Make content scrollable so footer stays fixed */}
         <DialogContent
           sx={{
             p: 0,
@@ -323,7 +323,7 @@ const FileVersionHistoryModal: React.FC<FileVersionHistoryModalProps> = ({
           </Box>
         </DialogContent>
 
-        {/* ✅ Fixed footer (always visible) */}
+        {/*  Fixed footer (always visible) */}
         <Divider />
         <Box
           sx={{

@@ -15,7 +15,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { Controller } from "react-hook-form";
 import type { Control } from "react-hook-form";
 
-// ✅ use ONLY constants (no hardcoded colors)
+//  use ONLY constants (no hardcoded colors)
 import {
   color_border,
   color_secondary,
@@ -138,7 +138,7 @@ export function AuthPrimaryButton({
 
 /* ===========================
    Shared UI: Controlled Fields
-   ✅ FIX: accept Control<any, any, any> to avoid resolver-transformed Control mismatch
+    FIX: accept Control<any, any, any> to avoid resolver-transformed Control mismatch
 =========================== */
 
 type RHFControlAny = Control<any, any, any>;

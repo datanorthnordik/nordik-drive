@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   Box,
@@ -17,9 +17,16 @@ import CloseIcon from "@mui/icons-material/Close";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import {color_light_gray, color_secondary, color_secondary_dark, color_text_light, color_text_primary, color_white } from "../../constants/colors";
-import { c } from "framer-motion/dist/types.d-Cjd591yU";
+import {
+  color_light_gray,
+  color_secondary,
+  color_secondary_dark,
+  color_text_light,
+  color_text_primary,
+  color_white,
+} from "../../constants/colors";
 
+// keep helpers inside module; tests will cover via rendering
 const isPdfMime = (m?: string) => m === "application/pdf";
 const isImageMime = (m?: string) => !!m && m.startsWith("image/");
 
@@ -64,14 +71,6 @@ function normalizeUrl(raw: string) {
   return s;
 }
 
-/**
- * UX alignment (from screenshot):
- * - Light header bar, filename + mime on left
- * - Buttons on right: OPEN (outlined), DOWNLOAD (contained), CLOSE (outlined)
- * - Tip strip below header (dark navy)
- * - Centered preview “card” area with subtle border + rounded corners
- * - Works even when iframe is blocked (user uses Open)
- */
 export default function DocumentUrlViewerModal({
   open,
   url,
@@ -83,27 +82,37 @@ export default function DocumentUrlViewerModal({
   title?: string;
   onClose: () => void;
 }) {
+  // ✅ Hooks must be called unconditionally (no early return above them)
   const safeUrl = useMemo(() => normalizeUrl(url), [url]);
-  const filename = useMemo(() => getFileNameFromUrl(safeUrl), [safeUrl]);
-  const mime = useMemo(() => guessMimeFromFilename(filename), [filename]);
+  const hasUrl = !!safeUrl;
+
+  const filename = useMemo(() => (safeUrl ? getFileNameFromUrl(safeUrl) : ""), [safeUrl]);
+  const mime = useMemo(() => (safeUrl ? guessMimeFromFilename(filename) : ""), [safeUrl, filename]);
 
   // Zoom (images only)
   const ZOOM_MIN = 1;
   const ZOOM_MAX = 4;
   const ZOOM_STEP = 0.25;
+
   const [zoom, setZoom] = useState(1);
+
+  // optional: reset zoom every time the modal opens
+  useEffect(() => {
+    if (open) setZoom(1);
+  }, [open]);
+
   const clamp = (v: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v));
   const zoomIn = () => setZoom((z) => clamp(Number((z + ZOOM_STEP).toFixed(2))));
   const zoomOut = () => setZoom((z) => clamp(Number((z - ZOOM_STEP).toFixed(2))));
   const resetZoom = () => setZoom(1);
 
   const openInNewTab = () => {
-    if (!safeUrl) return;
+    if (!hasUrl) return;
     window.open(safeUrl, "_blank", "noopener,noreferrer");
   };
 
   const download = () => {
-    if (!safeUrl) return;
+    if (!hasUrl) return;
     const a = document.createElement("a");
     a.href = safeUrl;
     a.download = filename || "download";
@@ -114,10 +123,11 @@ export default function DocumentUrlViewerModal({
     a.remove();
   };
 
-  if (!safeUrl) return null;
+  // ✅ Early return AFTER hooks
+  if (!open) return null;
 
   const headerTitle = title || filename || "Document";
-
+  const mimeLabel = mime || "unknown";
 
   return (
     <Dialog
@@ -167,14 +177,15 @@ export default function DocumentUrlViewerModal({
               mt: 0.15,
             }}
           >
-            {mime || "unknown"}
+            {mimeLabel}
           </Typography>
         </Box>
 
-        {/* Action buttons (match screenshot ordering) */}
+        {/* Action buttons */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Button
             onClick={openInNewTab}
+            disabled={!hasUrl}
             variant="outlined"
             startIcon={<OpenInNewIcon />}
             sx={{
@@ -191,6 +202,7 @@ export default function DocumentUrlViewerModal({
 
           <Button
             onClick={download}
+            disabled={!hasUrl}
             variant="contained"
             startIcon={<DownloadIcon />}
             sx={{
@@ -213,7 +225,7 @@ export default function DocumentUrlViewerModal({
               borderWidth: 2,
               color: color_text_primary,
               backgroundColor: color_white,
-              px: 2
+              px: 2,
             }}
           >
             Close
@@ -241,7 +253,7 @@ export default function DocumentUrlViewerModal({
       <Box
         sx={{
           p: { xs: 1.25, sm: 2 },
-          height: "calc(100vh - 112px)", // header + tip
+          height: "calc(100vh - 112px)",
           boxSizing: "border-box",
         }}
       >
@@ -255,8 +267,29 @@ export default function DocumentUrlViewerModal({
             boxShadow: "0 8px 30px rgba(15, 30, 60, 0.10)",
           }}
         >
+          {!hasUrl && (
+            <Box
+              sx={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                p: 3,
+                textAlign: "center",
+              }}
+            >
+              <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                No document URL provided.
+              </Typography>
+              <Typography sx={{ color: color_text_light }}>
+                Please close and try again.
+              </Typography>
+            </Box>
+          )}
+
           {/* PDF */}
-          {isPdfMime(mime) && (
+          {hasUrl && isPdfMime(mime) && (
             <iframe
               title="document-preview"
               src={safeUrl}
@@ -270,7 +303,7 @@ export default function DocumentUrlViewerModal({
           )}
 
           {/* Image */}
-          {isImageMime(mime) && (
+          {hasUrl && isImageMime(mime) && (
             <Box
               sx={{
                 width: "100%",
@@ -296,7 +329,6 @@ export default function DocumentUrlViewerModal({
                 />
               </Box>
 
-              {/* Floating zoom controls (subtle, not too loud) */}
               <Box
                 sx={{
                   position: "absolute",
@@ -353,7 +385,7 @@ export default function DocumentUrlViewerModal({
           )}
 
           {/* Fallback */}
-          {!isPdfMime(mime) && !isImageMime(mime) && (
+          {hasUrl && !isPdfMime(mime) && !isImageMime(mime) && (
             <Box
               sx={{
                 height: "100%",
@@ -379,8 +411,8 @@ export default function DocumentUrlViewerModal({
                   sx={{
                     fontWeight: 900,
                     borderWidth: 2,
-                    color: color_white,    
-                    background: color_secondary,               
+                    color: color_white,
+                    background: color_secondary,
                   }}
                 >
                   Open

@@ -44,7 +44,7 @@ describe("AuthContainer", () => {
     expect(val(root, "justifyContent")).toBe("center");
     expect(val(root, "alignItems")).toBe("center");
 
-    // ✅ Gradient is NOT reliably exposed by JSDOM via getComputedStyle(backgroundImage).
+    //  Gradient is NOT reliably exposed by JSDOM via getComputedStyle(backgroundImage).
     // Best-effort: only assert if it's observable via inline style or computed background/backgroundImage.
     const bgCandidate =
       val(root, "backgroundImage") ||

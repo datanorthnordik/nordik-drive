@@ -18,6 +18,8 @@ import {
 } from "../../constants/colors";
 
 import { NIAChatTrigger } from "../NIAChat";
+import { clearSelectedFile } from "../../store/auth/fileSlice";
+import { useDispatch } from "react-redux";
 
 type Props = {
   isMobile: boolean;
@@ -62,6 +64,8 @@ export default function TopControlsBar({
   const resultsText = useMemo(() => {
     return matchesCount > 0 ? `${currentMatchIndex + 1} of ${matchesCount}` : "0 results";
   }, [matchesCount, currentMatchIndex]);
+
+  const dispatch = useDispatch();
 
   const startVoice = () => {
     const SpeechRecognition =
@@ -136,7 +140,10 @@ export default function TopControlsBar({
     >
       {/* Files */}
       <Button
-        onClick={() => window.history.back()}
+        onClick={() => {
+          dispatch(clearSelectedFile());
+          window.history.back()
+        }}
         variant="outlined"
         startIcon={<ArrowLeft size={18} />}
         sx={{

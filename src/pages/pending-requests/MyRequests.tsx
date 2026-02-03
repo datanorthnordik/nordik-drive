@@ -115,7 +115,7 @@ const MyRequests: React.FC = () => {
   const topOffset = isMobile ? header_mobile_height : header_height;
   const user = useSelector((state: any) => state.auth.user);
 
-  // ✅ Separate API calls:
+  //  Separate API calls:
   // - pending list
   // - approved + rejected list together
   const pendingUrl = useMemo(
@@ -141,14 +141,14 @@ const MyRequests: React.FC = () => {
 
   const loading = pendingLoading || approvedRejectedLoading;
 
-  // ✅ Fetch both whenever the URLs change (email/status)
+  //  Fetch both whenever the URLs change (email/status)
   useEffect(() => {
     fetchPending();
     fetchApprovedRejected();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingUrl, approvedRejectedUrl]);
 
-  // ✅ Refresh both (fixes the “refresh makes other tab 0” issue)
+  //  Refresh both (fixes the “refresh makes other tab 0” issue)
   const refreshBoth = useCallback(() => {
     fetchPending();
     fetchApprovedRejected();

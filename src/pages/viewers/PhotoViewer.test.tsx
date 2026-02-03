@@ -192,7 +192,7 @@ describe("PhotoViewerModal", () => {
   test("respects showThumbnails by changing image maxHeight (72vh vs 82vh)", async () => {
     const photos: ViewerPhoto[] = [{ id: 1, status: "approved" }];
 
-    // ✅ IMPORTANT: Dialog renders in a portal, so use baseElement (document.body), not container
+    //  IMPORTANT: Dialog renders in a portal, so use baseElement (document.body), not container
     const { baseElement, rerender } = render(
       <PhotoViewerModal open={true} onClose={jest.fn()} photos={photos} showThumbnails={true} />
     );

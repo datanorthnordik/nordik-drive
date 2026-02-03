@@ -13,7 +13,7 @@ import FileUploader from "../../components/FileUploader";
 import UploadedFiles from "../../components/UploadedFiles";
 import { color_primary, header_height, header_mobile_height } from "../../constants/colors";
 
-// ✅ Keep your wrapper if you already use it elsewhere; otherwise remove
+//  Keep your wrapper if you already use it elsewhere; otherwise remove
 import { AdminPanelWrapper } from "../../components/Wrappers";
 
 const AdminPanel = () => {
@@ -40,7 +40,7 @@ const AdminPanel = () => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ✅ IMPORTANT: prevent outer (page) scroll on this screen
+  //  IMPORTANT: prevent outer (page) scroll on this screen
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -56,7 +56,7 @@ const AdminPanel = () => {
       <Loader loading={loading} />
 
       <AdminPanelWrapper>
-        {/* ✅ Fixed workspace area below header (no page scroll) */}
+        {/*  Fixed workspace area below header (no page scroll) */}
         <Box
           data-testid="admin-workspace"
           sx={{
@@ -69,7 +69,7 @@ const AdminPanel = () => {
             px: { xs: 1.25, md: 3 },
             py: { xs: 1.25, md: 2 },
             boxSizing: "border-box",
-            background: "#f6f7fb", // ✅ portal-like page background
+            background: "#f6f7fb", //  portal-like page background
           }}
         >
           <Box
@@ -82,7 +82,7 @@ const AdminPanel = () => {
               minHeight: 0,
             }}
           >
-            {/* ✅ Portal shell */}
+            {/*  Portal shell */}
             <Paper
               elevation={0}
               sx={{

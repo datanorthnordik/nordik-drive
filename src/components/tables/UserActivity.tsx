@@ -100,7 +100,7 @@ export default function UserActivity({
 }) {
   const [gridApi, setGridApi] = useState<any>(null);
 
-  // ✅ compact UI toggles
+  //  compact UI toggles
   const [showFilters, setShowFilters] = useState(true);
   const [hasSearchedOnce, setHasSearchedOnce] = useState(false);
 
@@ -397,7 +397,7 @@ export default function UserActivity({
             background: color_background,
           }}
         >
-          {/* ✅ Top row like screenshot */}
+          {/*  Top row like screenshot */}
           {!showFilters ? (
             <Box
               sx={{
@@ -668,7 +668,7 @@ export default function UserActivity({
             </Box>
           )}
 
-          {/* ✅ Outer panel like screenshot */}
+          {/*  Outer panel like screenshot */}
           <Box
             sx={{
               flex: 1,

@@ -179,7 +179,7 @@ describe("ApproveRequestModal helpers (__test__)", () => {
     expect(__test__.formatBytes(undefined)).toBe("0 B");
     expect(__test__.formatBytes(0)).toBe("0 B");
     expect(__test__.formatBytes(9)).toBe("9 B"); // i === 0 branch
-    expect(__test__.formatBytes(1024)).toBe("1.0 KB"); // ✅ fixed
+    expect(__test__.formatBytes(1024)).toBe("1.0 KB"); //  fixed
     expect(__test__.formatBytes(10 * 1024)).toBe("10 KB"); // val >= 10 branch
   });
 
@@ -302,7 +302,7 @@ describe("ApproveRequestModal UI", () => {
     await waitFor(() => expect(loadDocsSpy).toHaveBeenCalled());
 
     expect(screen.getByText("Birth Certificate")).toBeInTheDocument();
-    expect(screen.getByText("1.0 KB")).toBeInTheDocument(); // ✅ fixed
+    expect(screen.getByText("1.0 KB")).toBeInTheDocument(); //  fixed
     expect(screen.getByText("0 B")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
 
@@ -436,13 +436,13 @@ describe("ApproveRequestModal UI", () => {
     // close
     rerender(<ApproveRequestModal open={false} request={baseRequest()} onClose={onClose} onApproved={onApproved} />);
 
-    // ✅ reopen with NO approvalResponse (allows reset effect to run)
+    //  reopen with NO approvalResponse (allows reset effect to run)
     approvalResponseNext = null;
     setupUseFetchRoutingMock();
 
     rerender(<ApproveRequestModal open={true} request={baseRequest()} onClose={onClose} onApproved={onApproved} />);
 
-    // ✅ now deliver new approval response after reopen
+    //  now deliver new approval response after reopen
     approvalResponseNext = { ok: true, again: true };
     setupUseFetchRoutingMock();
 

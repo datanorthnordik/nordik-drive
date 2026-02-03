@@ -63,7 +63,7 @@ const ContactUs = () => {
           // (keeps cards readable + consistent on big screens)
           maxWidth: { xs: "100%", md: 1180, lg: 1260 },
 
-          // ✅ KEY FIX: Make large screens look premium
+          //  KEY FIX: Make large screens look premium
           // Vertically center the content area (but don't break small screens)
           display: "flex",
           alignItems: { xs: "stretch", md: "center" },
@@ -80,7 +80,7 @@ const ContactUs = () => {
             display: "grid",
             gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
             gap: { xs: 3, md: 4 },
-            alignItems: "stretch", // ✅ equal visual weight
+            alignItems: "stretch", //  equal visual weight
           }}
         >
           {/* LEFT CARD */}
@@ -133,7 +133,7 @@ const ContactUs = () => {
                   lineHeight: 1.6,
                   color: color_text_secondary,
                   mb: 2.4,
-                  fontWeight: 700, // ✅ make left texts bolder
+                  fontWeight: 700, //  make left texts bolder
                 }}
               >
                 We&apos;re here to help answer your questions. Community impact can be complicated, our
@@ -266,7 +266,7 @@ const ContactUs = () => {
             }}
           >
             <CardContent sx={{ px: { xs: 2.5, md: 3.5 }, py: { xs: 2.8, md: 3.2 } }}>
-              {/* ✅ ONE wrapper controls BOTH text + button width */}
+              {/*  ONE wrapper controls BOTH text + button width */}
               <Stack spacing={3.2} sx={{ width: "100%", maxWidth: RIGHT_BLOCK_MAX, mx: "auto" }}>
                 {/* Block 1 */}
                 <Box sx={{ width: "100%" }}>
@@ -287,7 +287,7 @@ const ContactUs = () => {
                   <Button
                     onClick={() => onJoinHere("https://childrenofshingwauk.org/contact-us/")}
                     sx={{
-                      width: "100%", // ✅ same width as the Typography block
+                      width: "100%", //  same width as the Typography block
                       height: 56,
                       borderRadius: 1.6,
                       background: color_secondary_dark,
@@ -326,7 +326,7 @@ const ContactUs = () => {
                       )
                     }
                     sx={{
-                      width: "100%", // ✅ same width as the Typography block
+                      width: "100%", //  same width as the Typography block
                       height: 56,
                       borderRadius: 1.6,
                       background: color_secondary_dark,

@@ -17,7 +17,7 @@ import { CheckBoxWrapper } from "../../components/TextGroup";
 import toast from "react-hot-toast";
 import PasswordResetModal from "../../components/PasswordReset";
 
-// ✅ use ONLY constants (no hardcoded colors)
+//  use ONLY constants (no hardcoded colors)
 import {
   color_text_light,
   color_text_primary,
@@ -37,14 +37,14 @@ import {
 type LoginFormValues = {
   email: string;
   password: string;
-  remember: boolean; // ✅ make it required (fixes resolver mismatch)
+  remember: boolean; //  make it required (fixes resolver mismatch)
 };
 
-// ✅ Explicitly type schema to LoginFormValues
+//  Explicitly type schema to LoginFormValues
 const schema: yup.ObjectSchema<LoginFormValues> = yup.object({
   email: yup.string().email("Invalid email").required("Email is required"),
   password: yup.string().required("Password is required"),
-  remember: yup.boolean().required(), // ✅ required boolean
+  remember: yup.boolean().required(), //  required boolean
 });
 
 function Login() {

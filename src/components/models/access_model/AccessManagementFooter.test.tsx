@@ -147,7 +147,7 @@ jest.mock("./AccessModalFooter", () => ({
   ),
 }));
 
-// ✅ IMPORTANT: This must match the REAL component file name in this folder.
+//  IMPORTANT: This must match the REAL component file name in this folder.
 const AccessModal = require("./AccessManagementModal").default;
 
 const useFetchMock = useFetch as unknown as jest.Mock;

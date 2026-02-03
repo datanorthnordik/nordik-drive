@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { Input } from "./Input"; // ✅ adjust path if needed
+import { Input } from "./Input"; //  adjust path if needed
 
 // Make cn deterministic + easy to assert
 jest.mock("../../lib/utils", () => ({

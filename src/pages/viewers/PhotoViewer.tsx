@@ -55,7 +55,7 @@ export interface ViewerPhoto {
     mime_type?: string;
     status?: ReviewStatus;
 
-    // ✅ for Download All (ZIP) without passing anything:
+    //  for Download All (ZIP) without passing anything:
     request_id?: number;
     requestId?: number;
 
@@ -178,7 +178,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
 
     const currentPhoto = photos?.[currentIndex];
 
-    // ✅ infer request id from photos (so no prop required)
+    //  infer request id from photos (so no prop required)
     const inferredRequestIds = useMemo(() => {
         const set = new Set<number>();
 
@@ -613,7 +613,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                 Download
                             </Button>
 
-                            {/* ✅ Download all photos ZIP (icon button, no wrap) */}
+                            {/*  Download all photos ZIP (icon button, no wrap) */}
                             <Tooltip
                                 title={
                                     canDownloadAll

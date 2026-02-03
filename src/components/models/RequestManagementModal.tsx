@@ -30,7 +30,6 @@ function RequestManagementModal(props: RequestManagementModalProps) {
     });
 
     const { selectedRequest, onClose, onProcess } = props
-    console.log(selectedRequest)
 
     const { data: roles, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/role", "GET", false)
     const { data: files, loading: cloading, error: cerror, fetchData: cFetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file", "GET", true)
@@ -47,7 +46,6 @@ function RequestManagementModal(props: RequestManagementModalProps) {
     },[updateRequest])
 
     const onSubmit = (data: any) => {
-        console.log(data)
         const body:any = []
         data.files.forEach((file:any)=>{
             body.push({

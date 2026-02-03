@@ -475,7 +475,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
       PaperProps={{ sx: { background: color_white } }}
       data-testid="document-viewer-modal"
     >
-      {/* ✅ Top header */}
+      {/*  Top header */}
       <Box
         sx={{
           px: { xs: 1.25, sm: 2 },
@@ -587,7 +587,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         </Box>
       </Box>
 
-      {/* ✅ Tip strip */}
+      {/*  Tip strip */}
       <Box
         sx={{
           px: { xs: 1.25, sm: 2 },
@@ -604,7 +604,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
       <Divider />
 
-      {/* ✅ Preview shell */}
+      {/*  Preview shell */}
       <DialogContent
         sx={{
           p: { xs: 1.25, sm: 2 },
@@ -813,7 +813,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
           )}
         </Box>
 
-        {/* ✅ Bottom action bar */}
+        {/*  Bottom action bar */}
         {showBottomBar && (
           <Box
             sx={{

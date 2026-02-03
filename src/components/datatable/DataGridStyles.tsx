@@ -89,28 +89,28 @@ export default function DataGridStyles() {
 
         .community-action-bar {
   display: flex;
-  align-items: stretch;          /* ✅ makes buttons match message height */
+  align-items: stretch;          /*  makes buttons match message height */
   gap: 8px;
   margin-bottom: 8px;
 
-  padding: 6px;                  /* ✅ reduced height */
+  padding: 6px;                  /*  reduced height */
   border-radius: 10px;
   background: ${color_white};
   border: 1px solid ${color_border};
   box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 
-  flex-wrap: wrap;               /* ✅ lets message wrap cleanly */
+  flex-wrap: wrap;               /*  lets message wrap cleanly */
 }
 
 .community-action-btn {
-  align-self: stretch;           /* ✅ match the tallest item */
+  align-self: stretch;           /*  match the tallest item */
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 
-  padding: 0 14px;               /* ✅ reduced height (no vertical padding) */
-  min-height: 36px;              /* ✅ compact baseline height */
+  padding: 0 14px;               /*  reduced height (no vertical padding) */
+  min-height: 36px;              /*  compact baseline height */
   border-radius: 8px;
 
   background: ${color_secondary};
@@ -132,12 +132,12 @@ export default function DataGridStyles() {
   flex: 1 1 520px;
   min-width: 280px;
 
-  align-self: stretch;           /* ✅ same height as buttons */
+  align-self: stretch;           /*  same height as buttons */
   display: flex;
   align-items: center;
   gap: 10px;
 
-  padding: 6px 12px;             /* ✅ reduced height */
+  padding: 6px 12px;             /*  reduced height */
   border-radius: 8px;
 
   background: ${color_blue_lightest};
@@ -150,7 +150,7 @@ export default function DataGridStyles() {
 }
 
 .community-action-msg-text {
-  white-space: normal;           /* ✅ show full text */
+  white-space: normal;           /*  show full text */
   overflow: visible;
   text-overflow: clip;
 }

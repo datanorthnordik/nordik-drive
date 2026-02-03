@@ -243,7 +243,7 @@ const ReplaceFileModal: React.FC<ReplaceFileModalProps> = ({ open, onClose, file
             backgroundColor: "#FFFFFF",
           }}
         >
-          {/* ✅ Cancel white + black text */}
+          {/*  Cancel white + black text */}
           <Button
             onClick={handleCancel}
             disabled={loading}
@@ -273,7 +273,7 @@ const ReplaceFileModal: React.FC<ReplaceFileModalProps> = ({ open, onClose, file
             Cancel
           </Button>
 
-          {/* ✅ Replace blue */}
+          {/*  Replace blue */}
           <Button
             onClick={handleReplace}
             disabled={!selectedFile || loading}
