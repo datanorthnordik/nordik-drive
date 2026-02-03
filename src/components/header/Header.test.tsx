@@ -165,7 +165,7 @@ describe("AppToolbar", () => {
     const headerEl = document.querySelector("header") as HTMLElement;
     expect(headerEl).toBeTruthy();
 
-    // ✅ IMPORTANT: check header-only (not whole document)
+    //  IMPORTANT: check header-only (not whole document)
     expect(within(headerEl).queryByTestId("logout-btn")).not.toBeInTheDocument();
 
     // Drawer initially closed
@@ -197,7 +197,7 @@ describe("AppToolbar", () => {
 
     const drawerPaper = screen.getByTestId("mui-drawer-paper");
 
-    // ✅ HeaderNav exists in multiple places, so scope to the drawer
+    //  HeaderNav exists in multiple places, so scope to the drawer
     const drawerNav = within(drawerPaper).getByTestId("header-nav");
     fireEvent.click(drawerNav);
 

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
-import HeaderNav from "./HeaderNav"; // ✅ adjust if needed
+import HeaderNav from "./HeaderNav"; //  adjust if needed
 
 // -----------------------------
 // Virtual react-router-dom mock (same pattern as your fix)

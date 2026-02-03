@@ -3,7 +3,7 @@ import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ActivityVisualization from "./ActivityVisualization";
 
-// ✅ Mock MUI X Charts to avoid SVG/ResizeObserver quirks in jsdom
+//  Mock MUI X Charts to avoid SVG/ResizeObserver quirks in jsdom
 jest.mock("@mui/x-charts/PieChart", () => ({
   PieChart: () => <div data-testid="mock-pie-chart" />,
 }));

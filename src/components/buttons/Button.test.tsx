@@ -42,7 +42,7 @@ describe("ButtonComponent", () => {
     const btn = screen.getByRole("button", { name: "Save" });
     expect(btn).toBeInTheDocument();
 
-    // ✅ toHaveClass doesn't accept stringContaining; check className text instead
+    //  toHaveClass doesn't accept stringContaining; check className text instead
     expect(btn.className).toMatch(/\bbg-primary\b/);
     expect(btn.className).toMatch(/\bh-9\b/);
   });
@@ -100,7 +100,7 @@ describe("ButtonComponent", () => {
     const link = screen.getByRole("link", { name: "Go" });
     expect(link).toHaveAttribute("href", "/go");
 
-    // ✅ className text assertions
+    //  className text assertions
     expect(link.className).toMatch(/\bbg-primary\b/);
     expect(link.className).toMatch(/\bh-9\b/);
     expect(link.className).toMatch(/\bxtra\b/);

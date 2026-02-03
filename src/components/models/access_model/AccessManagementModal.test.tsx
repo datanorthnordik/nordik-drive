@@ -173,7 +173,7 @@ jest.mock("./AccessModalFooter", () => ({
   ),
 }));
 
-// ✅ Import component AFTER mocks
+//  Import component AFTER mocks
 const AccessModal = require("./AccessManagementModal").default;
 
 /**

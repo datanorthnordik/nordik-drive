@@ -64,7 +64,7 @@ const Acknowledgement = () => {
           // keep content readable on big monitors
           maxWidth: { xs: "100%", md: 980, lg: 1040 },
 
-          // ✅ same “premium” large-screen behavior as ContactUs
+          //  same “premium” large-screen behavior as ContactUs
           display: "flex",
           alignItems: { xs: "stretch", md: "center" },
           justifyContent: "center",

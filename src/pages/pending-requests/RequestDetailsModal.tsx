@@ -609,7 +609,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     a.remove();
   };
 
-  // ✅ Hook rule safe: NO conditional hooks above
+  //  Hook rule safe: NO conditional hooks above
   if (!request) return null;
 
   // ---------------------------

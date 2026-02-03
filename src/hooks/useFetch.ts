@@ -35,11 +35,11 @@ const useFetch = <T,>(url: string, method: FetchMethod, autoFetch: boolean = fal
       setData(null);
       setError(null);
 
-      // ✅ Build base URL first (do NOT mutate `url`)
+      //  Build base URL first (do NOT mutate `url`)
       let baseUrl = url;
 
-      // ✅ Support old param behavior: param = 123 -> /123
-      // ✅ Support new behavior: param = { path, responseType, urlOverride }
+      //  Support old param behavior: param = 123 -> /123
+      //  Support new behavior: param = { path, responseType, urlOverride }
       let responseType: ResponseType | undefined;
       let urlOverride: string | undefined;
 
@@ -53,17 +53,17 @@ const useFetch = <T,>(url: string, method: FetchMethod, autoFetch: boolean = fal
         }
       }
 
-      // ✅ If caller wants full override URL
+      //  If caller wants full override URL
       if (urlOverride) baseUrl = urlOverride;
 
-      // ✅ Query params should be appended LAST
+      //  Query params should be appended LAST
       const finalUrl = appendQueryParams(baseUrl, queryParams);
 
       const config: AxiosRequestConfig = {
         method,
         url: finalUrl,
         withCredentials: true,
-        responseType, // ✅ only set when provided; existing calls unchanged
+        responseType, //  only set when provided; existing calls unchanged
       };
 
       if (body) config.data = body;
@@ -83,7 +83,7 @@ const useFetch = <T,>(url: string, method: FetchMethod, autoFetch: boolean = fal
               { withCredentials: true }
             );
 
-            // ✅ Retry with same config (including responseType!)
+            //  Retry with same config (including responseType!)
             const retryResponse = await axios({ ...config });
             setData(retryResponse.data);
             setError("");

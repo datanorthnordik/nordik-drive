@@ -109,12 +109,12 @@ export const EditableTable = ({ data, onClose }: EditableTableProps) => {
         if (newValue === oldValue) return;
 
         setEditedData(prev => {
-            // ✅ If old data already exists, don't update it
+            //  If old data already exists, don't update it
             if (prev[key]) {
                 return prev;   // do nothing
             }
 
-            // ✅ Otherwise add new edited data
+            //  Otherwise add new edited data
             return {
                 ...prev,
                 [key]: {

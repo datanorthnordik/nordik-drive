@@ -22,7 +22,7 @@ import FilterAltIcon from "@mui/icons-material/FilterAlt";
 
 import useFetch from "../../hooks/useFetch";
 
-// ✅ use ONLY these colors (import from your constants file)
+//  use ONLY these colors (import from your constants file)
 import {
   color_secondary,
   color_secondary_dark,
@@ -35,7 +35,7 @@ import {
   color_text_light,
 } from "../../constants/colors";
 
-// ✅ keep types minimal + compatible with your page
+//  keep types minimal + compatible with your page
 export type Mode = "CHANGES";
 
 export type Operation =

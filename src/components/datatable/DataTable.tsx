@@ -194,7 +194,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const [matches, setMatches] = useState<{ rowNode: RowNode; colId: string }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
-  // ✅ GUARDED: fontSize kept at container level and passed through
+  //  GUARDED: fontSize kept at container level and passed through
   const [fontSize, setFontSize] = useState(16);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -596,13 +596,13 @@ export default function DataGrid({ rowData }: DataGridProps) {
     setFontSize(newSize);
   };
 
-  // ✅ Single external filter logic in ONE place (hook)
+  //  Single external filter logic in ONE place (hook)
   const { isExternalFilterPresent, doesExternalFilterPass } = useExternalGridFilters({
     selectedCommunities,
     sourceFilter,
   });
 
-  // ✅ Single trigger to refresh filters (ONLY here)
+  //  Single trigger to refresh filters (ONLY here)
   useEffect(() => {
     gridApi?.onFilterChanged?.();
   }, [gridApi, sourceFilter, selectedCommunities]);
@@ -695,7 +695,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
     setFormOpen(true);
   };
 
-  // ✅ Memoize AG Grid context (guardrail)
+  //  Memoize AG Grid context (guardrail)
   const gridContext = useMemo(
     () => ({
       openForm: (row: any) => {
@@ -768,7 +768,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                   <SourceFilterBar
                     availableSources={availableSources}
                     sourceFilter={sourceFilter}
-                    setSourceFilter={setSourceFilter} // ✅ NO onFilterChanged here
+                    setSourceFilter={setSourceFilter} //  NO onFilterChanged here
                   />
                 </div>
               )}
@@ -832,7 +832,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                     rowModelType="clientSide"
                     isExternalFilterPresent={isExternalFilterPresent}
                     doesExternalFilterPass={doesExternalFilterPass}
-                    context={gridContext} // ✅ memoized context
+                    context={gridContext} //  memoized context
                   />
                 </div>
               </div>
@@ -926,7 +926,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
           />
         )}
 
-        {/* ✅ Old style block preserved exactly */}
+        {/*  Old style block preserved exactly */}
         <DataGridStyles />
       </GridWrapper>
     </>

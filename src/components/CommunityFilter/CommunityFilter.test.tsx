@@ -5,10 +5,10 @@ import { configureStore } from "@reduxjs/toolkit";
 import { render, screen, within, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-// ✅ adjust this path
+//  adjust this path
 import CommunityFilter from "./CommunityFilter";
 
-// ✅ Mock the action creator used by the component
+//  Mock the action creator used by the component
 jest.mock("../../store/auth/fileSlice", () => ({
   setSelectedCommunities: (payload: any) => ({
     type: "file/setSelectedCommunities",

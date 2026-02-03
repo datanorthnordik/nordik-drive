@@ -14,7 +14,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import useFetch from "../hooks/useFetch";
 
-// ✅ Single schema that adapts by step
+//  Single schema that adapts by step
 const schema = yup.object({
   step: yup.string<"email" | "reset">().required(),
   email: yup.string().when("step", {
@@ -54,7 +54,7 @@ const PasswordResetModal: React.FC<Props> = ({ open, onClose }) => {
     setValue,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: yupResolver(schema) as Resolver<FormValues>, // ✅ tiny cast
+    resolver: yupResolver(schema) as Resolver<FormValues>, //  tiny cast
     defaultValues: { step: "email" },
   });
 

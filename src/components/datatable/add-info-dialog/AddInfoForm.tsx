@@ -614,7 +614,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                   />
                 </FieldRow>
 
-                {/* ✅ IMPORTANT: Additional Documents must appear immediately after "Additional Information" */}
+                {/*  IMPORTANT: Additional Documents must appear immediately after "Additional Information" */}
                 {isAdditionalInformation && (
                   <AdditionalDocsCard
                     additionalDocs={additionalDocs}
@@ -631,7 +631,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             );
           })}
 
-          {/* ✅ Fallback: If the sheet doesn’t have "Additional Information" column, still show docs somewhere */}
+          {/*  Fallback: If the sheet doesn’t have "Additional Information" column, still show docs somewhere */}
           {!hasAdditionalInformationField && (
             <AdditionalDocsCard
               additionalDocs={additionalDocs}

@@ -230,7 +230,7 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
         />
       )}
 
-      {/* ✅ Portal table card */}
+      {/*  Portal table card */}
       <Paper
         elevation={0}
         sx={{

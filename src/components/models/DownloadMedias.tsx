@@ -25,7 +25,7 @@ import CloseIcon from "@mui/icons-material/Close";
 
 import useFetch from "../../hooks/useFetch";
 
-// ✅ ONLY use colors from your constants file (adjust import path)
+//  ONLY use colors from your constants file (adjust import path)
 import {
   color_primary,
   color_secondary,
@@ -115,7 +115,7 @@ export default function DownloadMediaModal({
 
   const [localErr, setLocalErr] = useState("");
 
-  // ✅ IMPORTANT: useFetch so auth headers/credentials match your app behavior
+  //  IMPORTANT: useFetch so auth headers/credentials match your app behavior
   const {
     data: zipBlobData,
     fetchData: fetchZip,
@@ -158,7 +158,7 @@ export default function DownloadMediaModal({
   const handleDownload = async () => {
     setLocalErr("");
 
-    // ✅ As requested: "download all first" -> use clauses (requestId later)
+    //  As requested: "download all first" -> use clauses (requestId later)
     const body: any = {
       document_type: mediaType, // "all" | "photos" | "document"
       categorize_by_user: groupByUser,
@@ -176,7 +176,7 @@ export default function DownloadMediaModal({
     downloadNonceRef.current += 1;
     pendingNameRef.current = buildZipName(mediaType);
 
-    // ✅ responseType blob (same pattern you used for docs)
+    //  responseType blob (same pattern you used for docs)
     await fetchZip(body, undefined, false, { responseType: "blob" });
   };
 
