@@ -38,8 +38,9 @@ export default function SourceFilterBar({
       <button
         onClick={() => setSourceFilter(null)}
         style={{
-          padding: "6px 14px",
+          padding: "4px 14px",
           borderRadius: "6px",
+          fontSize: "0.8rem",
           border:
             sourceFilter === null
               ? `3px solid ${color_black}`
@@ -62,7 +63,8 @@ export default function SourceFilterBar({
           key={key}
           onClick={() => setSourceFilter(key)}
           style={{
-            padding: "6px 14px",
+            fontSize: "0.7rem",
+            padding: "4px 14px",
             borderRadius: "6px",
             border:
               sourceFilter === key

@@ -112,6 +112,11 @@ function TinySpinner() {
   );
 }
 
+const MAX_LINES = 4;
+const LINE_HEIGHT_PX = 22;
+const VERTICAL_PADDING_PX = 24;
+const MAX_TEXTAREA_HEIGHT = MAX_LINES * LINE_HEIGHT_PX + VERTICAL_PADDING_PX;
+
 export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const finalTranscriptRef = useRef<string>("");
   const recognitionRef = useRef<any>(null);
@@ -127,6 +132,8 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Chat endpoint (existing)
   const { loading, fetchData, data } = useFetch(
@@ -167,6 +174,15 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+
+    el.style.height = "0px";
+    const next = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
+    el.style.height = `${next}px`;
+  }, [input]);
 
   const scrollLastUserToTop = () => {
     if (!messagesContainerRef.current) return;
@@ -652,27 +668,39 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
               borderTop: `2px solid ${color_secondary}`,
             }}
           >
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <input
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <textarea
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  recordingState === "recording" ? "🎙️ Listening..." : "Type your message here..."
-                }
+                placeholder={recordingState === "recording" ? "🎙️ Listening..." : "Type your message here..."}
+                rows={1}
                 style={{
                   flex: 1,
-                  height: 48,
-                  padding: "0 14px",
+                  minHeight: 56,
+                  maxHeight: MAX_TEXTAREA_HEIGHT,
+                  padding: "12px 16px",
                   borderRadius: 12,
                   border: `2px solid ${color_border}`,
                   outline: "none",
-                  fontSize: 15,
+                  fontSize: 16,
+                  lineHeight: `${LINE_HEIGHT_PX}px`,
                   background: color_white,
                   color: color_black_light,
                   fontWeight: 800,
+                  resize: "none",
+                  overflowY: "auto",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
                 }}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
               />
+
 
               <button
                 onClick={sendMessage}

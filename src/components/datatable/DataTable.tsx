@@ -12,8 +12,7 @@ import {
   AllCommunityModule,
   ModuleRegistry,
   GridReadyEvent,
-  RowNode,
-  IRowNode,
+  RowNode
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
@@ -65,6 +64,7 @@ import { extractUrls, isDocumentUrl, linkLabel, normalizeUrl, openInNewTab } fro
 import { applyQuickFilter, findMatches, scrollToMatch } from "../../lib/gridSearch";
 import { useViewerLoader } from "../../hooks/useViewerLoader";
 import { useExternalGridFilters } from "../../hooks/useExternalGridFilters";
+import { headerDisplay, headerMinWidthPx, MAX_HEADER_CHARS } from "./HelperComponents";
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
 
@@ -105,15 +105,13 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const HighlightCell = React.memo(
   ({ value, searchText, fontSize }: { value: any; searchText: string; fontSize: number }) => {
-    if (!value) return null;
+    if (value === null || value === undefined) return null;
 
-    const str = value.toString();
-    const match = str.match(/^(.*?)\s*(\(([^)]*)\))?$/);
-    const mainText = (match?.[1] || "").trim();
+    const str = String(value);
+    const match = str.match(/^([\s\S]*?)\s*(\(([^)]*)\))?$/); // ✅ newline-safe
+    const mainText = (match ? match[1] : str).trim();         // ✅ fallback
 
-    if (!searchText) {
-      return <span style={{ fontSize }}>{mainText}</span>;
-    }
+    if (!searchText) return <span style={{ fontSize }}>{mainText}</span>;
 
     const safeSearch = escapeRegExp(searchText);
     const regex = new RegExp(`(${safeSearch})`, "gi");
@@ -121,21 +119,19 @@ const HighlightCell = React.memo(
 
     return (
       <span style={{ fontSize }}>
-        {parts.map((part: any, index: any) => {
+        {parts.map((part, index) => {
           const isMatch = index % 2 === 1 && part.length > 0;
-          if (isMatch) {
-            return (
-              <span key={index} style={{ backgroundColor: "yellow" }}>
-                {part}
-              </span>
-            );
-          }
-          return <React.Fragment key={index}>{part}</React.Fragment>;
+          return isMatch ? (
+            <span key={index} style={{ backgroundColor: "yellow" }}>{part}</span>
+          ) : (
+            <React.Fragment key={index}>{part}</React.Fragment>
+          );
         })}
       </span>
     );
   }
 );
+
 
 /* ---------- Recorder styles (KEEP AS-IS) ---------- */
 
@@ -354,13 +350,13 @@ export default function DataGrid({ rowData }: DataGridProps) {
     const enabled = !!selectedFile?.community_filter;
     const uniqueCommunities = enabled
       ? Array.from(
-          new Set(
-            rowData
-              .map((item: any) => item?.["First Nation/Community"] ?? "")
-              .map((v: any) => String(v).trim())
-              .filter(Boolean)
-          )
+        new Set(
+          rowData
+            .map((item: any) => item?.["First Nation/Community"] ?? "")
+            .map((v: any) => String(v).trim())
+            .filter(Boolean)
         )
+      )
       : [];
 
     const serialized = JSON.stringify(uniqueCommunities);
@@ -401,28 +397,30 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
     const addInfoCol = selectedFile?.community_filter
       ? [
-          {
-            headerName: "Add Info",
-            field: "add_info",
-            pinned: "left" as const,
-            width: 140,
-            minWidth: 140,
-            suppressSizeToFit: true,
-            cellRenderer: AddInfoRenderer,
-            cellStyle: {
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            },
+        {
+          headerName: headerDisplay("Add Info", 25),
+          headerTooltip: "Add Info",
+          field: "add_info",
+          pinned: "left" as const,
+          width: 140,
+          minWidth: 140,
+          suppressSizeToFit: true,
+          cellRenderer: AddInfoRenderer,
+          cellStyle: {
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
           },
-        ]
+        },
+      ]
       : [];
 
     const otherCols = keys.map((key) => {
       if (key.toLowerCase() === "photos") {
         return {
           field: key,
-          headerName: key,
+          headerName: headerDisplay(key, 25),
+          headerTooltip: key,
           width: 140,
           minWidth: 140,
           sortable: false,
@@ -455,7 +453,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
       if (key.toLowerCase() === "documents") {
         return {
           field: key,
-          headerName: key,
+          headerName:key,
+          headerTooltip: key,
           width: 160,
           minWidth: 160,
           sortable: false,
@@ -485,10 +484,15 @@ export default function DataGrid({ rowData }: DataGridProps) {
         };
       }
 
+      const fullHeader = key;
+      const charsToShow = Math.min(fullHeader.length, MAX_HEADER_CHARS); 
+      
       return {
-        field: key,
-        headerName: key,
+        field: fullHeader,
+        headerName: headerDisplay(fullHeader, 25),
+        headerTooltip: key,
         tooltipValueGetter: (params: any) => params.value,
+        minWidth: headerMinWidthPx(charsToShow),
         cellRenderer: (params: any) => {
           if (!params.value) return null;
 
@@ -541,8 +545,9 @@ export default function DataGrid({ rowData }: DataGridProps) {
             );
           }
 
-          const match = value.match(/^(.*?)\s*(\(([^)]*)\))?$/);
+          const match = value.match(/^([\s\S]*?)\s*(\(([^)]*)\))?$/);
           const bracketText = (match?.[3] || "").trim();
+
           const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
           const isColored = bracketText && colorSources[bracketText];
 
@@ -684,8 +689,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
     pendingPhotoRowId !== null
       ? "Loading photos..."
       : pendingDocRowId !== null
-      ? "Loading documents..."
-      : "Loading...";
+        ? "Loading documents..."
+        : "Loading...";
 
   const onAddStudent = () => {
     const sampleRow = gridApi?.getDisplayedRowAtIndex?.(0)?.data || rowData?.[0] || {};
