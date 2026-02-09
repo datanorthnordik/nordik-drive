@@ -31,6 +31,7 @@ import {
   color_black_light,
   color_text_light,
 } from "../constants/colors";
+import toast from "react-hot-toast";
 
 
 type Message = {
@@ -136,7 +137,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Chat endpoint (existing)
-  const { loading, fetchData, data } = useFetch(
+  const { loading, fetchData, data, error } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat",
     "POST"
   );
@@ -151,6 +152,12 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat/tts",
     "POST"
   );
+
+  useEffect(()=>{
+    if(!data && error){
+      toast.error("Something went wrong. Please try again later!");
+    }
+  }, [error])
 
   const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
 
