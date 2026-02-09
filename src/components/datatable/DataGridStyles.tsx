@@ -187,6 +187,22 @@ export default function DataGridStyles() {
             flex: 1 1 100%;
         }
         }
+
+        .ag-header-cell-label {
+          width: 100%;
+          overflow: hidden;
+        }
+
+        .ag-header-cell-text {
+          width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+
+        .ag-header-cell-comp-wrapper {
+          width: 100%;
+          overflow: hidden;
+        }
       `}
     </style>
   );
