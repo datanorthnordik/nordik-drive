@@ -27,11 +27,6 @@ import {
   color_white,
   color_black,
   color_black_light,
-  color_blue_light,
-  color_blue_lighter,
-  color_blue_lightest,
-  color_border,
-  color_secondary_dark,
 } from "../../constants/colors";
 
 import NIAChat from "../NIAChat";
@@ -65,6 +60,7 @@ import { applyQuickFilter, findMatches, scrollToMatch } from "../../lib/gridSear
 import { useViewerLoader } from "../../hooks/useViewerLoader";
 import { useExternalGridFilters } from "../../hooks/useExternalGridFilters";
 import { headerDisplay, headerMinWidthPx, MAX_HEADER_CHARS } from "./HelperComponents";
+import { useDescribeEntry } from "../models/DescribeEntry";
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
 
@@ -245,6 +241,13 @@ export default function DataGrid({ rowData }: DataGridProps) {
     loading: docsLoading,
     error: docsError,
   } = useFetch(`${API_BASE}/file/docs`, "GET", false);
+
+  const {
+    describeColDef,
+    describeContext,
+    describeModal,
+    describeInFlight,
+  } = useDescribeEntry(API_BASE);
 
   const openDocumentUrl = useCallback((url: string) => {
     const u = normalizeUrl(url);
@@ -453,7 +456,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
       if (key.toLowerCase() === "documents") {
         return {
           field: key,
-          headerName:key,
+          headerName: key,
           headerTooltip: key,
           width: 160,
           minWidth: 160,
@@ -485,8 +488,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
       }
 
       const fullHeader = key;
-      const charsToShow = Math.min(fullHeader.length, MAX_HEADER_CHARS); 
-      
+      const charsToShow = Math.min(fullHeader.length, MAX_HEADER_CHARS);
+
       return {
         field: fullHeader,
         headerName: headerDisplay(fullHeader, 25),
@@ -567,8 +570,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
       };
     });
 
-    return [...addInfoCol, ...otherCols];
-  }, [rowData, searchText, fontSize, selectedFile?.community_filter]);
+    return [describeColDef, ...addInfoCol, ...otherCols];
+  }, [rowData, searchText, fontSize, selectedFile?.community_filter, describeColDef]);
 
   const defaultColDef = useMemo(
     () => ({
@@ -683,14 +686,18 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
   const viewerLoading =
     (pendingPhotoRowId !== null && photosLoading) ||
-    (pendingDocRowId !== null && docsLoading);
+    (pendingDocRowId !== null && docsLoading) ||
+    describeInFlight;
 
   const viewerLoadingText =
     pendingPhotoRowId !== null
       ? "Loading photos..."
       : pendingDocRowId !== null
         ? "Loading documents..."
-        : "Loading...";
+        : describeInFlight
+          ? "Generating description..."
+          : "Loading...";
+
 
   const onAddStudent = () => {
     const sampleRow = gridApi?.getDisplayedRowAtIndex?.(0)?.data || rowData?.[0] || {};
@@ -712,6 +719,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
       openWebsite: openInNewTab,
       openDocumentUrl,
       openLinksModal,
+      ...describeContext,
     }),
     [openDocumentUrl, openLinksModal, openPhotoViewer, openDocumentsViewer]
   );
@@ -930,6 +938,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
             only_approved={true}
           />
         )}
+
+        {describeModal}
 
         {/*  Old style block preserved exactly */}
         <DataGridStyles />

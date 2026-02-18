@@ -17,6 +17,14 @@ jest.mock("../../constants/messages", () => ({
   password_validation_success: "Password validated successfully",
 }));
 
+// colors (component imports these)
+jest.mock("../../constants/colors", () => ({
+  __esModule: true,
+  color_secondary: "#004B9C",
+  color_secondary_dark: "#003A7A",
+  color_white: "#FFFFFF",
+}));
+
 // toast
 const mockToastSuccess = jest.fn();
 jest.mock("react-hot-toast", () => ({
@@ -34,6 +42,13 @@ jest.mock("../Loader", () => ({
   ),
 }));
 
+// Close icon
+jest.mock("@mui/icons-material/Close", () => ({
+  __esModule: true,
+  default: () => <span data-testid="close-icon">x</span>,
+}));
+
+// react-router-dom (even if unused, keep stable)
 const mockNavigate = jest.fn();
 jest.mock(
   "react-router-dom",
@@ -49,31 +64,62 @@ jest.mock("@mui/material", () => {
     open ? (
       <div role="dialog" data-testid="dialog">
         {children}
-        {/* helper to call onClose */}
+        {/* helper to call onClose (simulates backdrop/escape) */}
         <button type="button" data-testid="dialog-onclose" onClick={onClose}>
           dialog-onclose
         </button>
       </div>
     ) : null;
 
-  const DialogTitle = ({ children }: any) => <div data-testid="dialog-title">{children}</div>;
-  const DialogContent = ({ children }: any) => <div data-testid="dialog-content">{children}</div>;
-  const DialogActions = ({ children }: any) => <div data-testid="dialog-actions">{children}</div>;
-
-  const Typography = ({ children }: any) => <div data-testid="typography">{children}</div>;
-
-  const TextField = ({ label, value, onChange, onKeyDown }: any) => (
-    <input
-      aria-label={label}
-      value={value}
-      onChange={onChange}
-      onKeyDown={onKeyDown}
-      data-testid="password-input"
-    />
+  const DialogTitle = ({ children }: any) => (
+    <div data-testid="dialog-title">{children}</div>
+  );
+  const DialogContent = ({ children }: any) => (
+    <div data-testid="dialog-content">{children}</div>
+  );
+  const DialogActions = ({ children }: any) => (
+    <div data-testid="dialog-actions">{children}</div>
   );
 
-  const Button = ({ children, onClick, ...rest }: any) => (
-    <button type="button" onClick={onClick} {...rest}>
+  const Typography = ({ children }: any) => (
+    <div data-testid="typography">{children}</div>
+  );
+
+  const Box = ({ children }: any) => <div data-testid="box">{children}</div>;
+
+  const Divider = () => <div data-testid="divider" />;
+
+  const IconButton = ({ children, onClick, ...rest }: any) => (
+    <button type="button" data-testid="icon-button" onClick={onClick} {...rest}>
+      {children}
+    </button>
+  );
+
+  const TextField = ({
+    label,
+    value,
+    onChange,
+    onKeyDown,
+    helperText,
+    error,
+  }: any) => (
+    <div>
+      <input
+        aria-label={label}
+        value={value}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        data-testid="password-input"
+      />
+      {/* mimic helper text output */}
+      <div data-testid="helper-text" data-error={error ? "true" : "false"}>
+        {helperText}
+      </div>
+    </div>
+  );
+
+  const Button = ({ children, onClick, disabled, ...rest }: any) => (
+    <button type="button" onClick={onClick} disabled={disabled} {...rest}>
       {children}
     </button>
   );
@@ -87,6 +133,9 @@ jest.mock("@mui/material", () => {
     TextField,
     Typography,
     Button,
+    Box,
+    IconButton,
+    Divider,
   };
 });
 
@@ -131,13 +180,13 @@ describe("PasswordModal", () => {
     render(<PasswordModal open={true} closePasswordModal={closePasswordModal} />);
 
     expect(screen.getByTestId("loader")).toHaveTextContent("loading");
-    expect(screen.getByText("Enter Password")).toBeInTheDocument();
+    expect(screen.getByText("Confirm Password")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
   });
 
-  test("Cancel calls closePasswordModal(false) and resets input + error", async () => {
+  test("Cancel calls closePasswordModal(false) and resets input + helperText error", async () => {
     const closePasswordModal = jest.fn();
 
     const { rerender } = render(
@@ -147,32 +196,56 @@ describe("PasswordModal", () => {
     const input = screen.getByLabelText("Password");
     fireEvent.change(input, { target: { value: "wrong" } });
 
-    // simulate error to render red text
+    // simulate error coming from useFetch
     setFetch({ error: "bad", data: undefined });
     rerender(<PasswordModal open={true} closePasswordModal={closePasswordModal} />);
 
-    expect(screen.getByText("Incorrect password. Please try again.")).toBeInTheDocument();
+    expect(screen.getByTestId("helper-text")).toHaveTextContent(
+      "Incorrect password. Please try again."
+    );
 
-    // click cancel (unambiguous)
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
     expect(closePasswordModal).toHaveBeenCalledWith(false);
 
-    // ensure UI reset happened (input cleared + error removed)
     await waitFor(() => {
       expect(screen.getByTestId("password-input")).toHaveValue("");
-      expect(
-        screen.queryByText("Incorrect password. Please try again.")
-      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("helper-text")).not.toHaveTextContent(
+        "Incorrect password. Please try again."
+      );
     });
   });
 
-  test("Submit does NOT call fetchData when password is empty", () => {
+  test("Top-right close (IconButton) also closes the modal with false", () => {
     const closePasswordModal = jest.fn();
 
     render(<PasswordModal open={true} closePasswordModal={closePasswordModal} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    fireEvent.click(screen.getByTestId("icon-button"));
+    expect(closePasswordModal).toHaveBeenCalledWith(false);
+  });
+
+  test("Submit is disabled when password is empty", () => {
+    const closePasswordModal = jest.fn();
+
+    render(<PasswordModal open={true} closePasswordModal={closePasswordModal} />);
+
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+    expect(mockFetchData).not.toHaveBeenCalled();
+  });
+
+  test("Pressing Enter on empty input shows 'Please enter your password.'", async () => {
+    const closePasswordModal = jest.fn();
+
+    render(<PasswordModal open={true} closePasswordModal={closePasswordModal} />);
+
+    const input = screen.getByLabelText("Password");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("helper-text")).toHaveTextContent(
+        "Please enter your password."
+      );
+    });
     expect(mockFetchData).not.toHaveBeenCalled();
   });
 
@@ -184,7 +257,10 @@ describe("PasswordModal", () => {
     const input = screen.getByLabelText("Password");
     fireEvent.change(input, { target: { value: "secret" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    const submitBtn = screen.getByRole("button", { name: "Submit" });
+    expect(submitBtn).not.toBeDisabled();
+
+    fireEvent.click(submitBtn);
     expect(mockFetchData).toHaveBeenCalledWith({ password: "secret" });
 
     mockFetchData.mockClear();
@@ -208,7 +284,7 @@ describe("PasswordModal", () => {
     });
   });
 
-  test("error path: when error exists -> shows incorrect password message", async () => {
+  test("error path: when error exists -> shows incorrect password message via helperText", async () => {
     const closePasswordModal = jest.fn();
     const { rerender } = render(
       <PasswordModal open={true} closePasswordModal={closePasswordModal} />
@@ -218,7 +294,9 @@ describe("PasswordModal", () => {
     rerender(<PasswordModal open={true} closePasswordModal={closePasswordModal} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Incorrect password. Please try again.")).toBeInTheDocument();
+      expect(screen.getByTestId("helper-text")).toHaveTextContent(
+        "Incorrect password. Please try again."
+      );
     });
   });
 
@@ -236,9 +314,9 @@ describe("PasswordModal", () => {
     rerender(<PasswordModal open={true} closePasswordModal={closePasswordModal} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Error verifying password. Please try again.")
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("helper-text")).toHaveTextContent(
+        "Error verifying password. Please try again."
+      );
     });
   });
 });

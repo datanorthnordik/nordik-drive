@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState, useCallback } from "react";
 import { Box, Button, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import { ArrowLeft, ChevronUp, ChevronDown, Download, Mic, MicOff, Search } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -20,6 +20,7 @@ import {
 import { NIAChatTrigger } from "../NIAChat";
 import { clearSelectedFile } from "../../store/auth/fileSlice";
 import { useDispatch } from "react-redux";
+
 
 type Props = {
   isMobile: boolean;
@@ -66,6 +67,43 @@ export default function TopControlsBar({
   }, [matchesCount, currentMatchIndex]);
 
   const dispatch = useDispatch();
+
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  const recomputeTotalRecords = useCallback(() => {
+    if (!gridApi) {
+      setTotalRecords(0);
+      return;
+    }
+
+    let count = 0;
+    gridApi.forEachNode((node: any) => {
+      if (node?.data) count += 1; // only real rows
+    });
+
+    setTotalRecords(count);
+  }, [gridApi]);
+
+  useEffect(() => {
+    recomputeTotalRecords();
+    if (!gridApi) return;
+
+    const handler = () => recomputeTotalRecords();
+
+    gridApi.addEventListener("modelUpdated", handler);
+    gridApi.addEventListener("rowDataUpdated", handler);
+
+    return () => {
+      gridApi.removeEventListener("modelUpdated", handler);
+      gridApi.removeEventListener("rowDataUpdated", handler);
+    };
+  }, [gridApi, recomputeTotalRecords]);
+
+  const totalRecordsText = useMemo(() => {
+    const formatted = new Intl.NumberFormat().format(totalRecords);
+    return `TOTAL: ${formatted} RECORDS`;
+  }, [totalRecords]);
+
 
   const startVoice = () => {
     const SpeechRecognition =
@@ -367,26 +405,58 @@ export default function TopControlsBar({
       </Box>
 
       {/* Results pill */}
+      {/* Results + Total (exact like design: total is below the pill) */}
       <Box
         sx={{
-          height: 46,
-          width: 110,
-          px: 1.5,
+          flexShrink: 0,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: 999,
-          border: `1px solid ${color_border}`,
-          background: color_white_smoke,
-          fontWeight: 900,
-          color: color_black_light,
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-          fontVariantNumeric: "tabular-nums",
+          gap: 0.25,
+          lineHeight: 1,
         }}
       >
-        {resultsText}
+        {/* Results pill */}
+        <Box
+          sx={{
+            height: 46,
+            width: 110,
+            px: 1.5,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 999,
+            border: `1px solid ${color_secondary}`, // blue border like screenshot
+            background: color_white,               // white background like screenshot
+            fontWeight: 900,
+            color: color_secondary,                // blue text like screenshot
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {resultsText}
+        </Box>
+
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 900,
+            color: color_text_light,
+            letterSpacing: 0.3,
+            whiteSpace: "nowrap",
+            textTransform: "uppercase",
+            lineHeight: 1,
+            mt: "2px",
+            textAlign: "center",
+          }}
+        >
+          {totalRecordsText}
+        </Typography>
       </Box>
+
+
 
       {/* Zoom */}
       <Button
