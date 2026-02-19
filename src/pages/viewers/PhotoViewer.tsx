@@ -58,6 +58,7 @@ export interface ViewerPhoto {
     //  for Download All (ZIP) without passing anything:
     request_id?: number;
     requestId?: number;
+    photo_comment?: string
 
     [key: string]: any;
 }
@@ -177,6 +178,12 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
     }, [open, safeStartIndex]);
 
     const currentPhoto = photos?.[currentIndex];
+
+    const commentText = useMemo(
+        () => (currentPhoto?.photo_comment || "").trim(),
+        [currentPhoto?.photo_comment]
+    );
+
 
     //  infer request id from photos (so no prop required)
     const inferredRequestIds = useMemo(() => {
@@ -484,7 +491,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                     background: "#000",
                     p: 0,
                     display: "flex",
-                    justifyContent: "center",
+                    justifyContent: "stretch",
                     alignItems: "stretch",
                 }}
             >
@@ -493,176 +500,242 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                         <Typography sx={{ fontWeight: 800 }}>No photos found.</Typography>
                     </Box>
                 ) : (
-                    <Box sx={{ width: "100%", height: "100%" }}>
-                        <ImageGallery
-                            ref={galleryRef}
-                            items={galleryItems}
-                            startIndex={safeStartIndex}
-                            showPlayButton={false}
-                            showFullscreenButton={false}
-                            showThumbnails={showThumbnails}
-                            thumbnailPosition="bottom"
-                            onSlide={(idx) => {
-                                setCurrentIndex(idx);
-                                setZoom(1);
-                            }}
-                            renderItem={renderZoomableItem}
-                        />
+                    <Box sx={{ width: "100%", height: "100%", display: "flex", minHeight: 0 }}>
+                        {/* Left: gallery */}
+                        <Box sx={{ flex: 1, minWidth: 0, height: "100%" }}>
+                            <ImageGallery
+                                ref={galleryRef}
+                                items={galleryItems}
+                                startIndex={safeStartIndex}
+                                showPlayButton={false}
+                                showFullscreenButton={false}
+                                showThumbnails={showThumbnails}
+                                thumbnailPosition="bottom"
+                                onSlide={(idx) => {
+                                    setCurrentIndex(idx);
+                                    setZoom(1);
+                                }}
+                                renderItem={renderZoomableItem}
+                            />
 
-                        {/* Bottom pill bar */}
-                        <Box
-                            sx={{
-                                position: "fixed",
-                                bottom: 18,
-                                left: "50%",
-                                transform: "translateX(-50%)",
-                                zIndex: 1400,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                                background: color_white,
-                                border: `1px solid ${color_border}`,
-                                borderRadius: 999,
-                                px: 1.25,
-                                py: 1,
-                                boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
-                                maxWidth: "calc(100vw - 24px)",
-                                overflowX: "auto",
-                                WebkitOverflowScrolling: "touch",
-                            }}
-                        >
-                            <Tooltip title="Previous">
-                                <span>
-                                    <IconButton
-                                        onClick={handlePrev}
-                                        disabled={currentIndex === 0}
-                                        sx={toolIconBtnSx}
-                                    >
-                                        <NavigateBeforeIcon />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-
-                            <Tooltip title="Zoom out">
-                                <span>
-                                    <IconButton onClick={zoomOut} disabled={zoom <= ZOOM_MIN} sx={toolIconBtnSx}>
-                                        <ZoomOutIcon />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-
-                            <Tooltip title="Reset zoom">
-                                <IconButton onClick={resetZoom} sx={toolIconBtnSx}>
-                                    <RestartAltIcon />
-                                </IconButton>
-                            </Tooltip>
-
-                            <Tooltip title="Zoom in">
-                                <span>
-                                    <IconButton onClick={zoomIn} disabled={zoom >= ZOOM_MAX} sx={toolIconBtnSx}>
-                                        <ZoomInIcon />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
-
-                            <Box sx={{ px: 0.5, fontWeight: 900, color: color_text_secondary }}>
-                                {Math.round(zoom * 100)}%
-                            </Box>
-
-                            {/* Review actions only in review mode */}
-                            {mode === "review" && (
-                                <>
-                                    <Button
-                                        variant="contained"
-                                        sx={approveBtnSx}
-                                        disabled={!currentPhoto?.id || !onApprove}
-                                        onClick={() => currentPhoto?.id && onApprove?.(currentPhoto.id)}
-                                    >
-                                        Approve
-                                    </Button>
-
-                                    <Button
-                                        variant="contained"
-                                        sx={rejectBtnSx}
-                                        disabled={!currentPhoto?.id || !onReject}
-                                        onClick={() => currentPhoto?.id && onReject?.(currentPhoto.id)}
-                                    >
-                                        Reject
-                                    </Button>
-                                </>
-                            )}
-
-                            {/* Download current (blob logic) */}
-                            <Button
-                                variant="contained"
-                                startIcon={
-                                    mediaBlobLoading && pendingDownload?.id === currentPhoto?.id ? (
-                                        <CircularProgress size={16} sx={{ color: color_white }} />
-                                    ) : (
-                                        <DownloadIcon />
-                                    )
-                                }
-                                sx={downloadBtnSx}
-                                disabled={!currentPhoto?.id || mediaBlobLoading}
-                                onClick={() => {
-                                    const p = currentPhoto;
-                                    if (!p) return;
-                                    downloadPhotoById(p.id, `photo_${p.id}.jpg`, "image/jpeg");
+                            {/* Bottom pill bar */}
+                            <Box
+                                sx={{
+                                    position: "fixed",
+                                    bottom: 18,
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                    zIndex: 1400,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    background: color_white,
+                                    border: `1px solid ${color_border}`,
+                                    borderRadius: 999,
+                                    px: 1.25,
+                                    py: 1,
+                                    boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+                                    maxWidth: "calc(100vw - 24px)",
+                                    overflowX: "auto",
+                                    WebkitOverflowScrolling: "touch",
                                 }}
                             >
-                                Download
-                            </Button>
+                                <Tooltip title="Previous">
+                                    <span>
+                                        <IconButton onClick={handlePrev} disabled={currentIndex === 0} sx={toolIconBtnSx}>
+                                            <NavigateBeforeIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
 
-                            {/*  Download all photos ZIP (icon button, no wrap) */}
-                            <Tooltip
-                                title={
-                                    canDownloadAll
-                                        ? inferredRequestIds.length === 1
-                                            ? `Download all photos (ZIP) for Request #${inferredRequestIds[0]}`
-                                            : `Download all photos (ZIP) for ${inferredRequestIds.length} requests`
-                                        : "Request IDs not found (add request_id / requestId in photos)"
-                                }
+                                <Tooltip title="Zoom out">
+                                    <span>
+                                        <IconButton onClick={zoomOut} disabled={zoom <= ZOOM_MIN} sx={toolIconBtnSx}>
+                                            <ZoomOutIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
 
-                            >
-                                <span>
-                                    <IconButton
-                                        onClick={handleDownloadAllPhotos}
-                                        disabled={!canDownloadAll || zipLoading}
-                                        sx={{
-                                            ...toolIconBtnSx,
-                                            background: color_secondary,
-                                            color: color_white,
-                                            border: `1px solid ${color_secondary_dark}`,
-                                            "&:hover": { background: color_secondary_dark },
-                                            "&.Mui-disabled": {
-                                                background: color_secondary,
-                                                opacity: 0.55,
-                                                color: color_white,
-                                            },
-                                        }}
-                                    >
-                                        {zipLoading ? (
-                                            <CircularProgress size={18} sx={{ color: color_white }} />
+                                <Tooltip title="Reset zoom">
+                                    <IconButton onClick={resetZoom} sx={toolIconBtnSx}>
+                                        <RestartAltIcon />
+                                    </IconButton>
+                                </Tooltip>
+
+                                <Tooltip title="Zoom in">
+                                    <span>
+                                        <IconButton onClick={zoomIn} disabled={zoom >= ZOOM_MAX} sx={toolIconBtnSx}>
+                                            <ZoomInIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+
+                                <Box sx={{ px: 0.5, fontWeight: 900, color: color_text_secondary }}>
+                                    {Math.round(zoom * 100)}%
+                                </Box>
+
+                                {/* Review actions only in review mode */}
+                                {mode === "review" && (
+                                    <>
+                                        <Button
+                                            variant="contained"
+                                            sx={approveBtnSx}
+                                            disabled={!currentPhoto?.id || !onApprove}
+                                            onClick={() => currentPhoto?.id && onApprove?.(currentPhoto.id)}
+                                        >
+                                            Approve
+                                        </Button>
+
+                                        <Button
+                                            variant="contained"
+                                            sx={rejectBtnSx}
+                                            disabled={!currentPhoto?.id || !onReject}
+                                            onClick={() => currentPhoto?.id && onReject?.(currentPhoto.id)}
+                                        >
+                                            Reject
+                                        </Button>
+                                    </>
+                                )}
+
+                                {/* Download current (blob logic) */}
+                                <Button
+                                    variant="contained"
+                                    startIcon={
+                                        mediaBlobLoading && pendingDownload?.id === currentPhoto?.id ? (
+                                            <CircularProgress size={16} sx={{ color: color_white }} />
                                         ) : (
-                                            <FolderZipIcon />
-                                        )}
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
+                                            <DownloadIcon />
+                                        )
+                                    }
+                                    sx={downloadBtnSx}
+                                    disabled={!currentPhoto?.id || mediaBlobLoading}
+                                    onClick={() => {
+                                        const p = currentPhoto;
+                                        if (!p) return;
+                                        downloadPhotoById(p.id, `photo_${p.id}.jpg`, "image/jpeg");
+                                    }}
+                                >
+                                    Download
+                                </Button>
 
-                            <Tooltip title="Next">
-                                <span>
-                                    <IconButton
-                                        onClick={handleNext}
-                                        disabled={currentIndex === photos.length - 1}
-                                        sx={toolIconBtnSx}
-                                    >
-                                        <NavigateNextIcon />
-                                    </IconButton>
-                                </span>
-                            </Tooltip>
+                                {/* Download all photos ZIP */}
+                                <Tooltip
+                                    title={
+                                        canDownloadAll
+                                            ? inferredRequestIds.length === 1
+                                                ? `Download all photos (ZIP) for Request #${inferredRequestIds[0]}`
+                                                : `Download all photos (ZIP) for ${inferredRequestIds.length} requests`
+                                            : "Request IDs not found (add request_id / requestId in photos)"
+                                    }
+                                >
+                                    <span>
+                                        <IconButton
+                                            onClick={handleDownloadAllPhotos}
+                                            disabled={!canDownloadAll || zipLoading}
+                                            sx={{
+                                                ...toolIconBtnSx,
+                                                background: color_secondary,
+                                                color: color_white,
+                                                border: `1px solid ${color_secondary_dark}`,
+                                                "&:hover": { background: color_secondary_dark },
+                                                "&.Mui-disabled": {
+                                                    background: color_secondary,
+                                                    opacity: 0.55,
+                                                    color: color_white,
+                                                },
+                                            }}
+                                        >
+                                            {zipLoading ? (
+                                                <CircularProgress size={18} sx={{ color: color_white }} />
+                                            ) : (
+                                                <FolderZipIcon />
+                                            )}
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+
+                                <Tooltip title="Next">
+                                    <span>
+                                        <IconButton
+                                            onClick={handleNext}
+                                            disabled={currentIndex === photos.length - 1}
+                                            sx={toolIconBtnSx}
+                                        >
+                                            <NavigateNextIcon />
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+                            </Box>
                         </Box>
+
+                        {/* Comments (desktop: right panel) */}
+                        {!isSmDown && (
+                            <Box
+                                sx={{
+                                    width: 360,
+                                    background: color_white,
+                                    borderLeft: `1px solid ${color_border}`,
+                                    p: 2,
+                                    overflowY: "auto",
+                                }}
+                            >
+                                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 1 }}>
+                                    Comments
+                                </Typography>
+
+                                <Divider sx={{ mb: 1.2 }} />
+
+                                <Typography
+                                    sx={{
+                                        whiteSpace: "pre-wrap",
+                                        wordBreak: "break-word",
+                                        color: commentText ? color_text_secondary : color_text_light,
+                                        fontWeight: 650,
+                                        lineHeight: 1.5,
+                                    }}
+                                >
+                                    {commentText || "No comments"}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {/* Comments (mobile: bottom overlay) */}
+                        {isSmDown && (
+                            <Box
+                                sx={{
+                                    position: "fixed",
+                                    left: 12,
+                                    right: 12,
+                                    bottom: 86, // sits above your bottom pill bar
+                                    zIndex: 1395,
+                                    background: color_white,
+                                    border: `1px solid ${color_border}`,
+                                    borderRadius: 2,
+                                    p: 1.25,
+                                    maxHeight: "22vh",
+                                    overflowY: "auto",
+                                    boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+                                }}
+                            >
+                                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                                    Comments
+                                </Typography>
+
+                                <Typography
+                                    sx={{
+                                        whiteSpace: "pre-wrap",
+                                        wordBreak: "break-word",
+                                        color: commentText ? color_text_secondary : color_text_light,
+                                        fontWeight: 650,
+                                        lineHeight: 1.45,
+                                    }}
+                                >
+                                    {commentText || "No comments"}
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
+
                 )}
             </DialogContent>
         </Dialog>

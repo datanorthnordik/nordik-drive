@@ -29,7 +29,7 @@ import AdditionalDocsCard from "./AdditionalDocsCard";
 import ResetAllDialog from "./ResetAllDialog";
 import ReviewDialog from "./ReviewDialog";
 
-import { EXCLUDED_FIELDS, AdditionalDocItem, ReviewItem, DocumentCategory } from "./types";
+import { EXCLUDED_FIELDS, AdditionalDocItem, ReviewItem, DocumentCategory, PhotoItem } from "./types";
 import {
   fieldTypeMap,
   MAX_ADDITIONAL_DOCS,
@@ -61,6 +61,7 @@ interface AddInfoFormProps {
 export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { user } = useSelector((state: any) => state.auth);
+
 
   const isNewEntry = !row || row.id === undefined || row.id === null || row.id === "";
 
@@ -94,7 +95,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [changedFields, setChangedFields] = useState<Record<string, any>>({});
 
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [additionalDocs, setAdditionalDocs] = useState<AdditionalDocItem[]>([]);
 
   const [consent, setConsent] = useState(false);
@@ -103,7 +104,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [confirmResetAll, setConfirmResetAll] = useState(false);
 
-  const totalPhotoMB = bytesToMB(getTotalBytes(photos));
+  const totalPhotoMB = bytesToMB(getTotalBytes(photos.map((p) => p.file)));
+
   const totalAdditionalDocsMB = bytesToMB(getTotalBytes(additionalDocs.map((d) => d.file)));
   const totalCombinedMB = totalPhotoMB + totalAdditionalDocsMB;
 
@@ -118,9 +120,9 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
         initial[key] = isNewEntry
           ? []
           : (row[key] || "")
-              .split(",")
-              .map((x: string) => x.trim())
-              .filter((x: string) => x.length > 0);
+            .split(",")
+            .map((x: string) => x.trim())
+            .filter((x: string) => x.length > 0);
       } else if (type === "date") {
         initial[key] = isNewEntry ? "" : normalizeIncomingDateToDdMmYyyy(row[key] || "");
       } else {
@@ -200,11 +202,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
       type === "date"
         ? normalizeIncomingDateToDdMmYyyy(row[label] || "")
         : type === "multi" || type === "community_multi"
-        ? (row[label] || "")
+          ? (row[label] || "")
             .split(",")
             .map((x: string) => x.trim())
             .filter((x: string) => x.length > 0)
-        : row[label] || "";
+          : row[label] || "";
 
     setFormValues((prev) => ({ ...prev, [label]: original }));
     setChangedFields((prev) => {
@@ -234,11 +236,11 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           type === "date"
             ? normalizeIncomingDateToDdMmYyyy(row[key] || "")
             : type === "multi" || type === "community_multi"
-            ? (row[key] || "")
+              ? (row[key] || "")
                 .split(",")
                 .map((x: string) => x.trim())
                 .filter((x: string) => x.length > 0)
-            : row[key] || "";
+              : row[key] || "";
       });
       setFormValues(restored);
       setChangedFields({});
@@ -262,8 +264,16 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
       return;
     }
 
-    const nextPhotos = [...photos, ...onlyImages];
-    const nextTotalPhotoMB = bytesToMB(getTotalBytes(nextPhotos));
+    const nextPhotos = [
+      ...photos,
+      ...onlyImages.map((file) => ({
+        id: uid(),
+        file,
+        comment: "",
+      })),
+    ];
+
+    const nextTotalPhotoMB = bytesToMB(getTotalBytes(nextPhotos.map((p) => p.file)));
     const nextTotalCombinedMB = nextTotalPhotoMB + totalAdditionalDocsMB;
 
     if (nextTotalPhotoMB > MAX_PHOTO_MB) {
@@ -383,7 +393,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
   const handleConfirmSubmit = async () => {
     try {
-      const allFiles = [...photos, ...additionalDocs.map((d) => d.file)];
+      const allFiles = [...photos.map((p) => p.file), ...additionalDocs.map((d) => d.file)];
       const estimatedB64Bytes = estimateTotalBase64Bytes(allFiles);
       const estimatedMB = bytesToMB(estimatedB64Bytes);
       if (estimatedMB > 25) {
@@ -391,9 +401,20 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
         return;
       }
 
-      const base64Photos = await Promise.all(photos.map(convertToBase64));
-      const photosInApp = base64Photos.slice(0, MAX_PHOTOS);
-      const photosGallery = base64Photos.slice(MAX_PHOTOS);
+      const photoPayload = await Promise.all(
+        photos.map(async (p) => ({
+          filename: p.file.name,
+          mime_type: p.file.type || "application/octet-stream",
+          size: p.file.size,
+          data_base64: await convertToBase64(p.file),
+          comment: (p.comment || "").slice(0, 100), // enforce 100 chars
+        }))
+      );
+
+      const photosInApp = photoPayload.slice(0, MAX_PHOTOS);
+      const photosGallery = photoPayload.slice(MAX_PHOTOS);
+
+
 
       const docsBase64 = await Promise.all(additionalDocs.map((d) => convertToBase64(d.file)));
       const documentsPayload = additionalDocs.map((d, idx) => ({
@@ -422,6 +443,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
         community: communityArray,
         uploader_community: user?.community || [],
       };
+
 
       if (isNewEntry) {
         const converted: Record<string, any[]> = { new: [] };
@@ -654,6 +676,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             consent={consent}
             setConsent={setConsent}
           />
+
         </DialogContent>
 
         <DialogActions

@@ -48,6 +48,7 @@ export type RequestPhoto = {
   id: number;
   is_gallery_photo?: boolean;
   status?: PhotoStatus;
+  photo_comment: string
 };
 
 export type RequestDocument = {

@@ -4,15 +4,11 @@ import React from "react";
 import {
   Box,
   Button,
-  Card,
-  CardMedia,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   Typography,
 } from "@mui/material";
 
@@ -24,10 +20,8 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import dayjs from "dayjs";
 
 import {
-  PhotoStatus,
   RequestDocument,
-  RequestPhoto,
-  photoStatusMeta,
+  RequestPhoto, 
   guessMimeFromFilename,
 } from "./FileActivitiesShared";
 
@@ -39,6 +33,8 @@ import {
   color_white,
   color_white_smoke,
 } from "../../constants/colors";
+import { PhotoGrid } from "../shared/PhotoGrids";
+import { DocumentGrid } from "../shared/DocumentGrids";
 
 type Props = {
   open: boolean;
@@ -262,204 +258,45 @@ export default function RequestDetailsDialog({
             )}
 
             {/* Photos */}
-            <Typography variant="h6" sx={{ mt: 3, mb: 1, fontWeight: 900 }}>
-              Uploaded Photos
-            </Typography>
+            <PhotoGrid
+              title="Uploaded Photos"
+              loading={false} // you don't have a photosLoading flag here
+              emptyText="No photos submitted."
+              photos={photos as any}
+              getPhotoUrl={(id) => `${apiBase}/file/photo/${id}`}
+              onOpenViewer={onOpenPhotoViewer}
+              showDownload={true}
+              onDownloadSingle={(id) => onDownloadSingle(id, `photo_${id}.jpg`, "image/jpeg")}
+              primaryBtnSx={primaryBtnSx}
+            />
 
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
-              {(["approved", "rejected", null] as PhotoStatus[]).map((s) => {
-                const meta = photoStatusMeta(s);
-                return (
-                  <Chip
-                    key={String(s)}
-                    icon={meta.icon}
-                    label={`${meta.label} — ${meta.helper}`}
-                    color={meta.chipColor}
-                    size="small"
-                    sx={{ fontWeight: 900, borderRadius: "10px" }}
-                  />
-                );
-              })}
-            </Box>
-
-            {photos.length === 0 ? (
-              <Typography sx={{ color: color_text_secondary }}>No photos submitted.</Typography>
-            ) : (
-              <Grid container spacing={1.5}>
-                {photos.map((photo, idx) => {
-                  const meta = photoStatusMeta(photo.status ?? null);
-                  return (
-                    <Grid key={photo.id} >
-                      <Card
-                        sx={{
-                          position: "relative",
-                          borderRadius: "14px",
-                          overflow: "hidden",
-                          cursor: "pointer",
-                          border: meta.border,
-                          boxShadow: meta.shadow,
-                          background: color_white,
-                        }}
-                        onClick={() => onOpenPhotoViewer(idx)}
-                      >
-                        <Box sx={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", background: meta.tint }} />
-
-                        <CardMedia component="img" height="190" image={`${apiBase}/file/photo/${photo.id}`} sx={{ objectFit: "cover" }} />
-
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            left: 10,
-                            right: 10,
-                            bottom: 10,
-                            zIndex: 2,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 1,
-                            px: 1,
-                            py: 0.75,
-                            borderRadius: "12px",
-                            background: meta.overlayBg,
-                            color: color_white,
-                            fontWeight: 900,
-                            backdropFilter: "blur(6px)",
-                          }}
-                        >
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                            {meta.icon}
-                            <span>{meta.label}</span>
-                          </Box>
-                          <span style={{ fontSize: 12, opacity: 0.95 }}>Photo #{photo.id}</span>
-                        </Box>
-                      </Card>
-
-                      <Box sx={{ display: "flex", gap: 1, mt: 0.9, alignItems: "center", justifyContent: "space-between" }}>
-                        <Chip icon={meta.icon} label={meta.label} color={meta.chipColor} size="small" sx={{ fontWeight: 900, borderRadius: "10px" }} />
-                        <Button
-                          size="small"
-                          startIcon={<DownloadIcon fontSize="small" />}
-                          onClick={() => onDownloadSingle(photo.id, `photo_${photo.id}.jpg`, "image/jpeg")}
-                          sx={primaryBtnSx}
-                        >
-                          Download
-                        </Button>
-                      </Box>
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            )}
 
             {/* Documents */}
-            <Typography variant="h6" sx={{ mt: 3, mb: 1, fontWeight: 900 }}>
-              Uploaded Documents
-            </Typography>
+            <DocumentGrid
+              title="Uploaded Documents"
+              loading={false}
+              emptyText="No documents submitted."
+              documents={documents as any}
+              onOpenViewer={onOpenDocViewer}
+              showViewButton={true}
+              viewLabel="View"
+              viewBtnSx={{
+                textTransform: "none",
+                fontWeight: 900,
+                backgroundColor: color_white,
+                color: color_text_secondary,
+                border: `1px solid ${color_border}`,
+                borderRadius: 1,
+                px: 2.25,
+                "&:hover": { backgroundColor: "rgba(2,6,23,0.03)" },
+              }}
+              showDownload={true}
+              onDownloadSingle={(id:any, filename:any, mime:any) => onDownloadSingle(id, filename, mime)}
+              resolveFilename={(d: any) => d.filename || d.file_name || `document_${d.id}`}
+              resolveMime={(d: any) => d.mime_type || guessMimeFromFilename(d.filename || d.file_name)}
+              primaryBtnSx={primaryBtnSx}
+            />
 
-            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
-              {(["approved", "rejected", null] as PhotoStatus[]).map((s) => {
-                const meta = photoStatusMeta(s);
-                return (
-                  <Chip
-                    key={String(s)}
-                    icon={meta.icon}
-                    label={`${meta.label} — ${meta.helper}`}
-                    color={meta.chipColor}
-                    size="small"
-                    sx={{ fontWeight: 900, borderRadius: "10px" }}
-                  />
-                );
-              })}
-            </Box>
-
-            {documents.length === 0 ? (
-              <Typography sx={{ color: color_text_secondary }}>No documents submitted.</Typography>
-            ) : (
-              <Grid container spacing={1.5}>
-                {documents.map((doc, idx) => {
-                  const meta = photoStatusMeta(doc.status ?? null);
-                  const mime = doc.mime_type || guessMimeFromFilename(doc.filename);
-                  return (
-                    <Grid key={doc.id}>
-                      <Card
-                        sx={{
-                          position: "relative",
-                          borderRadius: "14px",
-                          overflow: "hidden",
-                          cursor: "pointer",
-                          border: meta.border,
-                          boxShadow: meta.shadow,
-                          background: color_white,
-                        }}
-                        onClick={() => onOpenDocViewer(idx)}
-                      >
-                        <Box sx={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", background: meta.tint }} />
-                        <CardMedia component="div" sx={{ height: 190, display: "grid", placeItems: "center", background: color_white }}>
-                          <DescriptionIcon sx={{ fontSize: 64, color: color_text_secondary }} />
-                        </CardMedia>
-
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            left: 10,
-                            right: 10,
-                            bottom: 10,
-                            zIndex: 2,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 1,
-                            px: 1,
-                            py: 0.75,
-                            borderRadius: "12px",
-                            background: meta.overlayBg,
-                            color: color_white,
-                            fontWeight: 900,
-                            backdropFilter: "blur(6px)",
-                          }}
-                        >
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                            {meta.icon}
-                            <span>{meta.label}</span>
-                          </Box>
-                          <span style={{ fontSize: 12, opacity: 0.95 }}>Doc #{doc.id}</span>
-                        </Box>
-                      </Card>
-
-                      <Box sx={{ display: "flex", gap: 1, mt: 0.9, alignItems: "center", justifyContent: "space-between" }}>
-                        <Chip icon={meta.icon} label={meta.label} color={meta.chipColor} size="small" sx={{ fontWeight: 900, borderRadius: "10px" }} />
-                        <Button
-                          size="small"
-                          startIcon={<DownloadIcon fontSize="small" />}
-                          onClick={() => onDownloadSingle(doc.id, doc.filename ?? `document_${doc.id}`, mime)}
-                          sx={primaryBtnSx}
-                        >
-                          Download
-                        </Button>
-                      </Box>
-
-                      {doc.filename && (
-                        <Typography
-                          sx={{
-                            mt: 0.6,
-                            fontSize: 12,
-                            fontWeight: 800,
-                            color: color_text_secondary,
-                            maxWidth: 260,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                          title={doc.filename}
-                        >
-                          {doc.filename}
-                        </Typography>
-                      )}
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            )}
           </>
         )}
       </DialogContent>

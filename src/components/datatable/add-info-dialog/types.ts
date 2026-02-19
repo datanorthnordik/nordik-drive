@@ -17,3 +17,9 @@ export type ReviewItem = {
   oldValue: string;
   newValue: string;
 };
+
+export type PhotoItem = {
+  id: string;
+  file: File;
+  comment: string
+};
