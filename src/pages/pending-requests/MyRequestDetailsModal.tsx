@@ -8,11 +8,6 @@ import {
   DialogContent,
   Button,
   Typography,
-  Grid,
-  Card,
-  CardMedia,
-  Chip,
-  CircularProgress,
   Divider,
   Table,
   TableRow,
@@ -23,30 +18,26 @@ import {
   Paper,
 } from "@mui/material";
 
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import DownloadIcon from "@mui/icons-material/Download";
 import CloseIcon from "@mui/icons-material/Close";
 
 import useFetch from "../../hooks/useFetch";
 
-import ImageGallery from "react-image-gallery";
 import "react-image-gallery/styles/css/image-gallery.css";
 
 import {
   color_secondary,
-  color_secondary_dark,
   color_border,
-  color_white,
   color_background,
   color_text_primary,
   color_text_secondary,
   color_text_light,
-  color_success,
-  color_warning,
   color_primary,
+  color_white,
 } from "../../constants/colors";
 import PhotoViewerModal from "../viewers/PhotoViewer";
 import DocumentViewerModal from "../viewers/DocumentViewer";
+import { PhotoGrid } from "../../components/shared/PhotoGrids";
+import { DocumentGrid } from "../../components/shared/DocumentGrids";
 
 
 
@@ -82,9 +73,6 @@ interface RequestDoc {
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
 const getBinaryUrl = (id: number) => `${API_BASE}/api/file/photo/${id}`;
 
-const isImageMime = (m?: string) => !!m && m.startsWith("image/");
-const isPdfMime = (m?: string) => m === "application/pdf";
-
 function guessMimeFromFilename(name?: string) {
   if (!name) return "";
   const n = name.toLowerCase();
@@ -108,31 +96,6 @@ function extensionFromMime(mime?: string) {
   return "";
 }
 
-function ensureHasExtension(fileName: string, mime?: string) {
-  const hasDot = fileName.includes(".");
-  if (hasDot) return fileName;
-  const ext = extensionFromMime(mime);
-  return ext ? `${fileName}${ext}` : fileName;
-}
-
-const formatBytes = (bytes?: number) => {
-  if (!bytes || bytes <= 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const val = bytes / Math.pow(k, i);
-  return `${val.toFixed(val >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`;
-};
-
-const categoryLabel = (cat?: string) => {
-  if (!cat) return "Unknown";
-  const map: Record<string, string> = {
-    birth_certificate: "Birth Certificate",
-    death_certificate: "Death Certificate",
-    other_document: "Other Document",
-  };
-  return map[cat] || cat;
-};
 
 const isZeroTime = (iso?: string) => !iso || String(iso).startsWith("0001-01-01");
 
@@ -148,28 +111,6 @@ const deriveStatus = (requestStatus?: string, is_approved?: boolean): ReviewStat
   return "pending";
 };
 
-// NO RED styling
-const chipSx = (st: ReviewStatus) => {
-  if (st === "approved") {
-    return {
-      color: "#166534",
-      backgroundColor: "rgba(39, 174, 96, 0.12)",
-      border: "1px solid rgba(39, 174, 96, 0.25)",
-    };
-  }
-  if (st === "rejected") {
-    return {
-      color: color_primary,
-      backgroundColor: "#f3967c1f",
-      border: "1px solid rgba(107, 114, 128, 0.25)",
-    };
-  }
-  return {
-    color: color_text_primary,
-    backgroundColor: "rgba(243, 156, 18, 0.14)",
-    border: "1px solid rgba(243, 156, 18, 0.25)",
-  };
-};
 
 // viewer stage uses dark; palette has no black → use text_primary
 const stageBg = color_text_primary;
@@ -280,18 +221,6 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     setDocViewerOpen(true);
   };
 
-  const handlePrevDoc = async () => {
-    const nextIdx = Math.max(docViewerIndex - 1, 0);
-    setDocViewerIndex(nextIdx);
-    await openDocAtIndex(nextIdx);
-  };
-
-  const handleNextDoc = async () => {
-    const nextIdx = Math.min(docViewerIndex + 1, docs.length - 1);
-    setDocViewerIndex(nextIdx);
-    await openDocAtIndex(nextIdx);
-  };
-
   useEffect(() => {
     if (!docViewerOpen) return;
     if (!fileBlobData) return;
@@ -319,35 +248,35 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     }
   }, [fileBlobData, docViewerOpen, currentDocMime]);
 
-  const openDocInNewTab = () => {
-    if (!docBlobUrl || !currentDoc) return;
-    const fileName = ensureHasExtension(currentDoc?.file_name || `document_${currentDoc?.id}`, currentDocMime);
-
-    const a = document.createElement("a");
-    a.href = docBlobUrl;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-
-  // Gallery items
-  const galleryItems = useMemo(
+  const photoGridItems = useMemo(
     () =>
       photos.map((p) => ({
-        original: getBinaryUrl(p.id),
-        thumbnail: getBinaryUrl(p.id),
-        description: `Photo ID: ${p.id}`,
-        originalClass: "gallery-image",
+        id: p.id,
+        file_name: p.file_name,
+        size_bytes: p.size_bytes,
+        mime_type: p.mime_type,
+        status: deriveStatus(request?.status, p?.is_approved),
+        is_approved: p.is_approved,
       })),
-    [photos]
+    [photos, request?.status]
   );
 
-  if (!request) return null;
+  const docGridItems = useMemo(
+    () =>
+      docs.map((d) => ({
+        id: d.id,
+        file_name: d.file_name,
+        filename: d.file_name,
+        size_bytes: d.size_bytes,
+        mime_type: d.mime_type,
+        document_category: d.document_category,
+        status: deriveStatus(request?.status, d?.is_approved),
+        is_approved: d.is_approved,
+      })),
+    [docs, request?.status]
+  );
 
-  // read-only button styles (no red)
+   // read-only button styles (no red)
   const viewBtnSx = {
     textTransform: "none",
     fontWeight: 900,
@@ -362,16 +291,6 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     },
   };
 
-  const primaryBtnSx = {
-    textTransform: "none",
-    fontWeight: 900,
-    backgroundColor: color_secondary,
-    color: color_white,
-    borderRadius: 1,
-    px: 2,
-    "&:hover": { backgroundColor: color_secondary_dark },
-  };
-
   const closeBtnSx = {
     textTransform: "none",
     fontWeight: 900,
@@ -382,6 +301,9 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     px: 2.25,
     "&:hover": { backgroundColor: color_background },
   };
+
+
+  if (!request) return null;
 
   return (
     <>
@@ -471,130 +393,49 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
           </Box>
 
           {/* Photos */}
-          <Typography sx={{ mt: 0.5, mb: 1, fontWeight: 900, color: color_text_primary, fontSize: "0.95rem" }}>
-            Uploaded Photos
-          </Typography>
-
-          <Box
-            sx={{
+          <PhotoGrid
+            title="Uploaded Photos"
+            loading={photosLoading}
+            emptyText="No photos submitted."
+            photos={photoGridItems}
+            getPhotoUrl={(id) => getBinaryUrl(id)}
+            onOpenViewer={(idx) => handleOpenViewer(idx)}
+            cardBorderColor={color_secondary} // blue border
+            containerSx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
               borderRadius: 2,
               p: 1.5,
               mb: 2,
             }}
-          >
-            {photosLoading ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <CircularProgress size={18} />
-                <Typography sx={{ fontWeight: 800, color: color_text_primary }}>Loading photos...</Typography>
-              </Box>
-            ) : photos.length === 0 ? (
-              <Typography sx={{ color: color_text_light, fontWeight: 800 }}>No photos submitted.</Typography>
-            ) : (
-              <Grid container spacing={1.5}>
-                {photos.map((photo, idx) => {
-                  const st = deriveStatus(request?.status, photo?.is_approved);
-                  return (
-                    <Grid key={photo.id}>
-                      <Card
-                        sx={{
-                          width: 160,
-                          borderRadius: 2,
-                          cursor: "pointer",
-                          overflow: "hidden",
-                          border: `2px solid ${color_border}`,
-                          backgroundColor: color_white,
-                          "&:hover": { boxShadow: "0 8px 26px rgba(0,0,0,0.12)" },
-                        }}
-                        onClick={() => handleOpenViewer(idx)}
-                      >
-                        <CardMedia component="img" height="110" image={getBinaryUrl(photo.id)} sx={{ objectFit: "cover" }} />
-                        <Box sx={{ p: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <Chip size="small" label={st.toUpperCase()} sx={{ ...chipSx(st), fontWeight: 900 }} />
-                          <Typography sx={{ fontSize: "0.72rem", fontWeight: 900, color: color_text_light }}>
-                            ID: {photo.id}
-                          </Typography>
-                        </Box>
-                      </Card>
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            )}
-          </Box>
+            // optional: keep your "UPPERCASE" style like old UI
+            statusLabel={(st) => st.toUpperCase()}
+          />
 
           {/* Documents */}
-          <Typography sx={{ mt: 0.5, mb: 1, fontWeight: 900, color: color_text_primary, fontSize: "0.95rem" }}>
-            Uploaded Documents
-          </Typography>
-
-          <Box
-            sx={{
+          <DocumentGrid
+            title="Uploaded Documents"
+            loading={docsLoading}
+            emptyText="No documents submitted."
+            documents={docGridItems}
+            onOpenViewer={(idx) => handleOpenDocViewer(idx)}
+            cardBorderColor={color_secondary} // blue border
+            containerSx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
               borderRadius: 2,
               p: 1.5,
             }}
-          >
-            {docsLoading ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <CircularProgress size={18} />
-                <Typography sx={{ fontWeight: 800, color: color_text_primary }}>Loading documents...</Typography>
-              </Box>
-            ) : docs.length === 0 ? (
-              <Typography sx={{ color: color_text_light, fontWeight: 800 }}>No documents submitted.</Typography>
-            ) : (
-              <Grid container spacing={1.5}>
-                {docs.map((doc, idx) => {
-                  const st = deriveStatus(request?.status, doc?.is_approved);
-                  return (
-                    <Grid key={doc.id}>
-                      <Box
-                        sx={{
-                          border: `1px solid ${color_border}`,
-                          borderRadius: 2,
-                          p: 1.5,
-                          backgroundColor: color_white,
-                          width: 340,
-                          maxWidth: "85vw",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
-                          <Chip size="small" label={categoryLabel(doc.document_category)} sx={{ fontWeight: 900 }} />
-                          <Chip size="small" label={formatBytes(doc.size_bytes)} sx={{ fontWeight: 900 }} />
-                          <Chip size="small" label={st.toUpperCase()} sx={{ ...chipSx(st), fontWeight: 900 }} />
-                          <Typography sx={{ fontSize: "0.72rem", fontWeight: 900, color: color_text_light }}>
-                            ID: {doc.id}
-                          </Typography>
-                        </Box>
+            showCategoryChip={true}
+            showSizeChip={true}
+            showViewButton={true}
+            viewLabel="View"
+            viewBtnSx={viewBtnSx}
+            showApproveReject={false}
+            statusLabel={(st) => st.toUpperCase()}
+          />
 
-                        <Typography
-                          sx={{
-                            mt: 1,
-                            fontWeight: 900,
-                            color: color_text_secondary,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                          title={doc.file_name}
-                        >
-                          {doc.file_name}
-                        </Typography>
 
-                        <Box sx={{ display: "flex", gap: 1, mt: 1.25, flexWrap: "wrap" }}>
-                          <Button variant="outlined" onClick={() => handleOpenDocViewer(idx)} sx={viewBtnSx}>
-                            View
-                          </Button>
-                        </Box>
-                      </Box>
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            )}
-          </Box>
         </DialogContent>
       </Dialog>
 

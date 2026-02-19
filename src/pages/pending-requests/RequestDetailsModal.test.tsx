@@ -306,13 +306,13 @@ describe("ApproveRequestModal UI", () => {
     expect(screen.getByText("0 B")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
 
-    expect(screen.getByTestId("doc-status-201")).toHaveTextContent("Pending");
+    expect(screen.getByTestId("doc-status-201")).toHaveTextContent("PENDING");
 
     fireEvent.click(screen.getByTestId("doc-approve-201"));
-    expect(screen.getByTestId("doc-status-201")).toHaveTextContent("Approved");
+    expect(screen.getByTestId("doc-status-201")).toHaveTextContent("APPROVED");
 
     fireEvent.click(screen.getByTestId("doc-reject-201"));
-    expect(screen.getByTestId("doc-status-201")).toHaveTextContent("Rejected");
+    expect(screen.getByTestId("doc-status-201")).toHaveTextContent("REJECTED");
 
     fireEvent.click(screen.getByTestId("doc-view-202"));
     expect(screen.getByTestId("doc-viewer")).toHaveAttribute("data-open", "true");

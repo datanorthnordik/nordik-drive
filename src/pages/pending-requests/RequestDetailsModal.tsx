@@ -47,6 +47,8 @@ import {
 } from "../../constants/colors";
 import PhotoViewerModal from "../viewers/PhotoViewer";
 import DocumentViewerModal from "../viewers/DocumentViewer";
+import { PhotoGrid } from "../../components/shared/PhotoGrids";
+import { DocumentGrid } from "../../components/shared/DocumentGrids";
 
 interface ApproveRequestModalProps {
   open: boolean;
@@ -609,6 +611,25 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     a.remove();
   };
 
+  const photoGridItems = photos.map((p) => ({
+    id: p.id,
+    status: p.status ?? null,
+    file_name: p.file_name,
+    size_bytes: p.size_bytes,
+    mime_type: p.mime_type,
+  }));
+
+  const docGridItems = docs.map((d) => ({
+    id: d.id,
+    file_name: d.file_name,
+    filename: d.file_name, // your DocumentGrid supports filename or file_name
+    size_bytes: d.size_bytes,
+    mime_type: d.mime_type,
+    document_category: d.document_category,
+    status: d.status ?? null,
+  }));
+
+
   //  Hook rule safe: NO conditional hooks above
   if (!request) return null;
 
@@ -772,260 +793,117 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           </Box>
 
           {/* PHOTOS SECTION */}
-          <Typography
-            sx={{
-              mt: 2,
-              mb: 1,
-              fontWeight: 900,
-              color: color_text_primary,
-              fontSize: "0.95rem",
-            }}
-          >
-            Uploaded Photos
-          </Typography>
-
-          <Box
-            sx={{
+          {/* PHOTOS SECTION */}
+          <PhotoGrid
+            title="Uploaded Photos"
+            loading={false}
+            emptyText="No photos submitted."
+            photos={photoGridItems}
+            getPhotoUrl={(id) => getBinaryUrl(id)}
+            onOpenViewer={(idx) => handleOpenViewer(idx)}
+            showDownload={false}
+            cardBorderColor={color_secondary}     // blue border (already default)
+            containerSx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
               borderRadius: 2,
               p: 1.5,
               mb: 2,
             }}
-          >
-            {photos.length === 0 ? (
-              <Typography sx={{ color: color_text_light, fontWeight: 800 }}>
-                No photos submitted.
-              </Typography>
-            ) : (
-              <Grid container spacing={1.5}>
-                {photos.map((photo: RequestPhoto, idx: number) => (
-                  <Grid key={photo.id}>
-                    <Card
-                      sx={{
-                        width: 160,
-                        borderRadius: 2,
-                        cursor: "pointer",
-                        overflow: "hidden",
-                        border: borderForStatus(photo.status),
-                        boxShadow: shadowForStatus(photo.status),
-                        backgroundColor: color_white,
-                      }}
-                      data-testid={`photo-card-${photo.id}`}
-                      onClick={() => handleOpenViewer(idx)}
-                    >
-                      <CardMedia
-                        component="img"
-                        height="110"
-                        image={getBinaryUrl(photo.id)}
-                        sx={{ objectFit: "cover" }}
-                      />
-                      <Box sx={{ p: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <Chip
-                          size="small"
-                          label={
-                            photo.status === "approved"
-                              ? "Approved"
-                              : photo.status === "rejected"
-                                ? "Rejected"
-                                : "Pending"
-                          }
-                          data-testid={`photo-status-${photo.id}`}
-                          sx={statusChipSx(photo.status)}
-                        />
-                        <Typography sx={{ fontSize: "0.72rem", fontWeight: 900, color: color_text_light }}>
-                          ID: {photo.id}
-                        </Typography>
-                      </Box>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </Box>
+          />
+
 
           {/* DOCUMENTS SECTION */}
-          <Typography
-            sx={{
-              mt: 0.5,
-              mb: 1,
-              fontWeight: 900,
-              color: color_text_primary,
-              fontSize: "0.95rem",
-            }}
-          >
-            Uploaded Documents
-          </Typography>
-
-          <Box
-            sx={{
+          {/* DOCUMENTS SECTION */}
+          <DocumentGrid
+            title="Uploaded Documents"
+            loading={false}
+            emptyText="No documents submitted."
+            documents={docGridItems}
+            onOpenViewer={(idx) => handleOpenDocViewer(idx)}
+            showCategoryChip={true}
+            showSizeChip={true}
+            showViewButton={true}
+            viewLabel="View"
+            viewBtnSx={viewBtnSx}
+            showApproveReject={true}
+            onApprove={(id) =>
+              setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)))
+            }
+            onReject={(id) =>
+              setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)))
+            }
+            approveBtnSx={approveBtnSx}
+            rejectBtnSx={rejectBtnSx}
+            cardBorderColor={color_secondary}     // blue border
+            containerSx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
               borderRadius: 2,
               p: 1.5,
             }}
-          >
-            {docs.length === 0 ? (
-              <Typography sx={{ color: color_text_light, fontWeight: 800 }}>
-                No documents submitted.
-              </Typography>
-            ) : (
-              <Grid container spacing={1.5}>
-                {docs.map((doc: RequestDoc, idx: number) => (
-                  <Grid key={doc.id}>
-                    <Box
-                      sx={{
-                        border: `1px solid ${color_border}`,
-                        borderRadius: 2,
-                        p: 1.5,
-                        backgroundColor: color_white,
-                        boxShadow: shadowForStatus(doc.status),
-                      }}
-                    >
-                      <Box data-testid={`doc-card-${doc.id}`} sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
-                        <Chip size="small" label={categoryLabel(doc.document_category)} sx={{ fontWeight: 900 }} />
-                        <Chip size="small" label={formatBytes(doc.size_bytes)} sx={{ fontWeight: 900 }} />
-                        <Chip
-                          size="small"
-                          label={
-                            doc.status === "approved"
-                              ? "Approved"
-                              : doc.status === "rejected"
-                                ? "Rejected"
-                                : "Pending"
-                          }
-                          data-testid={`doc-status-${doc.id}`}
-                          sx={statusChipSx(doc.status)}
-                        />
-                        <Typography sx={{ fontSize: "0.72rem", fontWeight: 900, color: color_text_light }}>
-                          ID: {doc.id}
-                        </Typography>
-                      </Box>
+          />
+      </DialogContent>
 
-                      <Typography
-                        sx={{
-                          mt: 1,
-                          fontWeight: 900,
-                          color: color_text_secondary,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                        title={doc.file_name}
-                      >
-                        {doc.file_name}
-                      </Typography>
+      <DialogActions
+        sx={{
+          p: 2,
+          backgroundColor: color_white,
+          borderTop: `1px solid ${color_border}`,
+          justifyContent: "flex-end",
+          gap: 1,
+        }}
+      >
+        <Button data-testid="cancel-btn" onClick={onClose} sx={cancelBtnSx}>
+          Cancel
+        </Button>
 
-                      <Box sx={{ display: "flex", gap: 1, mt: 1.25, flexWrap: "wrap" }}>
-                        <Button
-                          data-testid={`doc-view-${doc.id}`}
-                          variant="outlined"
-                          onClick={() => handleOpenDocViewer(idx)}
-                          sx={viewBtnSx}
-                        >
-                          View
-                        </Button>
-
-                        <Button
-                          data-testid={`doc-approve-${doc.id}`}
-                          variant="contained"
-                          onClick={() =>
-                            setDocs((prev) =>
-                              prev.map((d, i) =>
-                                i === idx ? { ...d, status: "approved" } : d
-                              )
-                            )
-                          }
-                          sx={approveBtnSx}
-                        >
-                          Approve
-                        </Button>
-
-                        <Button
-                          data-testid={`doc-reject-${doc.id}`}
-                          variant="contained"
-                          onClick={() =>
-                            setDocs((prev) =>
-                              prev.map((d, i) =>
-                                i === idx ? { ...d, status: "rejected" } : d
-                              )
-                            )
-                          }
-                          sx={rejectBtnSx}
-                        >
-                          Reject
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </Box>
-        </DialogContent>
-
-        <DialogActions
-          sx={{
-            p: 2,
-            backgroundColor: color_white,
-            borderTop: `1px solid ${color_border}`,
-            justifyContent: "flex-end",
-            gap: 1,
-          }}
+        <Button
+          data-testid="approve-all-btn"
+          variant="contained"
+          onClick={handleApprove}
+          disabled={loading || reviewLoading}
+          sx={approveBtnSx}
         >
-          <Button data-testid="cancel-btn" onClick={onClose} sx={cancelBtnSx}>
-            Cancel
-          </Button>
+          {loading ? "Approving..." : "Approve All Changes"}
+        </Button>
+      </DialogActions>
+    </Dialog >
 
-          <Button
-            data-testid="approve-all-btn"
-            variant="contained"
-            onClick={handleApprove}
-            disabled={loading || reviewLoading}
-            sx={approveBtnSx}
-          >
-            {loading ? "Approving..." : "Approve All Changes"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* PHOTO VIEWER (unchanged UI for now) */ }
 
-      {/* PHOTO VIEWER (unchanged UI for now) */}
-
-      <PhotoViewerModal
-        open={viewerOpen}
-        onClose={() => setViewerOpen(false)}
-        photos={photos}
-        startIndex={startIndex}
-        mode="review"
-        onApprove={handleApprovePhotoById}
-        onReject={handleRejectPhotoById}
-        showThumbnails={false}
-        showStatusPill={true}
-        only_approved={false}
-      />
+      < PhotoViewerModal
+  open = { viewerOpen }
+  onClose = {() => setViewerOpen(false)}
+photos = { photos }
+startIndex = { startIndex }
+mode = "review"
+onApprove = { handleApprovePhotoById }
+onReject = { handleRejectPhotoById }
+showThumbnails = { false}
+showStatusPill = { true}
+only_approved = { false}
+  />
 
 
 
-      <DocumentViewerModal
-        open={docViewerOpen}
-        onClose={() => setDocViewerOpen(false)}
-        docs={docs}
-        startIndex={docViewerIndex}
-        mode="review"
-        apiBase={API_BASE}
-        blobEndpointPath="/api/file/doc"
-        showApproveReject={true}
-        onApprove={(id) =>
-          setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)))
-        }
-        onReject={(id) =>
-          setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)))
-        }
-        bottomOpenLabel="View"
-      />
-
-
-
+  <DocumentViewerModal
+    open={docViewerOpen}
+    onClose={() => setDocViewerOpen(false)}
+    docs={docs}
+    startIndex={docViewerIndex}
+    mode="review"
+    apiBase={API_BASE}
+    blobEndpointPath="/api/file/doc"
+    showApproveReject={true}
+    onApprove={(id) =>
+      setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)))
+    }
+    onReject={(id) =>
+      setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)))
+    }
+    bottomOpenLabel="View"
+  />
     </>
   );
 };

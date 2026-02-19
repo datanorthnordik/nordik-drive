@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Box, Button } from "@mui/material";
+import { Box, Button, TextField } from "@mui/material";
 import {
   color_border,
   color_light_gray,
@@ -16,9 +16,15 @@ import {
 import { MAX_COMBINED_UPLOAD_MB, MAX_PHOTOS, MAX_PHOTO_MB } from "./constants";
 import { bytesToMB, clamp, getTotalBytes } from "./utils";
 
+export type PhotoItem = {
+  id: string;
+  file: File;
+  comment: string; // max 100 chars (UI enforced)
+};
+
 type Props = {
-  photos: File[];
-  setPhotos: (next: File[]) => void;
+  photos: PhotoItem[];
+  setPhotos: (next: PhotoItem[]) => void;
   totalCombinedMB: number;
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: (idx: number) => void;
@@ -28,13 +34,14 @@ type Props = {
 
 export default function PhotoUploadCard({
   photos,
+  setPhotos,
   totalCombinedMB,
   onUpload,
   onRemove,
   consent,
   setConsent,
 }: Props) {
-  const totalPhotoMB = bytesToMB(getTotalBytes(photos));
+  const totalPhotoMB = bytesToMB(getTotalBytes(photos.map((p) => p.file)));
 
   const warning = useMemo(() => {
     const percentUsed = (photos.length / MAX_PHOTOS) * 100;
@@ -42,6 +49,10 @@ export default function PhotoUploadCard({
     if (percentUsed >= 80) return { bg: color_warning_light, text: "You are close to the upload limit." };
     return null;
   }, [photos.length]);
+
+  const onChangeComment = (idx: number, value: string) => {
+    setPhotos(photos.map((p, i) => (i === idx ? { ...p, comment: value } : p)));
+  };
 
   return (
     <Box
@@ -81,10 +92,10 @@ export default function PhotoUploadCard({
 
       {photos.length > 0 && (
         <Box sx={{ mt: 2, display: "flex", gap: 2, flexWrap: "wrap" }}>
-          {photos.map((f, idx) => (
-            <Box key={idx} sx={{ position: "relative" }}>
+          {photos.map((p, idx) => (
+            <Box key={p.id} sx={{ position: "relative", width: 140 }}>
               <img
-                src={URL.createObjectURL(f)}
+                src={URL.createObjectURL(p.file)}
                 width={140}
                 height={110}
                 style={{
@@ -92,8 +103,10 @@ export default function PhotoUploadCard({
                   border: `1px solid ${color_border}`,
                   objectFit: "cover",
                   background: color_white_smoke,
+                  display: "block",
                 }}
               />
+
               <Button
                 onClick={() => onRemove(idx)}
                 sx={{
@@ -113,6 +126,37 @@ export default function PhotoUploadCard({
               >
                 ✕
               </Button>
+
+              {/* Comment (max 100 chars) */}
+              <Box sx={{ mt: 1 }}>
+                <TextField
+                  value={p.comment || ""}
+                  onChange={(e) => onChangeComment(idx, e.target.value)}
+                  placeholder="Add a comment…"
+                  size="small"
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  maxRows={3}
+                  inputProps={{ maxLength: 100 }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "10px",
+                      fontSize: "0.85rem",
+                      background: color_white,
+                    },
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: color_border,
+                    },
+                    "& .MuiFormHelperText-root": {
+                      marginLeft: 0,
+                      color: color_light_gray,
+                      fontWeight: 800,
+                    },
+                  }}
+                  helperText={`${(p.comment || "").length}/100`}
+                />
+              </Box>
             </Box>
           ))}
         </Box>
@@ -166,7 +210,8 @@ export default function PhotoUploadCard({
           style={{ transform: "scale(1.4)", marginTop: 4 }}
         />
         <Box sx={{ color: color_text_primary, fontSize: "0.98rem", fontWeight: 800 }}>
-          I consent to have the pictures I upload shared and/or used for CSAA publications (newsletters, photo gallery, social media).
+          I consent to have the pictures I upload shared and/or used for CSAA publications (newsletters, photo gallery,
+          social media).
         </Box>
       </Box>
     </Box>
