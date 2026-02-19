@@ -67,6 +67,7 @@ interface RequestPhoto {
   mime_type?: string;
   document_type?: "photo" | "document";
   document_category?: string;
+  photo_comment?: string
 }
 
 interface RequestDoc {
@@ -491,19 +492,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   };
 
   // ---------------------------------------
-  // Photos viewer (logic kept)
-  // ---------------------------------------
-  const galleryItems = photos.map((photo: RequestPhoto) => ({
-    original: getBinaryUrl(photo.id),
-    thumbnail: getBinaryUrl(photo.id),
-    description: `Photo ID: ${photo.id}`,
-    originalClass: "gallery-image",
-  }));
-
-
-
-
-  // ---------------------------------------
   // Docs viewer: load blob (logic kept)
   // ---------------------------------------
   const clearPreview = useCallback(() => {
@@ -617,6 +605,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     file_name: p.file_name,
     size_bytes: p.size_bytes,
     mime_type: p.mime_type,
+    photo_comment: p.photo_comment
   }));
 
   const docGridItems = docs.map((d) => ({
@@ -843,67 +832,67 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
               p: 1.5,
             }}
           />
-      </DialogContent>
+        </DialogContent>
 
-      <DialogActions
-        sx={{
-          p: 2,
-          backgroundColor: color_white,
-          borderTop: `1px solid ${color_border}`,
-          justifyContent: "flex-end",
-          gap: 1,
-        }}
-      >
-        <Button data-testid="cancel-btn" onClick={onClose} sx={cancelBtnSx}>
-          Cancel
-        </Button>
-
-        <Button
-          data-testid="approve-all-btn"
-          variant="contained"
-          onClick={handleApprove}
-          disabled={loading || reviewLoading}
-          sx={approveBtnSx}
+        <DialogActions
+          sx={{
+            p: 2,
+            backgroundColor: color_white,
+            borderTop: `1px solid ${color_border}`,
+            justifyContent: "flex-end",
+            gap: 1,
+          }}
         >
-          {loading ? "Approving..." : "Approve All Changes"}
-        </Button>
-      </DialogActions>
-    </Dialog >
+          <Button data-testid="cancel-btn" onClick={onClose} sx={cancelBtnSx}>
+            Cancel
+          </Button>
 
-      {/* PHOTO VIEWER (unchanged UI for now) */ }
+          <Button
+            data-testid="approve-all-btn"
+            variant="contained"
+            onClick={handleApprove}
+            disabled={loading || reviewLoading}
+            sx={approveBtnSx}
+          >
+            {loading ? "Approving..." : "Approve All Changes"}
+          </Button>
+        </DialogActions>
+      </Dialog >
+
+      {/* PHOTO VIEWER (unchanged UI for now) */}
 
       < PhotoViewerModal
-  open = { viewerOpen }
-  onClose = {() => setViewerOpen(false)}
-photos = { photos }
-startIndex = { startIndex }
-mode = "review"
-onApprove = { handleApprovePhotoById }
-onReject = { handleRejectPhotoById }
-showThumbnails = { false}
-showStatusPill = { true}
-only_approved = { false}
-  />
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        photos={photos}
+        startIndex={startIndex}
+        mode="review"
+        onApprove={handleApprovePhotoById}
+        onReject={handleRejectPhotoById}
+        showThumbnails={false}
+        showStatusPill={true}
+        only_approved={false}
+      />
 
 
 
-  <DocumentViewerModal
-    open={docViewerOpen}
-    onClose={() => setDocViewerOpen(false)}
-    docs={docs}
-    startIndex={docViewerIndex}
-    mode="review"
-    apiBase={API_BASE}
-    blobEndpointPath="/api/file/doc"
-    showApproveReject={true}
-    onApprove={(id) =>
-      setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)))
-    }
-    onReject={(id) =>
-      setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)))
-    }
-    bottomOpenLabel="View"
-  />
+      <DocumentViewerModal
+        open={docViewerOpen}
+        onClose={() => setDocViewerOpen(false)}
+        docs={docs}
+        startIndex={docViewerIndex}
+        mode="review"
+        apiBase={API_BASE}
+        blobEndpointPath="/api/file/doc"
+        showApproveReject={true}
+        onApprove={(id) =>
+          setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)))
+        }
+        onReject={(id) =>
+          setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)))
+        }
+        bottomOpenLabel="View"
+      />
     </>
   );
 };

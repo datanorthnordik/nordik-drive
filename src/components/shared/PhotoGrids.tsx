@@ -112,6 +112,7 @@ export function PhotoGrid({
               const url = getPhotoUrl(photo.id);
               const dlName = downloadFilename ? downloadFilename(photo) : `photo_${photo.id}.jpg`;
               const dlMime = downloadMime ? downloadMime(photo) : "image/jpeg";
+              const comment = (photo.photo_comment || "").trim();
 
               return (
                 <Grid key={photo.id}>
@@ -144,6 +145,46 @@ export function PhotoGrid({
                         ID: {photo.id}
                       </Typography>
                     </Box>
+
+                    {comment && (
+                      <Box
+                        sx={{
+                          mx: 1.2,
+                          mb: 1.2,
+                          mt: 0.2,
+                          p: 1,
+                          borderRadius: 2,
+                          border: `1px solid ${color_border}`,
+                          backgroundColor: "rgba(2, 6, 23, 0.03)",
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: "0.78rem",
+                            fontWeight: 900,
+                            color: color_text_light,
+                            mb: 0.35,
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          Comment
+                        </Typography>
+
+                        <Typography
+                          sx={{
+                            fontSize: "0.98rem",
+                            fontWeight: 800,
+                            color: color_text_primary,
+                            lineHeight: 1.45,
+                            wordBreak: "break-word",
+                            whiteSpace: "normal",
+                          }}
+                        >
+                          {comment}
+                        </Typography>
+                      </Box>
+                    )}
+
 
                     {(showDownload || !!onDownloadSingle) && (
                       <Box sx={{ px: 1.2, pb: 1.2 }}>

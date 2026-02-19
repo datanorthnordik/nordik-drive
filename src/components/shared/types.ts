@@ -31,6 +31,7 @@ export type PhotoGridItem = {
   size_bytes?: number;
   mime_type?: string;
   is_approved?: boolean;
+  photo_comment?: string;
 };
 
 export type PhotoGridProps = {

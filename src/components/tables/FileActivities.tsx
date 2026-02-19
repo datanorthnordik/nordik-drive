@@ -188,6 +188,7 @@ export default function FileActivities({
         id: p.id,
         is_gallery_photo: p.is_gallery_photo,
         status: (p.status ?? null) as PhotoStatus,
+        photo_comment: p.photo_comment, 
       }));
       setPhotos(loaded);
     } else {
@@ -383,6 +384,7 @@ export default function FileActivities({
       status: (p.status ?? null) as any,
       is_gallery_photo: p.is_gallery_photo,
       request_id: selectedRequest?.request_id,
+      photo_comment: p.photo_comment
     }));
   }, [photos, selectedRequest?.request_id]);
 

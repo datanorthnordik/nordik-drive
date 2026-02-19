@@ -21,7 +21,7 @@ import dayjs from "dayjs";
 
 import {
   RequestDocument,
-  RequestPhoto,
+  RequestPhoto, 
   guessMimeFromFilename,
 } from "./FileActivitiesShared";
 

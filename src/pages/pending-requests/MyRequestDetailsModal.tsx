@@ -57,6 +57,7 @@ interface RequestPhoto {
   approved_by?: string;
   approved_at?: string;
   is_approved?: boolean;
+  photo_comment?: string
 }
 
 interface RequestDoc {
@@ -257,6 +258,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         mime_type: p.mime_type,
         status: deriveStatus(request?.status, p?.is_approved),
         is_approved: p.is_approved,
+        photo_comment: p.photo_comment
       })),
     [photos, request?.status]
   );
