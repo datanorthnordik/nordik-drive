@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 
 // Make tests stable even if your cn() implementation changes internally
-jest.mock("../../lib/utils", () => ({
+jest.mock("../../lib/helper", () => ({
   cn: (...classes: any[]) => classes.flat().filter(Boolean).join(" "),
 }));
 

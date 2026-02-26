@@ -5,6 +5,15 @@ import useFetch from "../../hooks/useFetch";
 import toast from "react-hot-toast";
 
 const mockNavigate = jest.fn();
+const mockDispatch = jest.fn();
+
+let mockState: any = {};
+
+jest.mock("react-redux", () => ({
+  __esModule: true,
+  useDispatch: () => mockDispatch,
+  useSelector: (selector: any) => selector(mockState),
+}));
 
 jest.mock(
   "react-router-dom",
@@ -134,17 +143,37 @@ describe("Signup", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockNavigate.mockClear();
+    mockDispatch.mockClear();
+
+    mockState = {
+      api: {
+        entries: {
+          communities: { data: { communities: [] } },
+        },
+      },
+    };
   });
 
-  test("calls fetchCommunities on mount", async () => {
-    const { fetchCommunities } = setupUseFetchForSignup({
-      communitiesData: { communities: [{ name: "Shingwauk" }] },
-    });
+  test("dispatches apiEnsure for communities on mount", async () => {
+    setupUseFetchForSignup({ communitiesData: { communities: [{ name: "Shingwauk" }] } });
+
+    mockState = {
+      api: {
+        entries: {
+          communities: { data: { communities: [{ name: "Shingwauk" }] } },
+        },
+      },
+    };
 
     render(<Signup />);
 
     await waitFor(() => {
-      expect(fetchCommunities).toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "api/ensure",
+          payload: expect.objectContaining({ key: "communities" }),
+        })
+      );
     });
   });
 
