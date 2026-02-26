@@ -132,6 +132,7 @@ function Signup() {
         key: "communities",
         url: "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
         method: "GET",
+        force: true
       })
     );
     }
