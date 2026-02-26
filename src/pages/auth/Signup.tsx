@@ -31,6 +31,9 @@ import {
   AuthPrimaryButton,
   OrDivider,
 } from "./AuthShared";
+import { AppDispatch, RootState } from "../../store/store";
+import { useDispatch, useSelector } from "react-redux";
+import { apiEnsure } from "../../store/api/apiSlice";
 
 type SignupFormValues = {
   firstname: string;
@@ -79,11 +82,17 @@ function Signup() {
     false
   );
 
-  const { data: communitiesData, fetchData: fetchCommunities } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
-    "GET",
-    false
-  );
+  const dispatch = useDispatch<AppDispatch>();
+
+  useEffect(() => {
+    dispatch(
+      apiEnsure({
+        key: "communities",
+        url: "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
+        method: "GET",
+      })
+    );
+  }, [dispatch]);
 
   const { fetchData: addCommunity } = useFetch(
     "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
@@ -92,19 +101,14 @@ function Signup() {
   );
 
   const navigate = useNavigate();
-
-  useEffect(() => {
-    fetchCommunities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const communityOptions = useMemo(() => {
-    return (communitiesData as any)?.communities?.map((c: any) => c.name) || [];
-  }, [communitiesData]);
+  
+  const communityOptions = useSelector((state: RootState) =>
+    ((state as any)?.api?.entries["communities"]?.data?.communities || []).map((c: any) => c.name)
+  );
 
   const normalizeName = (v: any) => (typeof v === "string" ? v.trim() : "");
   const existsInOptions = (name: string) =>
-    communityOptions.some((o: string) => o.trim().toLowerCase() === name.trim().toLowerCase());
+  (communityOptions || []).some((o: string) => o.trim().toLowerCase() === name.trim().toLowerCase());
 
   const onSubmit = async (formData: SignupFormValues) => {
     const cleaned = (formData.community || [])
@@ -123,7 +127,13 @@ function Signup() {
 
     if (missing.length > 0) {
       await addCommunity({ communities: missing }, null, true);
-      await fetchCommunities();
+      dispatch(
+      apiEnsure({
+        key: "communities",
+        url: "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
+        method: "GET",
+      })
+    );
     }
 
     fetchData({ ...formData, community: unique }, null, true);
