@@ -30,4 +30,6 @@ export const colorSources: Record<string, string> = {
   "REPORT COMPLETE": "#00B050",
 };
 
+export const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
+
 

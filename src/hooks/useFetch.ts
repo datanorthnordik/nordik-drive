@@ -109,3 +109,87 @@ const useFetch = <T,>(url: string, method: FetchMethod, autoFetch: boolean = fal
 };
 
 export default useFetch;
+
+// hooks/useFetch.ts
+export async function apiRequest<T = any>(
+  url: string,
+  method: string,
+  body?: any,
+  headers: Record<string, string> = {},
+  token?: string,
+  opts?: {
+    skipRefresh?: boolean;
+    refreshUrl?: string; // defaults to your backend refresh endpoint
+  }
+): Promise<T> {
+  const refreshUrl =
+    opts?.refreshUrl || "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/refresh";
+
+  const doFetch = async (accessToken?: string) => {
+    const res = await fetch(url, {
+      method,
+      credentials: "include", // ✅ sends refresh cookie like axios { withCredentials:true }
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...headers,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+    return res;
+  };
+
+  const parseResponse = async (res: Response) => {
+    const text = await res.text().catch(() => "");
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    return { text, json };
+  };
+
+  // 1st attempt
+  let res = await doFetch(token);
+
+  // Refresh + retry once on 401 (same as your useFetch)
+  if (res.status === 401 && !opts?.skipRefresh) {
+    // refresh call (cookie-based)
+    const refreshRes = await fetch(refreshUrl, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    if (refreshRes.ok) {
+      // Optional: if refresh returns a new token in JSON, use it for retry
+      const { json: refreshJson } = await parseResponse(refreshRes);
+      const newToken =
+        refreshJson?.token || refreshJson?.access_token || refreshJson?.accessToken || token;
+
+      const res = await apiRequest<T>(url, method, body, headers, newToken, {
+        ...opts,
+        skipRefresh: true, // prevent loops
+        refreshUrl,
+      });
+      return res;
+    }
+
+    const { text, json } = await parseResponse(refreshRes);
+    const msg = json?.error || json?.message || text || `HTTP ${refreshRes.status}`;
+    throw new Error(msg);
+  }
+
+  // Normal parse + error handling
+  const { text, json } = await parseResponse(res);
+
+  if (!res.ok) {
+    const msg = json?.error || json?.message || text || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  return (json ?? (text as any)) as T;
+}
