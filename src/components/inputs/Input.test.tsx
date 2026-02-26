@@ -4,7 +4,7 @@ import "@testing-library/jest-dom";
 import { Input } from "./Input"; //  adjust path if needed
 
 // Make cn deterministic + easy to assert
-jest.mock("../../lib/utils", () => ({
+jest.mock("../../lib/helper", () => ({
   __esModule: true,
   cn: (...args: any[]) => args.filter(Boolean).join(" "),
 }));
