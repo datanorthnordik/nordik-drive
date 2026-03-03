@@ -1,7 +1,17 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Card, CardMedia, Chip, CircularProgress, Grid, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  CardMedia,
+  Chip,
+  CircularProgress,
+  Grid,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 
 import {
@@ -40,12 +50,18 @@ export function PhotoGrid({
   statusChipSx,
 
   primaryBtnSx,
+  showStatusChip = true,
 }: PhotoGridProps) {
   const labelOf = (st: "approved" | "rejected" | "pending") =>
-    statusLabel ? statusLabel(st) : st === "approved" ? "Approved" : st === "rejected" ? "Rejected" : "Pending";
+    statusLabel
+      ? statusLabel(st)
+      : st === "approved"
+        ? "Approved"
+        : st === "rejected"
+          ? "Rejected"
+          : "Pending";
 
   const defaultPhotoChipSx = (st: "approved" | "rejected" | "pending") => {
-    // photo screenshot looks neutral; keep pending grey.
     if (st === "approved") {
       return {
         height: 26,
@@ -88,7 +104,6 @@ export function PhotoGrid({
         {title}
       </Typography>
 
-      {/* container like screenshot */}
       <Box
         sx={{
           backgroundColor: color_white,
@@ -101,10 +116,14 @@ export function PhotoGrid({
         {loading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <CircularProgress size={18} />
-            <Typography sx={{ fontWeight: 800, color: color_text_primary }}>Loading photos...</Typography>
+            <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+              Loading photos...
+            </Typography>
           </Box>
         ) : photos.length === 0 ? (
-          <Typography sx={{ color: color_text_secondary, fontWeight: 800 }}>{emptyText}</Typography>
+          <Typography sx={{ color: color_text_secondary, fontWeight: 800 }}>
+            {emptyText}
+          </Typography>
         ) : (
           <Grid container spacing={1.75}>
             {photos.map((photo, idx) => {
@@ -112,7 +131,15 @@ export function PhotoGrid({
               const url = getPhotoUrl(photo.id);
               const dlName = downloadFilename ? downloadFilename(photo) : `photo_${photo.id}.jpg`;
               const dlMime = downloadMime ? downloadMime(photo) : "image/jpeg";
-              const comment = (photo.photo_comment || "").trim();
+
+              const rawComment = (photo.photo_comment || "").trim();
+              const hasComment = rawComment.length > 0;
+              const isLongComment = rawComment.length > 100;
+              const displayComment = hasComment
+                ? isLongComment
+                  ? `${rawComment.slice(0, 97).trimEnd()}...`
+                  : rawComment
+                : "No comment";
 
               return (
                 <Grid key={photo.id}>
@@ -125,82 +152,132 @@ export function PhotoGrid({
                       overflow: "hidden",
                       cursor: "pointer",
                       backgroundColor: color_white,
-                      border: `1px solid ${cardBorderColor}`, // blue border
+                      border: `1px solid ${cardBorderColor}`,
                       boxShadow: "0 8px 18px rgba(2,6,23,0.06)",
+                      display: "flex",
+                      flexDirection: "column",
+                      height: "100%",
                       "&:hover": { boxShadow: "0 12px 26px rgba(2,6,23,0.10)" },
                       ...cardSx,
                     }}
                   >
-                    <CardMedia component="img" height={imageHeight} image={url} sx={{ objectFit: "cover" }} />
+                    <CardMedia
+                      component="img"
+                      height={imageHeight}
+                      image={url}
+                      sx={{ objectFit: "cover", flexShrink: 0 }}
+                    />
 
-                    {/* Bottom row: Status + ID (like screenshot) */}
-                    <Box sx={{ p: 1.2, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
-                      <Chip
-                        size="small"
-                        label={labelOf(st)}
-                        data-testid={`photo-status-${photo.id}`}
-                        sx={chipSx(st)}
-                      />
-                      <Typography sx={{ fontSize: "0.86rem", fontWeight: 900, color: color_text_light }}>
-                        ID: {photo.id}
-                      </Typography>
-                    </Box>
-
-                    {comment && (
+                    <Box
+                      sx={{
+                        p: 1.2,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1.1,
+                        flex: 1,
+                      }}
+                    >
                       <Box
                         sx={{
-                          mx: 1.2,
-                          mb: 1.2,
-                          mt: 0.2,
-                          p: 1,
-                          borderRadius: 2,
-                          border: `1px solid ${color_border}`,
-                          backgroundColor: "rgba(2, 6, 23, 0.03)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 1,
+                          minHeight: 28,
                         }}
                       >
+                        {showStatusChip ? (
+                          <Chip
+                            size="small"
+                            label={labelOf(st)}
+                            data-testid={`photo-status-${photo.id}`}
+                            sx={chipSx(st)}
+                          />
+                        ) : (
+                          <Box />
+                        )}
+
                         <Typography
                           sx={{
-                            fontSize: "0.78rem",
+                            fontSize: "0.86rem",
                             fontWeight: 900,
                             color: color_text_light,
-                            mb: 0.35,
-                            letterSpacing: "0.02em",
                           }}
                         >
-                          Comment
+                          ID: {photo.id}
                         </Typography>
+                      </Box>
 
-                        <Typography
+                      <Tooltip
+                        title={isLongComment ? rawComment : ""}
+                        arrow
+                        placement="top-start"
+                        disableHoverListener={!isLongComment}
+                        disableFocusListener={!isLongComment}
+                        disableTouchListener={!isLongComment}
+                      >
+                        <Box
                           sx={{
-                            fontSize: "0.98rem",
-                            fontWeight: 800,
-                            color: color_text_primary,
-                            lineHeight: 1.45,
-                            wordBreak: "break-word",
-                            whiteSpace: "normal",
+                            p: 1,
+                            borderRadius: 2,
+                            border: `1px solid ${color_border}`,
+                            backgroundColor: "rgba(2, 6, 23, 0.03)",
+                            minHeight: 92,
+                            maxHeight: 92,
+                            boxSizing: "border-box",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "flex-start",
                           }}
                         >
-                          {comment}
-                        </Typography>
-                      </Box>
-                    )}
+                          <Typography
+                            sx={{
+                              fontSize: "0.78rem",
+                              fontWeight: 900,
+                              color: color_text_light,
+                              mb: 0.35,
+                              letterSpacing: "0.02em",
+                              flexShrink: 0,
+                            }}
+                          >
+                            Comment
+                          </Typography>
 
+                          <Typography
+                            sx={{
+                              fontSize: "0.98rem",
+                              fontWeight: 800,
+                              color: hasComment ? color_text_primary : color_text_secondary,
+                              lineHeight: 1.45,
+                              wordBreak: "break-word",
+                              whiteSpace: "normal",
+                              overflow: "hidden",
+                              display: "-webkit-box",
+                              WebkitBoxOrient: "vertical",
+                              WebkitLineClamp: 2,
+                            }}
+                          >
+                            {displayComment}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
 
-                    {(showDownload || !!onDownloadSingle) && (
-                      <Box sx={{ px: 1.2, pb: 1.2 }}>
-                        <Button
-                          size="small"
-                          startIcon={<DownloadIcon fontSize="small" />}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDownloadSingle?.(photo.id, dlName, dlMime);
-                          }}
-                          sx={primaryBtnSx}
-                        >
-                          Download
-                        </Button>
-                      </Box>
-                    )}
+                      {(showDownload || !!onDownloadSingle) ? (
+                        <Box sx={{ pt: 0.1, mt: "auto" }}>
+                          <Button
+                            size="small"
+                            startIcon={<DownloadIcon fontSize="small" />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDownloadSingle?.(photo.id, dlName, dlMime);
+                            }}
+                            sx={primaryBtnSx}
+                          >
+                            Download
+                          </Button>
+                        </Box>
+                      ) : null}
+                    </Box>
                   </Card>
                 </Grid>
               );

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Chip, CircularProgress, Grid, Typography } from "@mui/material";
+import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 
 import {
@@ -11,7 +11,6 @@ import {
   color_text_primary,
   color_text_secondary,
   color_white,
-  color_warning,
   color_success,
   color_primary,
 } from "../../constants/colors";
@@ -52,12 +51,12 @@ export function DocumentGrid({
   statusChipSx,
 
   primaryBtnSx,
+  showStatusChip = true,
 }: DocumentGridProps) {
   const labelOf = (st: "approved" | "rejected" | "pending") =>
     statusLabel ? statusLabel(st) : st.toUpperCase();
 
   const defaultDocStatusChipSx = (st: "approved" | "rejected" | "pending") => {
-    // screenshot: PENDING is orange-ish pill
     if (st === "approved") {
       return {
         height: 30,
@@ -121,7 +120,6 @@ export function DocumentGrid({
         {title}
       </Typography>
 
-      {/* container */}
       <Box
         sx={{
           backgroundColor: color_white,
@@ -134,12 +132,23 @@ export function DocumentGrid({
         {loading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <CircularProgress size={18} />
-            <Typography sx={{ fontWeight: 800, color: color_text_primary }}>Loading documents...</Typography>
+            <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+              Loading documents...
+            </Typography>
           </Box>
         ) : documents.length === 0 ? (
-          <Typography sx={{ color: color_text_secondary, fontWeight: 800 }}>{emptyText}</Typography>
+          <Typography sx={{ color: color_text_secondary, fontWeight: 800 }}>
+            {emptyText}
+          </Typography>
         ) : (
-          <Grid container spacing={1.75}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1.75,
+              alignItems: "stretch",
+            }}
+          >
             {documents.map((doc, idx) => {
               const st = normalizeStatus(doc.status);
 
@@ -149,45 +158,55 @@ export function DocumentGrid({
                 doc.file_name ||
                 `document_${doc.id}`;
 
-              const mime =
-                resolveMime?.(doc) ||
-                doc.mime_type ||
-                "";
+              const mime = resolveMime?.(doc) || doc.mime_type || "";
 
               return (
-                <Grid key={doc.id}>
+                <Box
+                  key={doc.id}
+                  sx={{
+                    flex: `1 1 ${cardWidth}px`,
+                    minWidth: 0,
+                    maxWidth: "100%",
+                  }}
+                >
                   <Box
                     data-testid={`doc-card-${doc.id}`}
                     onClick={() => onOpenViewer(idx)}
                     sx={{
-                      width: cardWidth,
-                      maxWidth: "85vw",
+                      width: "100%",
+                      minHeight: "100%",
                       borderRadius: 2,
                       p: 2,
                       backgroundColor: color_white,
-                      border: `1px solid ${cardBorderColor}`, // blue border
+                      border: `1px solid ${cardBorderColor}`,
                       boxShadow: "0 8px 18px rgba(2,6,23,0.06)",
                       cursor: "pointer",
+                      boxSizing: "border-box",
                       "&:hover": { boxShadow: "0 12px 26px rgba(2,6,23,0.10)" },
                       ...cardSx,
                     }}
                   >
-                    {/* Top chips */}
                     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
                       {showCategoryChip && (
-                        <Chip size="small" label={categoryLabel(doc.document_category)} sx={softChipSx} />
+                        <Chip
+                          size="small"
+                          label={categoryLabel(doc.document_category)}
+                          sx={softChipSx}
+                        />
                       )}
 
                       {showSizeChip && (
                         <Chip size="small" label={formatBytes(doc.size_bytes)} sx={softChipSx} />
                       )}
 
-                      <Chip
-                        size="small"
-                        label={labelOf(st)}
-                        data-testid={`doc-status-${doc.id}`}
-                        sx={chipSx(st)}
-                      />
+                      {showStatusChip && (
+                        <Chip
+                          size="small"
+                          label={labelOf(st)}
+                          data-testid={`doc-status-${doc.id}`}
+                          sx={chipSx(st)}
+                        />
+                      )}
                     </Box>
 
                     <Typography sx={{ mt: 1.2, fontWeight: 900, color: color_text_light }}>
@@ -267,10 +286,10 @@ export function DocumentGrid({
                       )}
                     </Box>
                   </Box>
-                </Grid>
+                </Box>
               );
             })}
-          </Grid>
+          </Box>
         )}
       </Box>
     </Box>
