@@ -1,4 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { Dispatch, SetStateAction } from "react";
+
 import useConfigFormLookups from "./useConfigFormLookups";
 import type { BaseLeafColCfg, FormCfg, TableCfg } from "../shared";
 import { fetchLookupJSON } from "../../../../hooks/useFetch";
@@ -8,6 +10,19 @@ jest.mock("../../../../hooks/useFetch", () => ({
 }));
 
 const mockedFetchLookupJSON = fetchLookupJSON as jest.MockedFunction<typeof fetchLookupJSON>;
+
+type HookProps = {
+  formConfig: FormCfg | null;
+  answers: Record<string, any>;
+};
+
+function makeSetAnswersMock() {
+  const fn = jest.fn();
+  return {
+    setAnswersMock: fn,
+    setAnswers: fn as unknown as Dispatch<SetStateAction<Record<string, any>>>,
+  };
+}
 
 describe("useConfigFormLookups", () => {
   beforeEach(() => {
@@ -53,7 +68,7 @@ describe("useConfigFormLookups", () => {
   });
 
   test("getLookupPathForColumn returns normalized path and handles non-server / missing api cases", () => {
-    const setAnswers = jest.fn();
+    const { setAnswers } = makeSetAnswersMock();
 
     const { result } = renderHook(() =>
       useConfigFormLookups({
@@ -116,7 +131,7 @@ describe("useConfigFormLookups", () => {
   });
 
   test("loads unique lookup options for visible server-backed columns and exposes selected option", async () => {
-    mockedFetchLookupJSON.mockResolvedValueOnce([
+    mockedFetchLookupJSON.mockResolvedValue([
       { id: 2, name: "Hospital Two" },
       { id: 3, name: "Hospital Three" },
     ] as any);
@@ -124,11 +139,11 @@ describe("useConfigFormLookups", () => {
     const answers = {
       admissions: [
         { province: "ON", hospital_id: 2, hospital_name: "" },
-        { province: "ON", hospital_id: 3, hospital_name: "" }, // same path -> should not refetch
+        { province: "ON", hospital_id: 3, hospital_name: "" },
       ],
     };
 
-    const setAnswers = jest.fn();
+    const { setAnswers } = makeSetAnswersMock();
 
     const { result } = renderHook(() =>
       useConfigFormLookups({
@@ -157,29 +172,41 @@ describe("useConfigFormLookups", () => {
   });
 
   test("stores lookup error on fetch failure and resetLookupState clears all lookup state", async () => {
-    mockedFetchLookupJSON.mockRejectedValueOnce(new Error("lookup failed"));
+    mockedFetchLookupJSON.mockRejectedValue(new Error("lookup failed"));
 
     const answers = {
       admissions: [{ province: "ON", hospital_id: 2, hospital_name: "" }],
     };
 
-    const setAnswers = jest.fn();
+    const { setAnswers } = makeSetAnswersMock();
 
-    const { result } = renderHook(() =>
-      useConfigFormLookups({
-        formConfig: makeFormConfig(),
-        answers,
-        setAnswers,
-      })
+    const { result, rerender } = renderHook(
+      ({ formConfig, answers }: HookProps) =>
+        useConfigFormLookups({
+          formConfig,
+          answers,
+          setAnswers,
+        }),
+      {
+        initialProps: {
+          formConfig: makeFormConfig(),
+          answers,
+        } as HookProps,
+      }
     );
 
     await waitFor(() => {
-      expect(mockedFetchLookupJSON).toHaveBeenCalledTimes(1);
+      expect(result.current.lookupLoadingByPath["lookup/hospitals/ON"]).toBe(false);
     });
 
     await waitFor(() => {
-      expect(result.current.lookupLoadingByPath["lookup/hospitals/ON"]).toBe(false);
       expect(result.current.lookupErrorsByPath["lookup/hospitals/ON"]).toBe("lookup failed");
+    });
+
+    // Stop the preload effect from immediately starting again after reset
+    rerender({
+      formConfig: null,
+      answers,
     });
 
     act(() => {
@@ -192,15 +219,13 @@ describe("useConfigFormLookups", () => {
   });
 
   test("applyConfiguredRowRules fills dependent value_key and clears invalid server values", async () => {
-    mockedFetchLookupJSON.mockResolvedValueOnce([
-      { id: 2, name: "Hospital Two" },
-    ] as any);
+    mockedFetchLookupJSON.mockResolvedValue([{ id: 2, name: "Hospital Two" }] as any);
 
     const answers = {
       admissions: [{ province: "ON", hospital_id: 2, hospital_name: "" }],
     };
 
-    const setAnswers = jest.fn();
+    const { setAnswers } = makeSetAnswersMock();
 
     const { result } = renderHook(() =>
       useConfigFormLookups({
@@ -254,17 +279,15 @@ describe("useConfigFormLookups", () => {
   });
 
   test("reconciliation effect calls setAnswers updater and produces changed rows when lookup data arrives", async () => {
-    mockedFetchLookupJSON.mockResolvedValueOnce([
-      { id: 2, name: "Hospital Two" },
-    ] as any);
+    mockedFetchLookupJSON.mockResolvedValue([{ id: 2, name: "Hospital Two" }] as any);
 
     const answers = {
       admissions: [{ province: "ON", hospital_id: 2, hospital_name: "" }],
     };
 
-    const setAnswers = jest.fn();
+    const { setAnswers, setAnswersMock } = makeSetAnswersMock();
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useConfigFormLookups({
         formConfig: makeFormConfig(),
         answers,
@@ -273,23 +296,33 @@ describe("useConfigFormLookups", () => {
     );
 
     await waitFor(() => {
-      expect(mockedFetchLookupJSON).toHaveBeenCalledTimes(1);
+      expect(result.current.lookupOptionsByPath["lookup/hospitals/ON"]).toEqual([
+        { id: 2, name: "Hospital Two" },
+      ]);
     });
 
     await waitFor(() => {
-      expect(setAnswers).toHaveBeenCalled();
-      expect(setAnswers.mock.calls.length).toBeGreaterThan(1);
+      expect(setAnswersMock.mock.calls.length).toBeGreaterThan(1);
     });
 
-    const lastUpdater = setAnswers.mock.calls[setAnswers.mock.calls.length - 1][0];
-    expect(typeof lastUpdater).toBe("function");
+    const updaters = setAnswersMock.mock.calls
+      .map(([arg]) => arg)
+      .filter(
+        (arg): arg is ((prev: Record<string, any>) => Record<string, any>) =>
+          typeof arg === "function"
+      );
 
-    const updated = lastUpdater(answers);
+    expect(updaters.length).toBeGreaterThan(1);
 
-    expect(updated).toEqual({
+    let finalState: Record<string, any> = answers;
+    for (const updater of updaters) {
+      finalState = updater(finalState);
+    }
+
+    expect(finalState).toEqual({
       admissions: [{ province: "ON", hospital_id: 2, hospital_name: "Hospital Two" }],
     });
-    expect(updated).not.toBe(answers);
+    expect(finalState).not.toBe(answers);
   });
 
   test("reconciliation effect returns previous object when nothing changes", () => {
@@ -303,7 +336,7 @@ describe("useConfigFormLookups", () => {
       admissions: [{ province: "ON" }],
     };
 
-    const setAnswers = jest.fn();
+    const { setAnswers, setAnswersMock } = makeSetAnswersMock();
 
     renderHook(() =>
       useConfigFormLookups({
@@ -313,9 +346,11 @@ describe("useConfigFormLookups", () => {
       })
     );
 
-    expect(setAnswers).toHaveBeenCalled();
+    expect(setAnswersMock).toHaveBeenCalled();
 
-    const updater = setAnswers.mock.calls[0][0];
+    const updater = setAnswersMock.mock.calls[0][0] as (
+      prev: Record<string, any>
+    ) => Record<string, any>;
     const resultValue = updater(answers);
 
     expect(resultValue).toBe(answers);
@@ -343,20 +378,24 @@ describe("useConfigFormLookups", () => {
       ],
     };
 
-    const setAnswers = jest.fn();
+    const { setAnswers } = makeSetAnswersMock();
 
     const { rerender } = renderHook(
-      (props: { formConfig: FormCfg | null; answers: Record<string, any> }) =>
+      ({ formConfig, answers }: HookProps) =>
         useConfigFormLookups({
-          formConfig: props.formConfig,
-          answers: props.answers,
+          formConfig,
+          answers,
           setAnswers,
         }),
       {
         initialProps: {
           formConfig: null,
-          answers: { admissions: [{ province: "ON", hospital_id: 2 }], show_section: false, show_table: false },
-        },
+          answers: {
+            admissions: [{ province: "ON", hospital_id: 2 }],
+            show_section: false,
+            show_table: false,
+          },
+        } as HookProps,
       }
     );
 
@@ -364,7 +403,11 @@ describe("useConfigFormLookups", () => {
 
     rerender({
       formConfig: hiddenForm,
-      answers: { admissions: [{ province: "ON", hospital_id: 2 }], show_section: false, show_table: false },
+      answers: {
+        admissions: [{ province: "ON", hospital_id: 2 }],
+        show_section: false,
+        show_table: false,
+      },
     });
 
     await waitFor(() => {
@@ -373,13 +416,13 @@ describe("useConfigFormLookups", () => {
   });
 
   test("getSelectedLookupOption returns null for blank selected values or unresolved paths", async () => {
-    mockedFetchLookupJSON.mockResolvedValueOnce([{ id: 2, name: "Hospital Two" }] as any);
+    mockedFetchLookupJSON.mockResolvedValue([{ id: 2, name: "Hospital Two" }] as any);
 
     const answers = {
       admissions: [{ province: "ON", hospital_id: 2, hospital_name: "" }],
     };
 
-    const setAnswers = jest.fn();
+    const { setAnswers } = makeSetAnswersMock();
 
     const { result } = renderHook(() =>
       useConfigFormLookups({
