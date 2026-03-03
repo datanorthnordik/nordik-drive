@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Box,
   Button,
@@ -9,12 +9,12 @@ import {
   InputLabel,
   MenuItem,
   Select,
+  TextField,
 } from "@mui/material";
 
 import {
   color_border,
   color_light_gray,
-  color_primary,
   color_secondary,
   color_secondary_dark,
   color_text_primary,
@@ -24,13 +24,26 @@ import {
 
 import {
   ACCEPT_DOCS,
-  DOCUMENT_CATEGORY_OPTIONS,
   MAX_ADDITIONAL_DOCS,
   MAX_ADDITIONAL_DOCS_TOTAL_MB,
   MAX_COMBINED_UPLOAD_MB,
 } from "./constants";
 
-import { AdditionalDocItem, DocumentCategory } from "./types";
+import { AdditionalDocItem } from "./types";
+
+type DocumentTypeOpt = { value: string; label: string };
+
+type Config = {
+  name?: string;
+  display_name?: string;
+  type?: "doc_upload";
+  description?: string;
+  consent?: string;
+  docs_count_enabled?: boolean;
+  total_upload_size?: boolean;
+  individual_upload_size?: boolean;
+  document_types?: DocumentTypeOpt[];
+};
 
 type Props = {
   additionalDocs: AdditionalDocItem[];
@@ -38,10 +51,11 @@ type Props = {
   totalCombinedMB: number;
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: (id: string) => void;
-  onUpdateCategory: (id: string, cat: DocumentCategory) => void;
+  onUpdateCategory: (id: string, cat: string) => void;
 
   archiveConsent: boolean;
   setArchiveConsent: (v: boolean) => void;
+  config?: Config;
 };
 
 export default function AdditionalDocsCard({
@@ -53,7 +67,27 @@ export default function AdditionalDocsCard({
   onUpdateCategory,
   archiveConsent,
   setArchiveConsent,
+  config,
 }: Props) {
+  const title = String(config?.display_name || config?.name || "Additional Documents");
+  const description = String(config?.description || "");
+  const consentText = String(config?.consent || "").trim();
+
+  const showDocsCount = config?.docs_count_enabled !== false;
+  const showTotalUpload = config?.total_upload_size !== false;
+
+  const documentTypes = useMemo<DocumentTypeOpt[]>(() => {
+    const raw = config?.document_types;
+
+    if (!Array.isArray(raw)) return [];
+
+    return raw.filter(
+      (x): x is DocumentTypeOpt => Boolean(x?.value && x?.label)
+    );
+  }, [config?.document_types]);
+
+  const hasPresetCategories = documentTypes.length > 0;
+
   return (
     <Box
       sx={{
@@ -64,16 +98,28 @@ export default function AdditionalDocsCard({
       }}
     >
       <Box sx={{ fontWeight: 900, fontSize: "1.1rem", color: color_text_primary, mb: 1 }}>
-        Additional Documents
+        {title}
       </Box>
 
       <Box sx={{ color: color_text_primary, opacity: 0.85, fontSize: "0.95rem", mb: 1.5 }}>
-        Upload Birth/Death certificates or other relevant files (PDF, DOC/DOCX, JPG/PNG/WEBP).
-        <br />
-        <b>Docs:</b> {additionalDocs.length}/{MAX_ADDITIONAL_DOCS} • {totalAdditionalDocsMB.toFixed(2)} MB /{" "}
-        {MAX_ADDITIONAL_DOCS_TOTAL_MB} MB
-        <br />
-        <b>Total upload (photos + docs):</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
+        {description}
+        {(showDocsCount || showTotalUpload) && (
+          <>
+            <br />
+            {showDocsCount && (
+              <>
+                <b>Docs:</b> {additionalDocs.length}/{MAX_ADDITIONAL_DOCS} • {totalAdditionalDocsMB.toFixed(2)} MB /{" "}
+                {MAX_ADDITIONAL_DOCS_TOTAL_MB} MB
+                <br />
+              </>
+            )}
+            {showTotalUpload && (
+              <>
+                <b>Total upload (photos + docs):</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
+              </>
+            )}
+          </>
+        )}
       </Box>
 
       <Button
@@ -120,21 +166,46 @@ export default function AdditionalDocsCard({
                 }}
               />
 
-              <FormControl size="small" sx={{ minWidth: 240, background: color_white_smoke, borderRadius: "10px" }}>
-                <InputLabel>Document Category</InputLabel>
-                <Select
-                  label="Document Category"
-                  value={d.document_category}
-                  onChange={(e) => onUpdateCategory(d.id, e.target.value as DocumentCategory)}
-                  sx={{ fontWeight: 900 }}
+              {hasPresetCategories ? (
+                <FormControl
+                  size="small"
+                  sx={{ minWidth: 240, background: color_white_smoke, borderRadius: "10px" }}
                 >
-                  {DOCUMENT_CATEGORY_OPTIONS.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  <InputLabel shrink>Document Category</InputLabel>
+                  <Select
+                    label="Document Category"
+                    value={d.document_category || ""}
+                    onChange={(e) => onUpdateCategory(d.id, String(e.target.value))}
+                    sx={{ fontWeight: 900 }}
+                  >
+                    {documentTypes.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : (
+                <TextField
+                  size="small"
+                  label="Document Category"
+                  value={d.document_category || ""}
+                  onChange={(e) => onUpdateCategory(d.id, e.target.value)}
+                  placeholder="Type document category"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    minWidth: 240,
+                    background: color_white,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "10px",
+                      fontWeight: 900,
+                    },
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: color_border,
+                    },
+                  }}
+                />
+              )}
 
               <Button
                 onClick={() => onRemove(d.id)}
@@ -144,7 +215,7 @@ export default function AdditionalDocsCard({
                   fontWeight: 900,
                   border: `1px solid ${color_secondary}`,
                   background: color_white,
-                  color: color_secondary
+                  color: color_secondary,
                 }}
               >
                 Remove
@@ -154,18 +225,19 @@ export default function AdditionalDocsCard({
         </Box>
       )}
 
-      {/* Archive consent */}
-      <Box sx={{ mt: 2, display: "flex", gap: 1.25, alignItems: "flex-start" }}>
-        <input
-          type="checkbox"
-          checked={archiveConsent}
-          onChange={(e) => setArchiveConsent(e.target.checked)}
-          style={{ transform: "scale(1.4)", marginTop: 4 }}
-        />
-        <Box sx={{ color: color_text_primary, fontSize: "0.98rem", fontWeight: 800 }}>
-          I consent to the <b>Shingwauk Residential Schools Centre</b> archiving the additional information and documents I submit.
+      {consentText ? (
+        <Box sx={{ mt: 2, display: "flex", gap: 1.25, alignItems: "flex-start" }}>
+          <input
+            type="checkbox"
+            checked={archiveConsent}
+            onChange={(e) => setArchiveConsent(e.target.checked)}
+            style={{ transform: "scale(1.4)", marginTop: 4 }}
+          />
+          <Box sx={{ color: color_text_primary, fontSize: "0.98rem", fontWeight: 800 }}>
+            {consentText}
+          </Box>
         </Box>
-      </Box>
+      ) : null}
     </Box>
   );
 }

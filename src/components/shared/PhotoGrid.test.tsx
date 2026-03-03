@@ -44,11 +44,10 @@ describe("PhotoGrid (100% coverage)", () => {
     expect(screen.getByText("Loading photos...")).toBeInTheDocument();
   });
 
-  test("renders cards, status label default branch, ID, image url, and comment block only when trimmed comment exists", () => {
+  test("renders cards, status label default branch, ID, image url, and fixed comment box with fallback text", () => {
     const photos = makePhotos();
     render(<PhotoGrid photos={photos} getPhotoUrl={getPhotoUrl} onOpenViewer={jest.fn()} />);
 
-    // Card exists
     const card11 = screen.getByTestId("photo-card-11");
     const card22 = screen.getByTestId("photo-card-22");
     const card33 = screen.getByTestId("photo-card-33");
@@ -57,13 +56,10 @@ describe("PhotoGrid (100% coverage)", () => {
     expect(card22).toBeInTheDocument();
     expect(card33).toBeInTheDocument();
 
-    // CardMedia renders <img ...> inside Card with src=image
-    // MUI CardMedia (component="img") becomes an <img> element with src.
     expect(within(card11).getByRole("img")).toHaveAttribute("src", getPhotoUrl(11));
     expect(within(card22).getByRole("img")).toHaveAttribute("src", getPhotoUrl(22));
     expect(within(card33).getByRole("img")).toHaveAttribute("src", getPhotoUrl(33));
 
-    // Status text (use normalizeStatus output to avoid assumptions)
     const st11 = normalizeStatus(photos[0].status) as "approved" | "rejected" | "pending";
     const st22 = normalizeStatus(photos[1].status) as "approved" | "rejected" | "pending";
     const st33 = normalizeStatus(photos[2].status) as "approved" | "rejected" | "pending";
@@ -72,18 +68,21 @@ describe("PhotoGrid (100% coverage)", () => {
     expect(screen.getByTestId("photo-status-22")).toHaveTextContent(defaultLabelFromStatus(st22));
     expect(screen.getByTestId("photo-status-33")).toHaveTextContent(defaultLabelFromStatus(st33));
 
-    // IDs shown
     expect(within(card11).getByText("ID: 11")).toBeInTheDocument();
     expect(within(card22).getByText("ID: 22")).toBeInTheDocument();
     expect(within(card33).getByText("ID: 33")).toBeInTheDocument();
 
-    // Comment block appears only for photo 11 (trimmed non-empty)
+    // Comment box now renders for all cards to keep equal height
     expect(within(card11).getByText("Comment")).toBeInTheDocument();
+    expect(within(card22).getByText("Comment")).toBeInTheDocument();
+    expect(within(card33).getByText("Comment")).toBeInTheDocument();
+
+    // Trimmed real comment shown
     expect(within(card11).getByText("Nice photo")).toBeInTheDocument();
 
-    // For others: no "Comment" heading inside their cards
-    expect(within(card22).queryByText("Comment")).not.toBeInTheDocument();
-    expect(within(card33).queryByText("Comment")).not.toBeInTheDocument();
+    // Empty / missing comments use fallback text
+    expect(within(card22).getByText("No comment")).toBeInTheDocument();
+    expect(within(card33).getByText("No comment")).toBeInTheDocument();
 
     // Download button should not be present by default
     expect(within(card11).queryByRole("button", { name: /^download$/i })).not.toBeInTheDocument();
@@ -194,7 +193,7 @@ describe("PhotoGrid (100% coverage)", () => {
         getPhotoUrl={getPhotoUrl}
         onOpenViewer={jest.fn()}
         onDownloadSingle={onDownloadSingle}
-        // no downloadFilename, no downloadMime => defaults
+      // no downloadFilename, no downloadMime => defaults
       />
     );
 

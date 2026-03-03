@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box, Button, TextField } from "@mui/material";
 import {
   color_border,
@@ -12,6 +12,7 @@ import {
   color_white,
   color_white_smoke,
   dark_grey,
+  color_focus_ring,
 } from "../../../constants/colors";
 import { MAX_COMBINED_UPLOAD_MB, MAX_PHOTOS, MAX_PHOTO_MB } from "./constants";
 import { bytesToMB, clamp, getTotalBytes } from "./utils";
@@ -19,7 +20,17 @@ import { bytesToMB, clamp, getTotalBytes } from "./utils";
 export type PhotoItem = {
   id: string;
   file: File;
-  comment: string; // max 100 chars (UI enforced)
+  comment: string;
+};
+
+type UploadConfig = {
+  name?: string;
+  display_name?: string;
+  description?: string;
+  consent?: string;
+  docs_count_enabled?: boolean;
+  total_upload_size?: boolean;
+  individual_upload_size?: boolean;
 };
 
 type Props = {
@@ -30,7 +41,46 @@ type Props = {
   onRemove: (idx: number) => void;
   consent: boolean;
   setConsent: (v: boolean) => void;
+  disabled?: boolean;
+  config?: UploadConfig;
 };
+
+function PhotoPreview({
+  file,
+  alt,
+}: {
+  file: File;
+  alt: string;
+}) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setSrc(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
+
+  if (!src) return null;
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      width={140}
+      height={110}
+      style={{
+        borderRadius: 10,
+        border: `1px solid ${color_border}`,
+        objectFit: "cover",
+        background: color_white_smoke,
+        display: "block",
+      }}
+    />
+  );
+}
 
 export default function PhotoUploadCard({
   photos,
@@ -40,17 +90,33 @@ export default function PhotoUploadCard({
   onRemove,
   consent,
   setConsent,
+  disabled = false,
+  config,
 }: Props) {
   const totalPhotoMB = bytesToMB(getTotalBytes(photos.map((p) => p.file)));
 
+  const title = String(config?.display_name || config?.name || "Photos");
+  const description = String(
+    config?.description || `Upload up to ${MAX_PHOTOS} images or ${MAX_PHOTO_MB} MB total.`
+  );
+  const consentText = String(config?.consent || "").trim();
+
+  const showCount = config?.docs_count_enabled !== false;
+  const showTotal = config?.total_upload_size !== false;
+
   const warning = useMemo(() => {
     const percentUsed = (photos.length / MAX_PHOTOS) * 100;
-    if (percentUsed >= 100) return { bg: color_warning_light, text: "You have reached the upload limit." };
-    if (percentUsed >= 80) return { bg: color_warning_light, text: "You are close to the upload limit." };
+    if (percentUsed >= 100) {
+      return { bg: color_warning_light, text: "You have reached the upload limit." };
+    }
+    if (percentUsed >= 80) {
+      return { bg: color_warning_light, text: "You are close to the upload limit." };
+    }
     return null;
   }, [photos.length]);
 
   const onChangeComment = (idx: number, value: string) => {
+    if (disabled) return;
     setPhotos(photos.map((p, i) => (i === idx ? { ...p, comment: value } : p)));
   };
 
@@ -61,19 +127,29 @@ export default function PhotoUploadCard({
         background: color_white,
         borderRadius: "12px",
         p: 2,
+        opacity: disabled ? 0.9 : 1,
       }}
     >
       <Box sx={{ fontWeight: 900, fontSize: "1.1rem", color: color_text_primary, mb: 1 }}>
-        Photos
+        {title}
       </Box>
 
       <Box sx={{ color: color_text_primary, opacity: 0.85, fontSize: "0.95rem", mb: 1.5 }}>
-        Upload up to <b>{MAX_PHOTOS}</b> images or <b>{MAX_PHOTO_MB} MB</b> total.
-        <br />
-        <b>Total upload (photos + docs):</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
+        {description}
+        {(showCount || showTotal) && (
+          <>
+            <br />
+            {showTotal ? (
+              <>
+                <b>Total upload (photos + docs):</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
+              </>
+            ) : null}
+          </>
+        )}
       </Box>
 
       <Button
+        disabled={disabled}
         variant="contained"
         component="label"
         sx={{
@@ -84,6 +160,7 @@ export default function PhotoUploadCard({
           px: 2,
           py: 1.1,
           "&:hover": { background: color_secondary_dark },
+          "&:focus-visible": { outline: `3px solid ${color_focus_ring}`, outlineOffset: "2px" },
         }}
       >
         Select Photos
@@ -94,21 +171,14 @@ export default function PhotoUploadCard({
         <Box sx={{ mt: 2, display: "flex", gap: 2, flexWrap: "wrap" }}>
           {photos.map((p, idx) => (
             <Box key={p.id} sx={{ position: "relative", width: 140 }}>
-              <img
-                src={URL.createObjectURL(p.file)}
-                width={140}
-                height={110}
-                style={{
-                  borderRadius: 10,
-                  border: `1px solid ${color_border}`,
-                  objectFit: "cover",
-                  background: color_white_smoke,
-                  display: "block",
-                }}
+              <PhotoPreview
+                file={p.file}
+                alt={p.file?.name || `Photo ${idx + 1}`}
               />
 
               <Button
-                onClick={() => onRemove(idx)}
+                disabled={disabled}
+                onClick={() => !disabled && onRemove(idx)}
                 sx={{
                   position: "absolute",
                   top: -10,
@@ -122,17 +192,20 @@ export default function PhotoUploadCard({
                   color: color_white,
                   border: `1px solid ${color_secondary_dark}`,
                   "&:hover": { background: color_secondary_dark },
+                  "&:focus-visible": { outline: `3px solid ${color_focus_ring}`, outlineOffset: "2px" },
                 }}
               >
                 ✕
               </Button>
 
-              {/* Comment (max 100 chars) */}
               <Box sx={{ mt: 1 }}>
                 <TextField
+                  disabled={disabled}
+                  label="Comment"
                   value={p.comment || ""}
                   onChange={(e) => onChangeComment(idx, e.target.value)}
                   placeholder="Add a comment…"
+                  InputLabelProps={{ shrink: true }}
                   size="small"
                   fullWidth
                   multiline
@@ -148,6 +221,10 @@ export default function PhotoUploadCard({
                     "& .MuiOutlinedInput-notchedOutline": {
                       borderColor: color_border,
                     },
+                    "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                      borderColor: color_focus_ring,
+                      borderWidth: "2px",
+                    },
                     "& .MuiFormHelperText-root": {
                       marginLeft: 0,
                       color: color_light_gray,
@@ -162,28 +239,30 @@ export default function PhotoUploadCard({
         </Box>
       )}
 
-      <Box sx={{ mt: 2, color: color_text_primary, fontWeight: 900 }}>
-        Upload Limit: {photos.length}/{MAX_PHOTOS} photos ({totalPhotoMB.toFixed(2)} MB of {MAX_PHOTO_MB} MB)
-        <Box
-          sx={{
-            mt: 1,
-            height: 10,
-            width: "100%",
-            background: color_white_smoke,
-            borderRadius: 8,
-            overflow: "hidden",
-            border: `1px solid ${color_border}`,
-          }}
-        >
+      {showCount && (
+        <Box sx={{ mt: 2, color: color_text_primary, fontWeight: 900 }}>
+          Upload Limit: {photos.length}/{MAX_PHOTOS} photos ({totalPhotoMB.toFixed(2)} MB of {MAX_PHOTO_MB} MB)
           <Box
             sx={{
-              height: "100%",
-              width: `${clamp((photos.length / MAX_PHOTOS) * 100, 0, 100)}%`,
-              background: color_secondary,
+              mt: 1,
+              height: 10,
+              width: "100%",
+              background: color_white_smoke,
+              borderRadius: 8,
+              overflow: "hidden",
+              border: `1px solid ${color_border}`,
             }}
-          />
+          >
+            <Box
+              sx={{
+                height: "100%",
+                width: `${clamp((photos.length / MAX_PHOTOS) * 100, 0, 100)}%`,
+                background: color_secondary,
+              }}
+            />
+          </Box>
         </Box>
-      </Box>
+      )}
 
       {warning ? (
         <Box
@@ -201,19 +280,20 @@ export default function PhotoUploadCard({
         </Box>
       ) : null}
 
-      {/* Photo consent */}
-      <Box sx={{ mt: 2, display: "flex", gap: 1.25, alignItems: "flex-start" }}>
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(e) => setConsent(e.target.checked)}
-          style={{ transform: "scale(1.4)", marginTop: 4 }}
-        />
-        <Box sx={{ color: color_text_primary, fontSize: "0.98rem", fontWeight: 800 }}>
-          I consent to have the pictures I upload shared and/or used for CSAA publications (newsletters, photo gallery,
-          social media).
+      {consentText ? (
+        <Box sx={{ mt: 2, display: "flex", gap: 1.25, alignItems: "flex-start" }}>
+          <input
+            type="checkbox"
+            disabled={disabled}
+            checked={consent}
+            onChange={(e) => !disabled && setConsent(e.target.checked)}
+            style={{ transform: "scale(1.4)", marginTop: 4 }}
+          />
+          <Box sx={{ color: color_text_primary, fontSize: "0.98rem", fontWeight: 800 }}>
+            {consentText}
+          </Box>
         </Box>
-      </Box>
+      ) : null}
     </Box>
   );
 }
