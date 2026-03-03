@@ -37,8 +37,7 @@ import {
   RequestPhoto,
   SelectOption,
   UsersResp,
-  deriveSelectedFileId,
-  guessMimeFromFilename,
+  deriveSelectedFileId
 } from "./FileActivitiesShared";
 
 import {
@@ -50,6 +49,7 @@ import {
   color_white,
   color_white_smoke,
 } from "../../constants/colors";
+import { guessMimeFromFilename } from "../../lib/fileUtil";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 const themeLightWarm = themeQuartz.withPart(colorSchemeLightWarm);

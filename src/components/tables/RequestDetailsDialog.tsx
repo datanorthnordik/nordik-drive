@@ -21,8 +21,7 @@ import dayjs from "dayjs";
 
 import {
   RequestDocument,
-  RequestPhoto, 
-  guessMimeFromFilename,
+  RequestPhoto,
 } from "./FileActivitiesShared";
 
 import {
@@ -35,6 +34,7 @@ import {
 } from "../../constants/colors";
 import { PhotoGrid } from "../shared/PhotoGrids";
 import { DocumentGrid } from "../shared/DocumentGrids";
+import { guessMimeFromFilename } from "../../lib/fileUtil";
 
 type Props = {
   open: boolean;

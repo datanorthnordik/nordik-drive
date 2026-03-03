@@ -3,25 +3,50 @@
 import React from "react";
 import { Box, Button, TextField } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
-import { color_border, color_secondary, color_text_primary, color_white } from "../../../constants/colors";
+import {
+  color_border,
+  color_secondary,
+  color_text_primary,
+  color_white,
+  color_focus_ring,
+} from "../../../constants/colors";
+
+type CommunityMultiConfig = {
+  placeholder?: string;
+  no_options_text?: string;
+  add_label?: string;
+};
 
 type Props = {
   values: string[];
   options: string[];
   onChange: (next: string[]) => void;
-
-  // called when user types a brand-new community and confirms it
   onAddNewCommunity: (name: string) => Promise<void>;
+
+  disabled?: boolean;
+
+  config?: CommunityMultiConfig;
 };
 
-export default function CommunityMultiRow({ values, options, onChange, onAddNewCommunity }: Props) {
+export default function CommunityMultiRow({
+  values,
+  options,
+  onChange,
+  onAddNewCommunity,
+  disabled = false,
+  config,
+}: Props) {
   const safe = values?.length ? values : [""];
 
   const norm = (v: any) => (typeof v === "string" ? v.trim() : "");
+
+  const safeOptions = Array.isArray(options) ? options : [];
   const exists = (name: string) =>
-    options.some((o) => o.trim().toLowerCase() === name.trim().toLowerCase());
+    safeOptions.some((o) => o.trim().toLowerCase() === name.trim().toLowerCase());
 
   const commit = async (idx: number, raw: any) => {
+    if (disabled) return;
+
     const cleaned = norm(raw);
     const next = [...safe];
     next[idx] = cleaned;
@@ -32,6 +57,12 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
     }
   };
 
+  const placeholder =
+    config?.placeholder || "Search or type a community (press Enter to add)";
+  const noOptionsText =
+    config?.no_options_text || "No match — type the name and press Enter to add it";
+  const addLabel = config?.add_label || "+ Add Community";
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
       {safe.map((val, idx) => (
@@ -39,10 +70,12 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
           <Autocomplete
             freeSolo
             fullWidth
-            options={options}
+            options={safeOptions}
             value={val || ""}
             inputValue={val || ""}
+            disabled={disabled}
             onInputChange={(_, newInputValue) => {
+              if (disabled) return;
               const next = [...safe];
               next[idx] = newInputValue;
               onChange(next);
@@ -50,12 +83,14 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
             onChange={(_, newValue) => {
               void commit(idx, newValue);
             }}
-            noOptionsText="No match — type the name and press Enter to add it"
+            noOptionsText={noOptionsText}
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Search or type a community (press Enter to add)"
+                disabled={disabled}
+                placeholder={placeholder}
                 onKeyDown={(e) => {
+                  if (disabled) return;
                   if (e.key === "Enter") {
                     e.preventDefault();
                     const v = (e.target as HTMLInputElement).value;
@@ -66,6 +101,10 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
                   background: color_white,
                   borderRadius: "10px",
                   "& .MuiOutlinedInput-notchedOutline": { borderColor: color_border },
+                  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: color_focus_ring,
+                    borderWidth: "2px",
+                  },
                   "& .MuiInputBase-input": {
                     fontSize: "1.05rem",
                     fontWeight: 800,
@@ -78,7 +117,9 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
           />
 
           <Button
+            disabled={disabled}
             onClick={() => {
+              if (disabled) return;
               const next = safe.filter((_, i) => i !== idx);
               onChange(next.length ? next : [""]);
             }}
@@ -90,6 +131,10 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
               border: `1px solid ${color_border}`,
               color: color_text_primary,
               background: color_white,
+              "&:focus-visible": {
+                outline: `3px solid ${color_focus_ring}`,
+                outlineOffset: "2px",
+              },
             }}
           >
             ✕
@@ -99,7 +144,11 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
 
       <Box>
         <Button
-          onClick={() => onChange([...safe, ""])}
+          disabled={disabled}
+          onClick={() => {
+            if (disabled) return;
+            onChange([...safe, ""]);
+          }}
           sx={{
             textTransform: "none",
             fontWeight: 900,
@@ -107,9 +156,13 @@ export default function CommunityMultiRow({ values, options, onChange, onAddNewC
             border: `1px dashed ${color_secondary}`,
             color: color_secondary,
             background: color_white,
+            "&:focus-visible": {
+              outline: `3px solid ${color_focus_ring}`,
+              outlineOffset: "2px",
+            },
           }}
         >
-          + Add Community
+          {addLabel}
         </Button>
       </Box>
     </Box>

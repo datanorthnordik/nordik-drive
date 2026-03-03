@@ -1,4 +1,4 @@
-export const EXCLUDED_FIELDS = ["Lat", "Lng", "id", "Mapping Location", "Photos"] as const;
+export const EXCLUDED_FIELDS = ["Lat", "Lng", "id", "Mapping Location", "Photos", "Documents"] as const;
 
 export type FieldType = "text" | "textarea" | "date" | "multi" | "community_multi";
 

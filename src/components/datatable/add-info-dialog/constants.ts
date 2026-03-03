@@ -1,18 +1,6 @@
 import { DocumentCategory, FieldType } from "./types";
 
-export const fieldTypeMap: Record<string, FieldType> = {
-  Notes: "textarea",
-  "Additional Information": "textarea",
-  Admitted: "date",
-  Discharged: "date",
-  "Date of Birth": "date",
-  Siblings: "multi",
-  "Parents Names": "multi",
-
-  // Community variants
-  "First Nation/Community": "community_multi",
-  "First Nation / Community": "community_multi",
-};
+export const baseFields = ["input", "textarea", "date", "multi", "community_multi"]
 
 export const MAX_PHOTOS = 5;
 export const MAX_PHOTO_MB = 5;

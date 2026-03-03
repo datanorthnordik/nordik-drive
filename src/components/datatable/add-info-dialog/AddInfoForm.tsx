@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, Dialog, DialogActions, DialogContent, Typography, useMediaQuery } from "@mui/material";
 import toast from "react-hot-toast";
 import { RestartAlt } from "@mui/icons-material";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import useFetch from "../../../hooks/useFetch";
 import Loader from "../../Loader";
@@ -17,6 +17,7 @@ import {
   color_text_primary,
   color_white,
   color_white_smoke,
+  color_focus_ring,
 } from "../../../constants/colors";
 
 import FieldRow from "./FieldRow";
@@ -29,15 +30,15 @@ import AdditionalDocsCard from "./AdditionalDocsCard";
 import ResetAllDialog from "./ResetAllDialog";
 import ReviewDialog from "./ReviewDialog";
 
-import { EXCLUDED_FIELDS, AdditionalDocItem, ReviewItem, DocumentCategory, PhotoItem } from "./types";
+import { AdditionalDocItem, ReviewItem, DocumentCategory, PhotoItem } from "./types";
 import {
-  fieldTypeMap,
   MAX_ADDITIONAL_DOCS,
   MAX_ADDITIONAL_DOCS_TOTAL_MB,
   MAX_COMBINED_UPLOAD_MB,
   MAX_PHOTO_MB,
   MAX_PHOTOS,
   ALLOWED_DOC_MIME,
+  baseFields,
 } from "./constants";
 
 import {
@@ -52,45 +53,137 @@ import {
   uid,
 } from "./utils";
 
+import { AppDispatch, RootState } from "../../../store/store";
+import { apiEnsure } from "../../../store/api/apiSlice";
+import { API_BASE } from "../../../constants/constants";
+
 interface AddInfoFormProps {
   row: Record<string, any>;
   file: Record<string, any>;
   onClose: () => void;
 }
 
+const isBaseFieldType = (t: string) => baseFields.includes(t);
+
 export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { user } = useSelector((state: any) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
 
+  const fileName = useMemo(() => String(file?.filename).trim(), [file?.filename]);
+  const fileId = useMemo(() => file?.id ?? file?.file_id ?? null, [file?.id, file?.file_id]);
+
+  // ---------- CONFIG (fetch here via Redux) ----------
+  const configKey = useMemo(() => (fileName ? `config_${fileName}` : ""), [fileName]);
+
+  const configEntry = useSelector((state: RootState) =>
+    configKey ? (state as any)?.api?.entries?.[configKey] : null
+  );
+
+  const [localConfig, setLocalConfig] = useState<any>(null);
+  const forcedFetchRef = useRef(false);
+
+  const baseConfigUrl = useMemo(() => {
+    if (!fileName) return "";
+    return `${API_BASE}/config?file_name=${encodeURIComponent(fileName)}`;
+  }, [fileName]);
+
+  // fire ensure (deduped by middleware)
+  useEffect(() => {
+    if (!configKey || !baseConfigUrl) return;
+
+    const last = (configEntry?.data as any)?.updated_at || (localConfig as any)?.updated_at || "";
+    const url = last ? `${baseConfigUrl}&last_modified=${encodeURIComponent(String(last))}` : baseConfigUrl;
+
+    dispatch(
+      apiEnsure({
+        key: configKey,
+        url,
+        method: "GET",
+      })
+    );
+  }, [dispatch, configKey, baseConfigUrl, configEntry?.data, localConfig]);
+
+  // keep last known good config locally (prevents not_modified overwriting config)
+  useEffect(() => {
+    const data = configEntry?.data as any;
+    if (data?.config) {
+      setLocalConfig(data.config);
+      forcedFetchRef.current = false;
+      return;
+    }
+
+    if (data?.not_modified === true && !data?.config && !localConfig && !forcedFetchRef.current && baseConfigUrl) {
+      forcedFetchRef.current = true;
+      dispatch(
+        apiEnsure({
+          key: configKey,
+          url: baseConfigUrl,
+          method: "GET",
+          force: true,
+        })
+      );
+    }
+  }, [configEntry?.data, localConfig, dispatch, configKey, baseConfigUrl]);
+
+  const config = (configEntry?.data as any)?.config || localConfig;
+
+  const columns: any[] = Array.isArray(config?.columns) ? config.columns : [];
+  const addInfoEnabled = !!config?.addInfo?.enabled;
+
+  const requiredFields: string[] = Array.isArray(config?.addInfo?.required_fields) ? config.addInfo.required_fields : [];
+  const requiredSet = useMemo(() => new Set(requiredFields), [requiredFields]);
+
+  // ✅ ONLY editable items, and ✅ keep order exactly as config.columns
+  const editableColumnsOrdered = useMemo(() => {
+    return columns.filter((c: any) => c && c.editable === true);
+  }, [columns]);
+
+  // base fields rendered as rows (editable only)
+  const fieldColumns = useMemo(() => {
+    return editableColumnsOrdered.filter((c: any) => c && isBaseFieldType(String(c.type || "")) && c.name);
+  }, [editableColumnsOrdered]);
+
+  // meta lookup by field name
+  const colMetaByName = useMemo(() => {
+    const m = new Map<string, any>();
+    fieldColumns.forEach((c: any) => {
+      const name = String(c?.name || "");
+      if (name && !m.has(name)) m.set(name, c);
+    });
+    return m;
+  }, [fieldColumns]);
+
+  const typeOf = (label: string): string => String(colMetaByName.get(label)?.type || "input");
+  const editableOf = (label: string): boolean => {
+    const c = colMetaByName.get(label);
+    if (!c) return true;
+    return c.editable;
+  };
+
+  useEffect(() => {
+    dispatch(
+      apiEnsure({
+        key: "communities",
+        url: `${API_BASE}/communities`,
+        method: "GET",
+      })
+    );
+  }, [dispatch]);
+
+  const communityOptions = useSelector((state: RootState) =>
+    ((state as any)?.api?.entries["communities"]?.data?.communities || []).map((c: any) => c.name)
+  );
 
   const isNewEntry = !row || row.id === undefined || row.id === null || row.id === "";
 
   const { fetchData: submitEditRequest, data: editData, error: editError, loading: editLoading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/edit/request",
+    `${API_BASE}/file/edit/request`,
     "POST",
     false
   );
 
-  const { data: communitiesData, fetchData: fetchCommunities } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
-    "GET",
-    false
-  );
-
-  const { fetchData: addCommunity } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
-    "POST",
-    false
-  );
-
-  useEffect(() => {
-    fetchCommunities();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const communityOptions = useMemo(() => {
-    return (communitiesData as any)?.communities?.map((c: any) => c.name) || [];
-  }, [communitiesData]);
+  const { fetchData: addCommunity } = useFetch(`${API_BASE}/communities`, "POST", false);
 
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [changedFields, setChangedFields] = useState<Record<string, any>>({});
@@ -105,59 +198,65 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const [confirmResetAll, setConfirmResetAll] = useState(false);
 
   const totalPhotoMB = bytesToMB(getTotalBytes(photos.map((p) => p.file)));
-
   const totalAdditionalDocsMB = bytesToMB(getTotalBytes(additionalDocs.map((d) => d.file)));
   const totalCombinedMB = totalPhotoMB + totalAdditionalDocsMB;
 
-  // init form values
+  // init form values strictly from editable base fields
   useEffect(() => {
     const initial: Record<string, any> = {};
 
-    const keys = Object.keys(row || {}).filter((key: any) => !EXCLUDED_FIELDS.includes(key));
-    keys.forEach((key) => {
-      const type = fieldTypeMap[key] || "text";
-      if (type === "multi" || type === "community_multi") {
-        initial[key] = isNewEntry
-          ? []
-          : (row[key] || "")
+    fieldColumns.forEach((c: any) => {
+      const label = String(c?.name || "");
+      if (!label) return;
+
+      const t = String(c?.type || "input");
+      const raw = (row as any)?.[label];
+
+      if (isNewEntry) {
+        initial[label] = t === "multi" || t === "community_multi" ? [] : "";
+        return;
+      }
+
+      if (t === "multi" || t === "community_multi") {
+        if (Array.isArray(raw)) initial[label] = raw;
+        else {
+          initial[label] = (raw || "")
+            .toString()
             .split(",")
             .map((x: string) => x.trim())
             .filter((x: string) => x.length > 0);
-      } else if (type === "date") {
-        initial[key] = isNewEntry ? "" : normalizeIncomingDateToDdMmYyyy(row[key] || "");
+        }
+      } else if (t === "date") {
+        initial[label] = normalizeIncomingDateToDdMmYyyy(raw || "");
       } else {
-        initial[key] = isNewEntry ? "" : row[key] || "";
+        initial[label] = raw ?? "";
       }
     });
 
-    // Ensure required fields exist in add mode
-    if (!("First Names" in initial)) initial["First Names"] = "";
-    if (!("Last Names" in initial)) initial["Last Names"] = "";
-
-    // Ensure community exists even if column missing
-    if (!("First Nation/Community" in initial) && !("First Nation / Community" in initial)) {
-      initial["First Nation/Community"] = [];
-    }
+    requiredFields.forEach((rf) => {
+      if (!(rf in initial)) initial[rf] = "";
+    });
 
     setFormValues(initial);
     setChangedFields({});
-  }, [row, isNewEntry]);
+  }, [fieldColumns, isNewEntry, row, requiredFields]);
 
-  const formFirstName = (formValues["First Names"] || "").toString();
-  const formLastName = (formValues["Last Names"] || "").toString();
-  const fullName = `${formFirstName} ${formLastName}`.trim();
+  const headers: string[] = config.addInfo.headers;
 
-  const dialogTitle = isNewEntry
-    ? "Add New Student"
-    : `Add Information – ${fullName || `${row["First Names"] || ""} ${row["Last Names"] || ""}`.trim()}`;
+  const concatFrom = (src: Record<string, any>) =>
+    headers
+      .map((k) => (src?.[k] ?? "").toString().trim())
+      .filter(Boolean)
+      .join(" ");
 
-  // success/error handling
+  const headerText = isNewEntry ? concatFrom(formValues) : concatFrom(formValues) || concatFrom(row);
+
+  const dialogTitle = isNewEntry ? "Add New Student" : `Add Information – ${headerText}`;
+
   useEffect(() => {
     if (editData && !editError) {
       toast.success(
-        isNewEntry
-          ? "Student added successfully and sent for review."
-          : "Changes submitted successfully and sent for review."
+        isNewEntry ? "Student added successfully and sent for review." : "Changes submitted successfully and sent for review."
       );
       onClose();
     }
@@ -170,10 +269,10 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     if (isNewEntry) return;
 
     let normalized: any = value;
-    const type = fieldTypeMap[field] || "text";
+    const t = typeOf(field);
 
     if (Array.isArray(value)) normalized = value.join(", ");
-    else if (type === "date") normalized = isDdMmYyyy(value) ? value : "";
+    else if (t === "date") normalized = isDdMmYyyy(value) ? value : "";
 
     if ((row as any)[field] !== normalized) {
       setChangedFields((prev) => ({
@@ -190,23 +289,26 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   };
 
   const resetField = (label: string) => {
-    const type = fieldTypeMap[label] || "text";
+    const t = typeOf(label);
 
     if (isNewEntry) {
-      const cleared = type === "date" ? "" : type === "multi" || type === "community_multi" ? [] : "";
+      const cleared = t === "date" ? "" : t === "multi" || t === "community_multi" ? [] : "";
       setFormValues((prev) => ({ ...prev, [label]: cleared }));
       return;
     }
 
+    const raw = (row as any)?.[label];
+
     const original =
-      type === "date"
-        ? normalizeIncomingDateToDdMmYyyy(row[label] || "")
-        : type === "multi" || type === "community_multi"
-          ? (row[label] || "")
+      t === "date"
+        ? normalizeIncomingDateToDdMmYyyy(raw || "")
+        : t === "multi" || t === "community_multi"
+        ? (raw || "")
+            .toString()
             .split(",")
             .map((x: string) => x.trim())
             .filter((x: string) => x.length > 0)
-          : row[label] || "";
+        : raw ?? "";
 
     setFormValues((prev) => ({ ...prev, [label]: original }));
     setChangedFields((prev) => {
@@ -219,29 +321,42 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const resetAll = () => {
     if (isNewEntry) {
       const cleared: Record<string, any> = {};
-      Object.keys(formValues).forEach((key: any) => {
-        if (EXCLUDED_FIELDS.includes(key)) return;
-        const type = fieldTypeMap[key] || "text";
-        cleared[key] = type === "date" ? "" : type === "multi" || type === "community_multi" ? [] : "";
+      fieldColumns.forEach((c: any) => {
+        const label = String(c?.name || "");
+        if (!label) return;
+        const t = String(c?.type || "input");
+        cleared[label] = t === "date" ? "" : t === "multi" || t === "community_multi" ? [] : "";
       });
-      cleared["First Names"] = "";
-      cleared["Last Names"] = "";
+
+      requiredFields.forEach((rf) => {
+        if (!(rf in cleared)) cleared[rf] = "";
+      });
+
       setFormValues(cleared);
     } else {
       const restored: Record<string, any> = {};
-      Object.keys(row || {}).forEach((key: any) => {
-        if (EXCLUDED_FIELDS.includes(key)) return;
-        const type = fieldTypeMap[key] || "text";
-        restored[key] =
-          type === "date"
-            ? normalizeIncomingDateToDdMmYyyy(row[key] || "")
-            : type === "multi" || type === "community_multi"
-              ? (row[key] || "")
+      fieldColumns.forEach((c: any) => {
+        const label = String(c?.name || "");
+        if (!label) return;
+        const t = String(c?.type || "input");
+        const raw = (row as any)?.[label];
+
+        restored[label] =
+          t === "date"
+            ? normalizeIncomingDateToDdMmYyyy(raw || "")
+            : t === "multi" || t === "community_multi"
+            ? (raw || "")
+                .toString()
                 .split(",")
                 .map((x: string) => x.trim())
                 .filter((x: string) => x.length > 0)
-              : row[key] || "";
+            : raw ?? "";
       });
+
+      requiredFields.forEach((rf) => {
+        if (!(rf in restored)) restored[rf] = "";
+      });
+
       setFormValues(restored);
       setChangedFields({});
     }
@@ -253,7 +368,6 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     setConfirmResetAll(false);
   };
 
-  // uploads
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const onlyImages = files.filter((f) => f.type.startsWith("image/"));
@@ -355,8 +469,9 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
   const reviewItems: ReviewItem[] = useMemo(() => {
     if (isNewEntry) {
-      return Object.keys(formValues)
-        .filter((label: any) => !EXCLUDED_FIELDS.includes(label))
+      return fieldColumns
+        .map((c: any) => String(c?.name || ""))
+        .filter(Boolean)
         .map((field) => {
           let val = formValues[field];
           if (Array.isArray(val)) val = val.join(", ");
@@ -368,16 +483,31 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
       oldValue: it.oldValue ?? "",
       newValue: it.newValue ?? "",
     }));
-  }, [isNewEntry, formValues, changedFields]);
+  }, [isNewEntry, formValues, changedFields, fieldColumns]);
+
+  const validateRequired = () => {
+    for (const rf of requiredFields) {
+      const t = typeOf(rf);
+      const v = formValues[rf];
+
+      if (t === "multi" || t === "community_multi") {
+        if (!Array.isArray(v) || v.length === 0) {
+          toast.error(`${rf} is required.`);
+          return false;
+        }
+      } else {
+        if ((v || "").toString().trim() === "") {
+          toast.error(`${rf} is required.`);
+          return false;
+        }
+      }
+    }
+    return true;
+  };
 
   const handleSaveClick = () => {
     if (isNewEntry) {
-      const first = (formValues["First Names"] || "").toString().trim();
-      const last = (formValues["Last Names"] || "").toString().trim();
-      if (!first || !last) {
-        toast.error("First Names and Last Names are required.");
-        return;
-      }
+      if (!validateRequired()) return;
       setReviewOpen(true);
       return;
     }
@@ -407,14 +537,12 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           mime_type: p.file.type || "application/octet-stream",
           size: p.file.size,
           data_base64: await convertToBase64(p.file),
-          comment: (p.comment || "").slice(0, 100), // enforce 100 chars
+          comment: (p.comment || "").slice(0, 100),
         }))
       );
 
       const photosInApp = photoPayload.slice(0, MAX_PHOTOS);
       const photosGallery = photoPayload.slice(MAX_PHOTOS);
-
-
 
       const docsBase64 = await Promise.all(additionalDocs.map((d) => convertToBase64(d.file)));
       const documentsPayload = additionalDocs.map((d, idx) => ({
@@ -429,33 +557,29 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
       const communityArray = getCommunityArray(formValues, row || {});
 
       const basePayload: any = {
-        file_id: file.id,
-        filename: file.filename,
-
+        file_id: fileId,
+        filename: fileName,
         photos_in_app: photosInApp,
         photos_for_gallery_review: photosGallery,
-
         consent,
         archive_consent: archiveConsent,
-
         documents: documentsPayload,
-
         community: communityArray,
         uploader_community: user?.community || [],
       };
 
-
       if (isNewEntry) {
         const converted: Record<string, any[]> = { new: [] };
 
-        Object.keys(formValues)
-          .filter((label: any) => !EXCLUDED_FIELDS.includes(label))
+        fieldColumns
+          .map((c: any) => String(c?.name || ""))
+          .filter(Boolean)
           .forEach((fieldName) => {
-            const type = fieldTypeMap[fieldName] || "text";
+            const t = typeOf(fieldName);
             let value: any = formValues[fieldName];
 
             if (Array.isArray(value)) value = value.join(", ");
-            else if (type === "date") value = toApiDate(value || "");
+            else if (t === "date") value = toApiDate(value || "");
 
             converted.new.push({
               row_id: null,
@@ -470,14 +594,14 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           is_edited: false,
           changes: converted,
           row_id: null,
-          firstname: formValues["First Names"] || "",
-          lastname: formValues["Last Names"] || "",
+          firstname: formValues[config?.addInfo?.firstname] || "",
+          lastname: formValues[config?.addInfo?.lastname] || "",
         });
       } else {
         const converted: Record<string, any[]> = {};
         Object.entries(changedFields).forEach(([fieldName, item]: any) => {
-          const type = fieldTypeMap[fieldName] || "text";
-          const newVal = type === "date" ? toApiDate(item.newValue) : item.newValue;
+          const t = typeOf(fieldName);
+          const newVal = t === "date" ? toApiDate(item.newValue) : item.newValue;
 
           const key = row.id;
           if (!converted[key]) converted[key] = [];
@@ -494,8 +618,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           is_edited: true,
           changes: converted,
           row_id: row.id,
-          firstname: row["First Names"] || "",
-          lastname: row["Last Names"] || "",
+          firstname: row[config?.addInfo?.firstname] || "",
+          lastname: row[config?.addInfo?.lastname] || "",
         });
       }
 
@@ -505,27 +629,22 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     }
   };
 
-  // Field list (single field per row)
-  const visibleFieldLabels = useMemo(() => {
-    const keys = Object.keys(formValues || {}).filter((k: any) => !EXCLUDED_FIELDS.includes(k));
-
-    const pinTop = ["First Names", "Last Names", "First Nation/Community", "First Nation / Community"];
-    const top = pinTop.filter((k) => keys.includes(k));
-    const rest = keys.filter((k) => !top.includes(k));
-
-    // keep Additional Information visible (don’t move it away)
-    return [...top, ...rest];
-  }, [formValues]);
-
-  const hasAdditionalInformationField = useMemo(
-    () => visibleFieldLabels.includes("Additional Information"),
-    [visibleFieldLabels]
-  );
-
   const onAddNewCommunity = async (name: string) => {
-    await addCommunity({ name }, {}, true);
-    fetchCommunities();
+    await addCommunity({ communities: [name] }, {}, true);
+    dispatch(
+      apiEnsure({
+        key: "communities",
+        url: `${API_BASE}/communities`,
+        method: "GET",
+        force: true,
+      })
+    );
   };
+
+  if (!addInfoEnabled) return null;
+
+  if (!config) return <Loader loading={true} text="Loading configuration..." />;
+
 
   return (
     <>
@@ -545,7 +664,6 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           },
         }}
       >
-        {/* Header */}
         <Box
           sx={{
             background: `linear-gradient(180deg, ${color_secondary} 0%, ${color_secondary_dark} 100%)`,
@@ -554,9 +672,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             borderBottom: `1px solid ${color_border}`,
           }}
         >
-          <Typography sx={{ color: color_white, fontWeight: 900, fontSize: "1.15rem" }}>
-            {dialogTitle}
-          </Typography>
+          <Typography sx={{ color: color_white, fontWeight: 900, fontSize: "1.15rem" }}>{dialogTitle}</Typography>
         </Box>
 
         <DialogContent
@@ -568,115 +684,118 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             gap: 1.75,
           }}
         >
-          {/* Fields (one per row) */}
-          {visibleFieldLabels.map((label) => {
-            const type = fieldTypeMap[label] || "text";
-            const value = formValues[label];
+          {/* ✅ Render in EXACT config order, only editable items */}
+          {editableColumnsOrdered.map((c: any) => {
+            const t = String(c?.type || "");
+            const name = String(c?.name || "");
+            const required = isNewEntry && requiredSet.has(name);
 
-            const isNameField = label === "First Names" || label === "Last Names";
-            const required = isNewEntry && isNameField;
-            const canReset = !isNewEntry;
+            // base field inputs
+            if (isBaseFieldType(t) && name) {
+              const value = formValues[name];
+              const canReset = !isNewEntry;
+              const editableField = editableOf(name);
 
-            // COMMUNITY MULTI
-            if (type === "community_multi") {
-              const arr = Array.isArray(value) ? value : value ? String(value).split(",").map((x) => x.trim()) : [];
+              if (t === "community_multi") {
+                const arr = Array.isArray(value)
+                  ? value
+                  : value
+                  ? String(value).split(",").map((x) => x.trim())
+                  : [];
+
+                return (
+                  <FieldRow key={name} label={name} required={required} onReset={canReset ? () => resetField(name) : undefined}>
+                    <CommunityMultiRow
+                      values={arr}
+                      options={communityOptions}
+                      onChange={(next: any) => editableField && updateField(name, next)}
+                      onAddNewCommunity={onAddNewCommunity}
+                      {...({ disabled: !editableField } as any)}
+                    />
+                  </FieldRow>
+                );
+              }
+
+              if (t === "date") {
+                return (
+                  <FieldRow key={name} label={name} required={required} onReset={canReset ? () => resetField(name) : undefined}>
+                    <DateFieldRow
+                      value={value || ""}
+                      onChange={(v) => editableField && updateField(name, v)}
+                      {...({ disabled: !editableField } as any)}
+                    />
+                  </FieldRow>
+                );
+              }
+
+              if (t === "multi") {
+                const arr = Array.isArray(value)
+                  ? value
+                  : value
+                  ? String(value).split(",").map((x) => x.trim())
+                  : [];
+                const addLabel = name === "Siblings" ? "Add Sibling" : "Add Name";
+
+                return (
+                  <FieldRow key={name} label={name} required={required} onReset={canReset ? () => resetField(name) : undefined}>
+                    <MultiValueRow
+                      values={arr}
+                      onChange={(next) => editableField && updateField(name, next)}
+                      addLabel={addLabel}
+                      {...({ disabled: !editableField } as any)}
+                    />
+                  </FieldRow>
+                );
+              }
+
+              const multiline = t === "textarea";
               return (
-                <FieldRow
-                  key={label}
-                  label={label}
-                  required={false}
-                  onReset={canReset ? () => resetField(label) : undefined}
-                >
-                  <CommunityMultiRow
-                    values={arr}
-                    options={communityOptions}
-                    onChange={(next: any) => updateField(label, next)}
-                    onAddNewCommunity={onAddNewCommunity}
-                  />
-                </FieldRow>
-              );
-            }
-
-            // DATE
-            if (type === "date") {
-              return (
-                <FieldRow key={label} label={label} onReset={canReset ? () => resetField(label) : undefined}>
-                  <DateFieldRow value={value || ""} onChange={(v) => updateField(label, v)} />
-                </FieldRow>
-              );
-            }
-
-            // MULTI
-            if (type === "multi") {
-              const arr = Array.isArray(value) ? value : value ? String(value).split(",").map((x) => x.trim()) : [];
-              const addLabel = label === "Siblings" ? "Add Sibling" : "Add Name";
-              return (
-                <FieldRow key={label} label={label} onReset={canReset ? () => resetField(label) : undefined}>
-                  <MultiValueRow values={arr} onChange={(next) => updateField(label, next)} addLabel={addLabel} />
-                </FieldRow>
-              );
-            }
-
-            // TEXT / TEXTAREA
-            const multiline = type === "textarea";
-            const isAdditionalInformation = label === "Additional Information";
-
-            return (
-              <React.Fragment key={label}>
-                <FieldRow
-                  label={label}
-                  required={required}
-                  onReset={canReset ? () => resetField(label) : undefined}
-                >
+                <FieldRow key={name} label={name} required={required} onReset={canReset ? () => resetField(name) : undefined}>
                   <TextFieldRow
                     value={value || ""}
-                    onChange={(v) => updateField(label, v)}
+                    onChange={(v) => editableField && updateField(name, v)}
                     multiline={multiline}
                     rows={multiline ? 4 : 1}
+                    {...({ disabled: !editableField } as any)}
                   />
                 </FieldRow>
+              );
+            }
 
-                {/*  IMPORTANT: Additional Documents must appear immediately after "Additional Information" */}
-                {isAdditionalInformation && (
-                  <AdditionalDocsCard
-                    additionalDocs={additionalDocs}
-                    totalAdditionalDocsMB={totalAdditionalDocsMB}
-                    totalCombinedMB={totalCombinedMB}
-                    onUpload={handleDocUpload}
-                    onRemove={removeDoc}
-                    onUpdateCategory={updateDocCategory}
-                    archiveConsent={archiveConsent}
-                    setArchiveConsent={setArchiveConsent}
-                  />
-                )}
-              </React.Fragment>
-            );
+            if (t === "doc_upload") {
+              return (
+                <AdditionalDocsCard
+                  key={c?.name || c?.display_name || "photo_upload"}
+                  additionalDocs={additionalDocs}
+                  totalAdditionalDocsMB={totalAdditionalDocsMB}
+                  totalCombinedMB={totalCombinedMB}
+                  onUpload={handleDocUpload}
+                  onRemove={removeDoc}
+                  onUpdateCategory={updateDocCategory}
+                  archiveConsent={archiveConsent}
+                  setArchiveConsent={setArchiveConsent}
+                  {...({ config: c } as any)}
+                />
+              );
+            }
+
+            if (t === "photo_upload") {
+              return (
+                <PhotoUploadCard
+                  key={c?.name || c?.display_name || "doc_upload"}
+                  photos={photos}
+                  setPhotos={setPhotos}
+                  totalCombinedMB={totalCombinedMB}
+                  onUpload={handlePhotoUpload}
+                  onRemove={removePhoto}
+                  consent={consent}
+                  setConsent={setConsent}
+                  {...({ config: c } as any)}
+                />
+              );
+            }
+            return null;
           })}
-
-          {/*  Fallback: If the sheet doesn’t have "Additional Information" column, still show docs somewhere */}
-          {!hasAdditionalInformationField && (
-            <AdditionalDocsCard
-              additionalDocs={additionalDocs}
-              totalAdditionalDocsMB={totalAdditionalDocsMB}
-              totalCombinedMB={totalCombinedMB}
-              onUpload={handleDocUpload}
-              onRemove={removeDoc}
-              onUpdateCategory={updateDocCategory}
-              archiveConsent={archiveConsent}
-              setArchiveConsent={setArchiveConsent}
-            />
-          )}
-
-          <PhotoUploadCard
-            photos={photos}
-            setPhotos={setPhotos}
-            totalCombinedMB={totalCombinedMB}
-            onUpload={handlePhotoUpload}
-            onRemove={removePhoto}
-            consent={consent}
-            setConsent={setConsent}
-          />
-
         </DialogContent>
 
         <DialogActions
@@ -699,6 +818,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
               color: color_secondary,
               background: color_white,
               "&:hover": { background: color_white_smoke },
+              "&:focus-visible": { outline: `3px solid ${color_focus_ring}`, outlineOffset: "2px" },
             }}
           >
             Reset All
@@ -714,6 +834,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                 border: `1px solid ${color_border}`,
                 background: color_light_gray,
                 color: color_text_primary,
+                "&:focus-visible": { outline: `3px solid ${color_focus_ring}`, outlineOffset: "2px" },
               }}
             >
               Cancel
@@ -729,6 +850,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                 background: color_secondary,
                 "&:hover": { background: color_secondary_dark },
                 px: 3,
+                "&:focus-visible": { outline: `3px solid ${color_focus_ring}`, outlineOffset: "2px" },
               }}
             >
               Save
@@ -736,12 +858,10 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           </Box>
         </DialogActions>
       </Dialog>
-
       <ResetAllDialog open={confirmResetAll} onClose={() => setConfirmResetAll(false)} onConfirm={resetAll} />
-
       <ReviewDialog
         open={reviewOpen}
-        title={isNewEntry ? "Review New Student" : `Review Changes – ${fullName || "Student"}`}
+        title={isNewEntry ? "Review New Student" : `Review Changes – ${headerText || "Student"}`}
         items={reviewItems}
         photosCount={photos.length}
         docs={additionalDocs}

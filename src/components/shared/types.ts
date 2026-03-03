@@ -61,6 +61,7 @@ export type PhotoGridProps = {
   statusChipSx?: (st: "approved" | "rejected" | "pending") => any;
 
   primaryBtnSx?: any;
+  showStatusChip?: boolean;
 };
 
 export type DocumentGridItem = {
@@ -113,4 +114,5 @@ export type DocumentGridProps = {
   statusChipSx?: (st: "approved" | "rejected" | "pending") => any;
 
   primaryBtnSx?: any;
+  showStatusChip?:boolean
 };

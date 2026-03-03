@@ -12,7 +12,7 @@ import {
   AllCommunityModule,
   ModuleRegistry,
   GridReadyEvent,
-  RowNode
+  RowNode,
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
@@ -35,7 +35,7 @@ import styled, { keyframes } from "styled-components";
 import { colorSources } from "../../constants/constants";
 import { useDispatch, useSelector } from "react-redux";
 import { setCommunities } from "../../store/auth/fileSlice";
-import { AppDispatch } from "../../store/store";
+import { AppDispatch, RootState } from "../../store/store";
 
 import AddInfoForm from "./add-info-dialog/AddInfoForm";
 import SmartSearchSuggestions from "./SmartSearchSuggestions";
@@ -61,6 +61,9 @@ import { useViewerLoader } from "../../hooks/useViewerLoader";
 import { useExternalGridFilters } from "../../hooks/useExternalGridFilters";
 import { headerDisplay, headerMinWidthPx, MAX_HEADER_CHARS } from "./HelperComponents";
 import { useDescribeEntry } from "../models/DescribeEntry";
+import { apiEnsure } from "../../store/api/apiSlice";
+import ConfigFormModal from "./config-form-modal.tsx/ConfigFormModal";
+import { FormCfg } from "./config-form-modal.tsx/shared";
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
 
@@ -69,8 +72,6 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 interface DataGridProps {
   rowData: any[];
 }
-
-/* ---------- Small renderers stay here (grid-specific) ---------- */
 
 const AddInfoRenderer = React.memo((props: any) => {
   return (
@@ -104,8 +105,8 @@ const HighlightCell = React.memo(
     if (value === null || value === undefined) return null;
 
     const str = String(value);
-    const match = str.match(/^([\s\S]*?)\s*(\(([^)]*)\))?$/); // ✅ newline-safe
-    const mainText = (match ? match[1] : str).trim();         // ✅ fallback
+    const match = str.match(/^([\s\S]*?)\s*(\(([^)]*)\))?$/); // newline-safe
+    const mainText = (match ? match[1] : str).trim();
 
     if (!searchText) return <span style={{ fontSize }}>{mainText}</span>;
 
@@ -127,7 +128,6 @@ const HighlightCell = React.memo(
     );
   }
 );
-
 
 /* ---------- Recorder styles (KEEP AS-IS) ---------- */
 
@@ -186,7 +186,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const [matches, setMatches] = useState<{ rowNode: RowNode; colId: string }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
-  //  GUARDED: fontSize kept at container level and passed through
   const [fontSize, setFontSize] = useState(16);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -203,6 +202,15 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const topControlsRef = useRef<HTMLDivElement | null>(null);
   const filtersRef = useRef<HTMLDivElement | null>(null);
   const [gridMinHeight, setGridMinHeight] = useState<number>(360);
+  const [cfgFormOpen, setCfgFormOpen] = useState(false);
+  const [activeFormCfg, setActiveFormCfg] = useState<FormCfg | null>(null);
+  const [activeFormRow, setActiveFormRow] = useState<any>(null);
+
+  const openConfigForm = (row: any, cfg: any) => {
+    setActiveFormRow(row);
+    setActiveFormCfg(cfg as FormCfg);
+    setCfgFormOpen(true);
+  };
 
   const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
 
@@ -242,12 +250,61 @@ export default function DataGrid({ rowData }: DataGridProps) {
     error: docsError,
   } = useFetch(`${API_BASE}/file/docs`, "GET", false);
 
+  /* -------- Config fetch (Redux + IndexDB via your apiMiddleware) -------- */
+
+  const configKey = useMemo(() => {
+    const fname = (selectedFile?.filename || "").trim();
+    return fname ? `config_${fname}` : "";
+  }, [selectedFile?.filename]);
+
+  const configEntry = useSelector((state: RootState) =>
+    configKey ? (state as any)?.api?.entries?.[configKey] : null
+  );
+
+  // this is your final config json (or null)
+  const configJson = (configEntry?.data as any)?.config || null;
+
+  const hasConfig = !!configJson && Array.isArray(configJson?.columns);
+
+  const addInfoEnabled = hasConfig
+    ? !!configJson?.addInfo?.enabled
+    : !!selectedFile?.community_filter; // old behavior
+
+  const communityFilterEnabled = hasConfig
+    ? !!configJson?.community_filter
+    : !!selectedFile?.community_filter;
+
+  const describeEnabled = hasConfig
+    ? !!configJson?.describe
+    : (selectedFile?.describe ?? true);
+
+  const sourceFilterEnabled = hasConfig
+    ? !!configJson?.source_filter
+    : true; // old behavior (only shown when !community_filter and sources exist)
+
+  useEffect(() => {
+    if (!configKey || !selectedFile?.filename) return;
+
+    dispatch(
+      apiEnsure({
+        key: configKey,
+        // ✅ Use your backend route for config
+        url: `${API_BASE}/config?file_name=${encodeURIComponent(selectedFile.filename)}`,
+        method: "GET",
+      })
+    );
+  }, [dispatch, configKey, selectedFile?.filename]);
+
+  /* -------- Describe -------- */
+
   const {
     describeColDef,
     describeContext,
     describeModal,
     describeInFlight,
   } = useDescribeEntry(API_BASE);
+
+  /* -------- Helpers for opening viewers -------- */
 
   const openDocumentUrl = useCallback((url: string) => {
     const u = normalizeUrl(url);
@@ -266,7 +323,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const openPhotoViewer = async (row: any) => {
     const rowId = row?.id;
     if (!rowId) return;
-
     if (pendingPhotoRowId || pendingDocRowId) return;
 
     setPendingPhotoRowId(rowId);
@@ -279,7 +335,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const openDocumentsViewer = async (row: any) => {
     const rowId = row?.id;
     if (!rowId) return;
-
     if (pendingPhotoRowId || pendingDocRowId) return;
 
     setPendingDocRowId(rowId);
@@ -289,7 +344,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
     await loadDocs(undefined, undefined, false, { path: rowId });
   };
 
-  // Viewer loaders (same behavior)
+  /* -------- Viewer loaders (same behavior) -------- */
+
   useViewerLoader<any>({
     loading: photosLoading,
     error: photosError,
@@ -314,7 +370,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
     onError: (e: any) => console.error("Failed to fetch documents:", e),
   });
 
-  /* ----- layout & overlay calculations ----- */
+  /* -------- layout & overlay calculations -------- */
 
   useLayoutEffect(() => {
     const computeOverlay = () => {
@@ -339,7 +395,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
   useEffect(() => {
     const prev = document.body.style.overflow;
-    if (filterOpen && selectedFile?.community_filter) {
+    if (filterOpen && communityFilterEnabled) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = prev || "";
@@ -347,27 +403,26 @@ export default function DataGrid({ rowData }: DataGridProps) {
     return () => {
       document.body.style.overflow = prev || "";
     };
-  }, [filterOpen, selectedFile?.community_filter]);
+  }, [filterOpen, communityFilterEnabled]);
 
   useEffect(() => {
-    const enabled = !!selectedFile?.community_filter;
-    const uniqueCommunities = enabled
-      ? Array.from(
-        new Set(
-          rowData
-            .map((item: any) => item?.["First Nation/Community"] ?? "")
-            .map((v: any) => String(v).trim())
-            .filter(Boolean)
-        )
+    if (!communityFilterEnabled) return;
+
+    const uniqueCommunities = Array.from(
+      new Set(
+        rowData
+          .map((item: any) => item?.["First Nation/Community"] ?? "")
+          .map((v: any) => String(v).trim())
+          .filter(Boolean)
       )
-      : [];
+    );
 
     const serialized = JSON.stringify(uniqueCommunities);
     if (serialized !== lastCommunitiesRef.current) {
       lastCommunitiesRef.current = serialized;
       dispatch(setCommunities({ communities: uniqueCommunities.sort() }));
     }
-  }, [rowData, selectedFile?.community_filter, dispatch]);
+  }, [rowData, communityFilterEnabled, dispatch]);
 
   useLayoutEffect(() => {
     const compute = () => {
@@ -384,21 +439,262 @@ export default function DataGrid({ rowData }: DataGridProps) {
   }, []);
 
   useEffect(() => {
-    const onResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  /* ----- column definitions ----- */
+  /* -------- column defs -------- */
+
+  const buildDefaultTextCol = useCallback((field: string, header: string) => {
+    const charsToShow = Math.min(header.length, MAX_HEADER_CHARS);
+
+    return {
+      field,
+      headerName: headerDisplay(header, 25),
+      headerTooltip: header,
+      tooltipValueGetter: (params: any) => params.value,
+      minWidth: headerMinWidthPx(charsToShow),
+      cellRenderer: (params: any) => {
+        if (!params.value) return null;
+
+        const value = params.value.toString();
+        const urls = extractUrls(value);
+
+        if (urls.length > 0) {
+          const single = urls.length === 1 ? urls[0] : null;
+          const isDoc = single ? isDocumentUrl(single) : false;
+
+          const btnStyle: React.CSSProperties = {
+            padding: "6px 10px",
+            background: color_secondary,
+            color: color_white,
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            width: "100%",
+            height: "32px",
+            fontSize: "12px",
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+          };
+
+          return (
+            <div style={{ padding: 8 }}>
+              <button
+                style={btnStyle}
+                title={value}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (single) {
+                    if (isDoc) params.context.openDocumentUrl(single);
+                    else params.context.openWebsite(single);
+                  } else {
+                    params.context.openLinksModal(urls, params.colDef?.headerName || params.colDef?.field);
+                  }
+                }}
+              >
+                {single ? (isDoc ? "View Document" : "View Website") : `View Links (${urls.length})`}
+              </button>
+            </div>
+          );
+        }
+
+        const match = value.match(/^([\s\S]*?)\s*(\(([^)]*)\))?$/);
+        const bracketText = (match?.[3] || "").trim();
+
+        const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
+        const isColored = bracketText && colorSources[bracketText];
+
+        return (
+          <div
+            style={{
+              backgroundColor: bgColor,
+              padding: "8px",
+              color: isColored ? color_white : color_black_light,
+              fontWeight: isColored ? 600 : 400,
+            }}
+          >
+            <HighlightCell value={value} searchText={searchText} fontSize={fontSize} />
+          </div>
+        );
+      },
+    };
+  }, [fontSize, searchText, openDocumentUrl, openLinksModal]);
 
   const columnDefs = useMemo(() => {
     if (!rowData || rowData.length === 0) return [];
+
+    const rowKeys = new Set(Object.keys(rowData[0] || {}));
+
+    // --- Add Info column (config-driven) ---
+    const addInfoCol = addInfoEnabled
+      ? [
+        {
+          headerName: headerDisplay("Add Info", 25),
+          headerTooltip: "Add Info",
+          field: "add_info",
+          pinned: "left" as const,
+          width: 140,
+          minWidth: 140,
+          suppressSizeToFit: true,
+          cellRenderer: AddInfoRenderer,
+          cellStyle: {
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        },
+      ]
+      : [];
+
+    // --- Config-driven columns ---
+    if (hasConfig) {
+      const cfgCols = (configJson.columns || []) as any[];
+
+      const tableCols = cfgCols.filter((c: any) => {
+        // not needed in table view
+        if (c?.add_only) return false;
+
+        // If it’s a real data column, include only if present OR explicitly additional_field
+        const name = String(c?.name || "");
+        if (!name) return false;
+
+        if (c?.additional_field) return true;
+        return rowKeys.has(name);
+      });
+
+      const mapped = tableCols.map((c: any) => {
+        const name = String(c?.name || "");
+        const header = String(c?.display_name || c?.name || "");
+
+        // photo_view button
+        if (c?.type === "photo_view") {
+          return {
+            field: `__photo_view__${name}`,
+            colId: `__photo_view__${name}`,
+            headerName: headerDisplay(header, 25),
+            headerTooltip: header,
+            width: 140,
+            minWidth: 140,
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: any) => (
+              <button
+                style={{
+                  padding: "6px 10px",
+                  background: color_secondary,
+                  color: color_white,
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  width: "100%",
+                  height: "32px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  params.context.openPhotoView(params.data);
+                }}
+              >
+                View Photos
+              </button>
+            ),
+          };
+        }
+
+        // doc_view button
+        if (c?.type === "doc_view") {
+          return {
+            field: `__doc_view__${name}`,
+            colId: `__doc_view__${name}`,
+            headerName: headerDisplay(header, 25),
+            headerTooltip: header,
+            width: 160,
+            minWidth: 160,
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: any) => (
+              <button
+                style={{
+                  padding: "6px 10px",
+                  background: color_secondary,
+                  color: color_white,
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  width: "100%",
+                  height: "32px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  params.context.openDocumentsView(params.data);
+                }}
+              >
+                View Documents
+              </button>
+            ),
+          };
+        }
+
+
+        if (c?.type === "form") {
+          const formKey = String(c?.key || "");
+          const header = String(c?.display_name || c?.name || "Form");
+
+          return {
+            colId: `form:${formKey}`,
+            field: `__form__${formKey}`,
+            valueGetter: () => "", // force render
+            headerName: headerDisplay(header, 25),
+            headerTooltip: header,
+            width: 170,
+            minWidth: 170,
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: any) => (
+              <button
+                style={{
+                  padding: "6px 10px",
+                  background: color_secondary,
+                  color: color_white,
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  width: "100%",
+                  height: "32px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openConfigForm(params.data, c);
+                }}
+              >
+                Add/View
+              </button>
+            ),
+          };
+        }
+
+
+
+        // default text column
+        return buildDefaultTextCol(name, header || name);
+      });
+
+      const describeCol = describeEnabled ? [describeColDef] : [];
+      return [...describeCol, ...addInfoCol, ...mapped];
+    }
+
+    // --- Fallback (NO config): old behavior ---
     const keys = Object.keys(rowData[0]).filter((k) => k !== "id");
 
-    const addInfoCol = selectedFile?.community_filter
+    const addInfoColOld = selectedFile?.community_filter
       ? [
         {
           headerName: headerDisplay("Add Info", 25),
@@ -487,91 +783,20 @@ export default function DataGrid({ rowData }: DataGridProps) {
         };
       }
 
-      const fullHeader = key;
-      const charsToShow = Math.min(fullHeader.length, MAX_HEADER_CHARS);
-
-      return {
-        field: fullHeader,
-        headerName: headerDisplay(fullHeader, 25),
-        headerTooltip: key,
-        tooltipValueGetter: (params: any) => params.value,
-        minWidth: headerMinWidthPx(charsToShow),
-        cellRenderer: (params: any) => {
-          if (!params.value) return null;
-
-          const value = params.value.toString();
-          const urls = extractUrls(value);
-
-          if (urls.length > 0) {
-            const single = urls.length === 1 ? urls[0] : null;
-            const isDoc = single ? isDocumentUrl(single) : false;
-
-            const btnStyle: React.CSSProperties = {
-              padding: "6px 10px",
-              background: color_secondary,
-              color: color_white,
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              width: "100%",
-              height: "32px",
-              fontSize: "12px",
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-            };
-
-            return (
-              <div style={{ padding: 8 }}>
-                <button
-                  style={btnStyle}
-                  title={value}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (single) {
-                      if (isDoc) params.context.openDocumentUrl(single);
-                      else params.context.openWebsite(single);
-                    } else {
-                      params.context.openLinksModal(
-                        urls,
-                        params.colDef?.headerName || params.colDef?.field
-                      );
-                    }
-                  }}
-                >
-                  {single
-                    ? isDoc
-                      ? "View Document"
-                      : "View Website"
-                    : `View Links (${urls.length})`}
-                </button>
-              </div>
-            );
-          }
-
-          const match = value.match(/^([\s\S]*?)\s*(\(([^)]*)\))?$/);
-          const bracketText = (match?.[3] || "").trim();
-
-          const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
-          const isColored = bracketText && colorSources[bracketText];
-
-          return (
-            <div
-              style={{
-                backgroundColor: bgColor,
-                padding: "8px",
-                color: isColored ? color_white : color_black_light,
-                fontWeight: isColored ? 600 : 400,
-              }}
-            >
-              <HighlightCell value={value} searchText={searchText} fontSize={fontSize} />
-            </div>
-          );
-        },
-      };
+      return buildDefaultTextCol(key, key);
     });
 
-    return [describeColDef, ...addInfoCol, ...otherCols];
-  }, [rowData, searchText, fontSize, selectedFile?.community_filter, describeColDef]);
+    return [describeColDef, ...addInfoColOld, ...otherCols];
+  }, [
+    rowData,
+    selectedFile?.community_filter,
+    hasConfig,
+    configJson,
+    addInfoEnabled,
+    describeEnabled,
+    describeColDef,
+    buildDefaultTextCol,
+  ]);
 
   const defaultColDef = useMemo(
     () => ({
@@ -590,7 +815,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
     []
   );
 
-  /* ----- grid handlers & filters ----- */
+  /* -------- grid handlers & filters -------- */
 
   const getRowStyle = (params: any) => ({
     backgroundColor: params.node.rowIndex % 2 === 0 ? "#e8f1fb" : "#ffffff",
@@ -604,13 +829,11 @@ export default function DataGrid({ rowData }: DataGridProps) {
     setFontSize(newSize);
   };
 
-  //  Single external filter logic in ONE place (hook)
   const { isExternalFilterPresent, doesExternalFilterPass } = useExternalGridFilters({
     selectedCommunities,
     sourceFilter,
   });
 
-  //  Single trigger to refresh filters (ONLY here)
   useEffect(() => {
     gridApi?.onFilterChanged?.();
   }, [gridApi, sourceFilter, selectedCommunities]);
@@ -634,7 +857,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
     return Array.from(found);
   }, [rowData]);
 
-  /* ----- search & navigation ----- */
+  /* -------- search & navigation -------- */
 
   const handleSearch = useCallback(
     (termOverride?: string) => {
@@ -677,10 +900,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
   useEffect(() => {
     if (!gridApi) return;
 
-    const t = setTimeout(() => {
-      handleSearch(searchText);
-    }, 500);
-
+    const t = setTimeout(() => handleSearch(searchText), 500);
     return () => clearTimeout(t);
   }, [searchText, gridApi, handleSearch]);
 
@@ -698,8 +918,38 @@ export default function DataGrid({ rowData }: DataGridProps) {
           ? "Generating description..."
           : "Loading...";
 
-
   const onAddStudent = () => {
+    if (!addInfoEnabled) return;
+
+    // If config exists, create a better blank row (required + known fields)
+    if (hasConfig) {
+      const cols = (configJson?.columns || []) as any[];
+      const baseCols = cols.filter((c: any) => {
+        if (c?.add_only) return false;
+        if (c?.additional_field) return false;
+        if (c?.type === "photo_view" || c?.type === "doc_view" || c?.type === "form") return false;
+        return !!c?.name;
+      });
+
+      const newRow: any = { id: "" };
+      baseCols.forEach((c: any) => {
+        const t = String(c?.type || "input");
+        if (t === "multi" || t === "community_multi") newRow[c.name] = [];
+        else newRow[c.name] = "";
+      });
+
+      // ensure required fields exist
+      const req = (configJson?.addInfo?.required_fields || []) as string[];
+      req.forEach((k) => {
+        if (!(k in newRow)) newRow[k] = "";
+      });
+
+      setFormRow(newRow);
+      setFormOpen(true);
+      return;
+    }
+
+    // fallback old behavior
     const sampleRow = gridApi?.getDisplayedRowAtIndex?.(0)?.data || rowData?.[0] || {};
     const newRow: any = {};
     Object.keys(sampleRow).forEach((key) => (newRow[key] = ""));
@@ -707,10 +957,10 @@ export default function DataGrid({ rowData }: DataGridProps) {
     setFormOpen(true);
   };
 
-  //  Memoize AG Grid context (guardrail)
   const gridContext = useMemo(
     () => ({
       openForm: (row: any) => {
+        if (!addInfoEnabled) return;
         setFormRow(row);
         setFormOpen(true);
       },
@@ -721,7 +971,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
       openLinksModal,
       ...describeContext,
     }),
-    [openDocumentUrl, openLinksModal, openPhotoViewer, openDocumentsViewer]
+    [addInfoEnabled, openDocumentUrl, openLinksModal, openPhotoViewer, openDocumentsViewer]
   );
 
   return (
@@ -741,7 +991,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
         <DataTableWrapper>
           {!editMode && (
             <>
-              {/* TOP BAR */}
               <div ref={topControlsRef}>
                 <TopControlsBar
                   isMobile={isMobile}
@@ -775,19 +1024,19 @@ export default function DataGrid({ rowData }: DataGridProps) {
                 }}
               />
 
-              {/* SOURCE FILTER */}
-              {availableSources.length > 0 && !selectedFile?.community_filter && (
+              {/* SOURCE FILTER (config-driven) */}
+              {sourceFilterEnabled && availableSources.length > 0 && !communityFilterEnabled && (
                 <div ref={filtersRef}>
                   <SourceFilterBar
                     availableSources={availableSources}
                     sourceFilter={sourceFilter}
-                    setSourceFilter={setSourceFilter} //  NO onFilterChanged here
+                    setSourceFilter={setSourceFilter}
                   />
                 </div>
               )}
 
-              {/* COMMUNITY BAR */}
-              {selectedFile?.community_filter && (
+              {/* COMMUNITY BAR (config-driven) */}
+              {communityFilterEnabled && (
                 <CommunityActionBar
                   filterOpen={filterOpen}
                   setFilterOpen={setFilterOpen}
@@ -810,7 +1059,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                 }}
               >
                 <CommunityFilterPanel
-                  enabled={!!selectedFile?.community_filter}
+                  enabled={!!communityFilterEnabled}
                   isMobile={isMobile}
                   filterOpen={filterOpen}
                   setFilterOpen={setFilterOpen}
@@ -818,7 +1067,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
                   overlayHeight={overlayHeight}
                 />
 
-                {/* GRID */}
                 <div
                   className="ag-theme-quartz"
                   style={{
@@ -845,12 +1093,11 @@ export default function DataGrid({ rowData }: DataGridProps) {
                     rowModelType="clientSide"
                     isExternalFilterPresent={isExternalFilterPresent}
                     doesExternalFilterPass={doesExternalFilterPass}
-                    context={gridContext} //  memoized context
+                    context={gridContext}
                   />
                 </div>
               </div>
 
-              {/* Links picker */}
               <LinksDialog
                 open={linksOpen}
                 title={linksTitle}
@@ -860,7 +1107,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
                 onOpenDocumentUrl={openDocumentUrl}
               />
 
-              {/* URL Document Viewer */}
               {docUrlOpen && (
                 <DocumentUrlViewerModal
                   open={docUrlOpen}
@@ -872,7 +1118,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
             </>
           )}
 
-          {/* editMode placeholder kept */}
           {editMode && (
             <div
               style={{
@@ -888,12 +1133,10 @@ export default function DataGrid({ rowData }: DataGridProps) {
               }}
             >
               {/* EditableTable unchanged */}
-              {/* <EditableTable data={rowData} onClose={() => setEditMode(false)} /> */}
             </div>
           )}
         </DataTableWrapper>
 
-        {/* RecorderOverlay */}
         <RecorderOverlay $recording={isRecording}>
           <MicButton
             $recording={isRecording}
@@ -910,7 +1153,12 @@ export default function DataGrid({ rowData }: DataGridProps) {
         {niaOpen && <NIAChat setOpen={setNiaOpen} open={niaOpen} />}
 
         {formOpen && (
-          <AddInfoForm row={formRow} file={selectedFile} onClose={() => setFormOpen(false)} />
+          <AddInfoForm
+            row={formRow}
+            // attach config to file for later child rewrite (doesn't break anything now)
+            file={{ ...(selectedFile || {}), config: configJson }}
+            onClose={() => setFormOpen(false)}
+          />
         )}
 
         {photoModalOpen && (
@@ -941,7 +1189,20 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
         {describeModal}
 
-        {/*  Old style block preserved exactly */}
+        {cfgFormOpen && activeFormCfg && (
+          <ConfigFormModal
+            open={cfgFormOpen}
+            onClose={() => setCfgFormOpen(false)}
+            row={activeFormRow}
+            file={selectedFile}
+            formConfig={activeFormCfg}
+            apiBase={API_BASE}
+            addInfoConfig={configJson?.addInfo}
+            fetchPath="/form/answers"
+            savePath="/form/answers"
+          />
+        )}
+
         <DataGridStyles />
       </GridWrapper>
     </>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import axios, { AxiosRequestConfig, ResponseType } from "axios";
 import { useSelector } from "react-redux";
+import { API_BASE } from "../constants/constants";
 
 type FetchMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -19,8 +20,18 @@ const appendQueryParams = (url: string, queryParams?: any) => {
 
 const joinPath = (base: string, segment: string | number) => {
   const b = base.replace(/\/+$/, "");
-  const s = encodeURIComponent(String(segment));
-  return `${b}/${s}`;
+  const raw = String(segment).trim();
+
+  if (!raw) return b;
+
+  const s = raw
+    .replace(/^\/+/, "")
+    .split("/")
+    .filter(Boolean)
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+
+  return s ? `${b}/${s}` : b;
 };
 
 const useFetch = <T,>(url: string, method: FetchMethod, autoFetch: boolean = false): UseApiResponse<T> => {
@@ -193,3 +204,42 @@ export async function apiRequest<T = any>(
 
   return (json ?? (text as any)) as T;
 }
+
+export const fetchLookupJSON =
+  async (path: string) => {
+    if (!path) return null;
+
+    const finalUrl = `${API_BASE.replace(/\/+$/, "")}/${String(path).replace(/^\/+/, "")}`;
+
+    const doRequest = async () => {
+      const res = await fetch(finalUrl, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `Request failed with status ${res.status}`);
+      }
+
+      return res.json();
+    };
+
+    try {
+      return await doRequest();
+    } catch (err: any) {
+      if (String(err?.message || "").includes("401")) {
+        await fetch(
+          "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/refresh",
+          {
+            method: "POST",
+            credentials: "include",
+          }
+        );
+
+        return await doRequest();
+      }
+
+      throw err;
+    }
+  }
