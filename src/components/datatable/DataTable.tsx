@@ -288,7 +288,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
     dispatch(
       apiEnsure({
         key: configKey,
-        // ✅ Use your backend route for config
         url: `${API_BASE}/config?file_name=${encodeURIComponent(selectedFile.filename)}`,
         method: "GET",
       })
