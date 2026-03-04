@@ -30,7 +30,6 @@ export default function ResetAllDialog({ open, onClose, onConfirm }: Props) {
             textTransform: "none",
             background: color_secondary,
             color: color_white,
-            "&:hover": { background: color_primary },
             px: 2,
             borderRadius: "10px",
           }}
