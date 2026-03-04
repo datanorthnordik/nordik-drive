@@ -20,8 +20,6 @@ export const EditableTable = ({ data, onClose }: EditableTableProps) => {
     const [gridApi, setGridApi] = useState<any>(null);
     const [fontSize, setFontSize] = useState(16);
     const [searchText, setSearchText] = useState('');
-    const [matches, setMatches] = useState<any[]>([]);
-    const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
     const [filterOpen, setFilterOpen] = useState(false);
     const dispatch = useDispatch();
     const { selectedCommunities, selectedFile } = useSelector((state: any) => state.file);
