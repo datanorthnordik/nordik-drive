@@ -65,6 +65,9 @@ interface AddInfoFormProps {
 
 const isBaseFieldType = (t: string) => baseFields.includes(t);
 
+const EMPTY_COLUMNS: any[] = [];
+const EMPTY_STRINGS: string[] = [];
+
 export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { user } = useSelector((state: any) => state.auth);
@@ -88,12 +91,22 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     return `${API_BASE}/config?file_name=${encodeURIComponent(fileName)}`;
   }, [fileName]);
 
-  // fire ensure (deduped by middleware)
-  useEffect(() => {
-    if (!configKey || !baseConfigUrl) return;
+  const configData = configEntry?.data as any;
+  const config = configData?.config || localConfig;
 
-    const last = (configEntry?.data as any)?.updated_at || (localConfig as any)?.updated_at || "";
-    const url = last ? `${baseConfigUrl}&last_modified=${encodeURIComponent(String(last))}` : baseConfigUrl;
+  const configUpdatedAt = String(
+    configData?.updated_at || (localConfig as any)?.updated_at || ""
+  );
+
+  const needsForcedConfigFetch =
+    !!configData?.not_modified && !configData?.config && !localConfig;
+
+  useEffect(() => {
+    if (!configKey || !baseConfigUrl || needsForcedConfigFetch) return;
+
+    const url = configUpdatedAt
+      ? `${baseConfigUrl}&last_modified=${encodeURIComponent(configUpdatedAt)}`
+      : baseConfigUrl;
 
     dispatch(
       apiEnsure({
@@ -102,18 +115,26 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
         method: "GET",
       })
     );
-  }, [dispatch, configKey, baseConfigUrl, configEntry?.data, localConfig]);
+  }, [dispatch, configKey, baseConfigUrl, configUpdatedAt, needsForcedConfigFetch]);
 
-  // keep last known good config locally (prevents not_modified overwriting config)
   useEffect(() => {
     const data = configEntry?.data as any;
+
     if (data?.config) {
-      setLocalConfig(data.config);
+      if (data.config !== localConfig) {
+        setLocalConfig(data.config);
+      }
       forcedFetchRef.current = false;
       return;
     }
 
-    if (data?.not_modified === true && !data?.config && !localConfig && !forcedFetchRef.current && baseConfigUrl) {
+    if (
+      data?.not_modified === true &&
+      !data?.config &&
+      !localConfig &&
+      !forcedFetchRef.current &&
+      baseConfigUrl
+    ) {
       forcedFetchRef.current = true;
       dispatch(
         apiEnsure({
@@ -124,14 +145,23 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
         })
       );
     }
-  }, [configEntry?.data, localConfig, dispatch, configKey, baseConfigUrl]);
+  }, [
+    configEntry?.data?.config,
+    configEntry?.data?.not_modified,
+    localConfig,
+    dispatch,
+    configKey,
+    baseConfigUrl,
+  ]);
 
-  const config = (configEntry?.data as any)?.config || localConfig;
-
-  const columns: any[] = Array.isArray(config?.columns) ? config.columns : [];
+  const columns: any[] = Array.isArray(config?.columns) ? config.columns : EMPTY_COLUMNS;
   const addInfoEnabled = !!config?.addInfo?.enabled;
+  const headers: string[] = Array.isArray(config?.addInfo?.headers) ? config.addInfo.headers : EMPTY_STRINGS;
 
-  const requiredFields: string[] = Array.isArray(config?.addInfo?.required_fields) ? config.addInfo.required_fields : [];
+  const requiredFields: string[] = Array.isArray(config?.addInfo?.required_fields)
+    ? config.addInfo.required_fields
+    : EMPTY_STRINGS;
+
   const requiredSet = useMemo(() => new Set(requiredFields), [requiredFields]);
 
   // ✅ ONLY editable items, and ✅ keep order exactly as config.columns
@@ -201,8 +231,10 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
   const totalAdditionalDocsMB = bytesToMB(getTotalBytes(additionalDocs.map((d) => d.file)));
   const totalCombinedMB = totalPhotoMB + totalAdditionalDocsMB;
 
-  // init form values strictly from editable base fields
+
   useEffect(() => {
+    if (!config) return;
+
     const initial: Record<string, any> = {};
 
     fieldColumns.forEach((c: any) => {
@@ -239,9 +271,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
     setFormValues(initial);
     setChangedFields({});
-  }, [fieldColumns, isNewEntry, row, requiredFields]);
+  }, [config, fieldColumns, isNewEntry, row, requiredFields]);
 
-  const headers: string[] = config.addInfo.headers;
 
   const concatFrom = (src: Record<string, any>) =>
     headers
@@ -303,12 +334,12 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
       t === "date"
         ? normalizeIncomingDateToDdMmYyyy(raw || "")
         : t === "multi" || t === "community_multi"
-        ? (raw || "")
+          ? (raw || "")
             .toString()
             .split(",")
             .map((x: string) => x.trim())
             .filter((x: string) => x.length > 0)
-        : raw ?? "";
+          : raw ?? "";
 
     setFormValues((prev) => ({ ...prev, [label]: original }));
     setChangedFields((prev) => {
@@ -345,12 +376,12 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           t === "date"
             ? normalizeIncomingDateToDdMmYyyy(raw || "")
             : t === "multi" || t === "community_multi"
-            ? (raw || "")
+              ? (raw || "")
                 .toString()
                 .split(",")
                 .map((x: string) => x.trim())
                 .filter((x: string) => x.length > 0)
-            : raw ?? "";
+              : raw ?? "";
       });
 
       requiredFields.forEach((rf) => {
@@ -641,9 +672,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
     );
   };
 
-  if (!addInfoEnabled) return null;
-
   if (!config) return <Loader loading={true} text="Loading configuration..." />;
+  if (!addInfoEnabled) return null;
 
 
   return (
@@ -700,8 +730,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                 const arr = Array.isArray(value)
                   ? value
                   : value
-                  ? String(value).split(",").map((x) => x.trim())
-                  : [];
+                    ? String(value).split(",").map((x) => x.trim())
+                    : [];
 
                 return (
                   <FieldRow key={name} label={name} required={required} onReset={canReset ? () => resetField(name) : undefined}>
@@ -732,8 +762,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
                 const arr = Array.isArray(value)
                   ? value
                   : value
-                  ? String(value).split(",").map((x) => x.trim())
-                  : [];
+                    ? String(value).split(",").map((x) => x.trim())
+                    : [];
                 const addLabel = name === "Siblings" ? "Add Sibling" : "Add Name";
 
                 return (

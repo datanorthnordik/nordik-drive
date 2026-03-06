@@ -164,10 +164,10 @@ describe("boarding_home_tab", () => {
         expect(childProps.config.consent).toBe("");
     });
 
-    it("renders photo upload branch and passes correct props", () => {
+    it("renders photo upload branch and passes correct props when editable", () => {
         const props = getProps({
             field: makeField({ type: "photo_upload" }),
-            editable: false,
+            editable: true,
             isMissing: true,
             consentGiven: true,
             formConsentText: "Use parent consent",
@@ -188,7 +188,7 @@ describe("boarding_home_tab", () => {
         expect(childProps.totalCombinedMB).toBe(6);
         expect(childProps.consent).toBe(true);
         expect(childProps.setConsent).toBe(props.setConsentGiven);
-        expect(childProps.disabled).toBe(true);
+        expect(childProps.disabled).toBe(false);
         expect(childProps.config).toMatchObject({
             name: "boarding_home",
             display_name: "Boarding Home",
@@ -198,6 +198,25 @@ describe("boarding_home_tab", () => {
             total_upload_size: true,
             individual_upload_size: true,
         });
+    });
+
+    it("does not render photo upload card when not editable but still shows existing photos", () => {
+        const props = getProps({
+            field: makeField({ type: "photo_upload" }),
+            editable: false,
+            isMissing: true,
+            consentGiven: true,
+            formConsentText: "Use parent consent",
+        });
+
+        render(<ConfigFormFieldRenderer {...props} />);
+
+        expect(screen.queryByTestId("photo-upload-card")).not.toBeInTheDocument();
+        expect(screen.getByTestId("existing-photos-grid")).toBeInTheDocument();
+        expect(screen.getByText("This field is required.")).toBeInTheDocument();
+
+        expect(props.renderExistingPhotosGrid).toHaveBeenCalledWith("boarding_home");
+        expect(mockPhotoUploadCard).not.toHaveBeenCalled();
     });
 
     it("renders checkbox options and calls onSetField when editable", () => {

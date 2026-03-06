@@ -1,28 +1,56 @@
-// src/components/tables/ActivityLogs.test.tsx
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import "@testing-library/jest-dom";
+
 import AdminActivitiesHub from "./ActivityLogs";
 
-// Mock child components so tests are stable and focus on AdminActivitiesHub behavior.
+const mockUserActivity = jest.fn();
+const mockAdminFileEditRequests = jest.fn();
+const mockFormSubmissionLogs = jest.fn();
+
 jest.mock("./UserActivity", () => ({
   __esModule: true,
-  default: (props: { mode: string; onModeChange: (m: any) => void }) => (
-    <div data-testid="user-activity">
-      <div data-testid="ua-mode">{props.mode}</div>
-      {/* NOTE: Accessible name is "UA>FILE" (not "UA->FILE") */}
-      <button onClick={() => props.onModeChange("FILE_MANAGEMENT")}>UA&gt;FILE</button>
-    </div>
-  ),
+  default: () => {
+    mockUserActivity();
+    return <div data-testid="user-activity">User Activity</div>;
+  },
 }));
 
 jest.mock("./FileActivities", () => ({
   __esModule: true,
-  default: (props: { onParentModeChange: (m: any) => void }) => (
-    <div data-testid="file-activities">
-      <button onClick={() => props.onParentModeChange("GENERAL")}>FILE&gt;UA</button>
-    </div>
-  ),
+  default: (props: any) => {
+    mockAdminFileEditRequests(props);
+    return (
+      <div data-testid="file-activities">
+        File Activities
+        <button onClick={() => props.onParentModeChange?.("GENERAL")}>go-general</button>
+        <button onClick={() => props.onParentModeChange?.("FILE_MANAGEMENT")}>stay-file</button>
+      </div>
+    );
+  },
+}));
+
+jest.mock("./FormSubmissionLogs", () => ({
+  __esModule: true,
+  default: () => {
+    mockFormSubmissionLogs();
+    return <div data-testid="form-submission-logs">Form Submission Logs</div>;
+  },
+}));
+
+jest.mock("../../constants/colors", () => ({
+  header_height: 80,
+  header_mobile_height: 64,
+
+  color_border: "#ddd",
+  color_secondary_dark: "#123456",
+  color_white: "#fff",
+  color_white_smoke: "#f5f5f5",
+  color_text_primary: "#111",
+  color_text_secondary: "#555",
+  color_text_light: "#777",
+  color_background: "#fafafa",
+  color_success: "#00aa00",
 }));
 
 describe("AdminActivitiesHub", () => {
@@ -30,49 +58,174 @@ describe("AdminActivitiesHub", () => {
     jest.clearAllMocks();
   });
 
-  test("renders UserActivity by default with mode GENERAL", () => {
+  const openNavigation = async () => {
+    fireEvent.click(screen.getByLabelText(/open navigation/i));
+    const nav = await screen.findByText("NAVIGATION");
+    expect(nav).toBeVisible();
+  };
+
+  const expectDrawerClosed = async () => {
+    await waitFor(() => {
+      expect(screen.getByText("NAVIGATION")).not.toBeVisible();
+    });
+  };
+
+  it("renders GENERAL view by default", () => {
     render(<AdminActivitiesHub />);
 
     expect(screen.getByTestId("user-activity")).toBeInTheDocument();
-    expect(screen.getByTestId("ua-mode")).toHaveTextContent("GENERAL");
+    expect(screen.queryByTestId("file-activities")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("form-submission-logs")).not.toBeInTheDocument();
+
+    expect(screen.getByLabelText(/open navigation/i)).toBeInTheDocument();
+    expect(mockUserActivity).toHaveBeenCalled();
+  });
+
+  it("opens navigation drawer when clicking open navigation button", async () => {
+    render(<AdminActivitiesHub />);
+
+    await openNavigation();
+
+    expect(screen.getByText("General logs")).toBeInTheDocument();
+    expect(screen.getByText("File management logs")).toBeInTheDocument();
+    expect(screen.getByText("Form submission logs")).toBeInTheDocument();
+  });
+
+  it("closes navigation drawer when clicking close navigation button", async () => {
+    render(<AdminActivitiesHub />);
+
+    await openNavigation();
+
+    fireEvent.click(screen.getByLabelText(/close navigation/i));
+    await expectDrawerClosed();
+  });
+
+  it("switches to FILE_MANAGEMENT view from navigation and closes drawer", async () => {
+    render(<AdminActivitiesHub />);
+
+    await openNavigation();
+    fireEvent.click(screen.getByText("File management logs"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-activities")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("user-activity")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("form-submission-logs")).not.toBeInTheDocument();
+
+    await expectDrawerClosed();
+  });
+
+  it("switches to FORM_SUBMISSION view from navigation and closes drawer", async () => {
+    render(<AdminActivitiesHub />);
+
+    await openNavigation();
+    fireEvent.click(screen.getByText("Form submission logs"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("form-submission-logs")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("user-activity")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("file-activities")).not.toBeInTheDocument();
+
+    await expectDrawerClosed();
+  });
+
+  it("switches back to GENERAL view from navigation", async () => {
+    render(<AdminActivitiesHub />);
+
+    await openNavigation();
+    fireEvent.click(screen.getByText("File management logs"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-activities")).toBeInTheDocument();
+    });
+
+    await openNavigation();
+    fireEvent.click(screen.getByText("General logs"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("user-activity")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("file-activities")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("form-submission-logs")).not.toBeInTheDocument();
+  });
+
+  it("passes onParentModeChange to AdminFileEditRequests and can switch back to GENERAL", async () => {
+    render(<AdminActivitiesHub />);
+
+    await openNavigation();
+    fireEvent.click(screen.getByText("File management logs"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-activities")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("go-general"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("user-activity")).toBeInTheDocument();
+    });
+
     expect(screen.queryByTestId("file-activities")).not.toBeInTheDocument();
   });
 
-  test("switches to FILE_MANAGEMENT when UserActivity calls onModeChange", async () => {
-    const user = userEvent.setup();
+  it("keeps FILE_MANAGEMENT view when onParentModeChange sends FILE_MANAGEMENT", async () => {
     render(<AdminActivitiesHub />);
 
-    await user.click(screen.getByRole("button", { name: "UA>FILE" }));
+    await openNavigation();
+    fireEvent.click(screen.getByText("File management logs"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("file-activities")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("stay-file"));
 
     expect(screen.getByTestId("file-activities")).toBeInTheDocument();
     expect(screen.queryByTestId("user-activity")).not.toBeInTheDocument();
   });
 
-  test("can switch back to GENERAL when FileActivities calls onParentModeChange", async () => {
-    const user = userEvent.setup();
+  it("renders correctly after switching to mobile width", async () => {
     render(<AdminActivitiesHub />);
 
-    // go to FILE_MANAGEMENT
-    await user.click(screen.getByRole("button", { name: "UA>FILE" }));
-    expect(screen.getByTestId("file-activities")).toBeInTheDocument();
+    act(() => {
+      Object.defineProperty(window, "innerWidth", {
+        writable: true,
+        configurable: true,
+        value: 700,
+      });
+      window.dispatchEvent(new Event("resize"));
+    });
 
-    // go back to GENERAL
-    await user.click(screen.getByRole("button", { name: "FILE>UA" }));
-    expect(screen.getByTestId("user-activity")).toBeInTheDocument();
-    expect(screen.getByTestId("ua-mode")).toHaveTextContent("GENERAL");
+    expect(screen.getByLabelText(/open navigation/i)).toBeInTheDocument();
+
+    await openNavigation();
+
+    expect(screen.getByText("General logs")).toBeInTheDocument();
+    expect(screen.getByText("File management logs")).toBeInTheDocument();
+    expect(screen.getByText("Form submission logs")).toBeInTheDocument();
   });
 
-  test("registers and cleans up resize listener", () => {
-    const addSpy = jest.spyOn(window, "addEventListener");
-    const removeSpy = jest.spyOn(window, "removeEventListener");
+  it("marks the selected item when the drawer is opened", async () => {
+    render(<AdminActivitiesHub />);
 
-    const { unmount } = render(<AdminActivitiesHub />);
+    await openNavigation();
 
-    expect(addSpy).toHaveBeenCalledWith("resize", expect.any(Function));
-    unmount();
-    expect(removeSpy).toHaveBeenCalledWith("resize", expect.any(Function));
+    const generalItem = screen.getByText("General logs").closest(".MuiListItemButton-root");
+    expect(generalItem).toHaveClass("Mui-selected");
 
-    addSpy.mockRestore();
-    removeSpy.mockRestore();
+    fireEvent.click(screen.getByText("Form submission logs"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("form-submission-logs")).toBeInTheDocument();
+    });
+
+    await openNavigation();
+
+    const formItem = screen.getByText("Form submission logs").closest(".MuiListItemButton-root");
+    expect(formItem).toHaveClass("Mui-selected");
   });
 });

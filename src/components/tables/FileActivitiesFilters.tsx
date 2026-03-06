@@ -396,29 +396,6 @@ export default function FileActivitiesFilters({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-          <ToggleButtonGroup
-            value="ADMIN_EDIT_REQUESTS"
-            exclusive
-            onChange={(_, v) => v && onModeSwitchToGeneral(v)}
-            size="small"
-            sx={{
-              "& .MuiToggleButton-root": {
-                textTransform: "none",
-                fontWeight: 900,
-                borderRadius: "10px",
-                px: 1.2,
-                py: 0.6,
-                background: color_white,
-                border: `1px solid ${color_border}`,
-              },
-            }}
-          >
-            <ToggleButton value="GENERAL">
-              <DashboardIcon sx={{ fontSize: 18, mr: 0.75 }} />
-              General
-            </ToggleButton>
-          </ToggleButtonGroup>
-
           <Button onClick={() => setFiltersCollapsed(false)} sx={primaryBtnSx}>
             Edit search
           </Button>
@@ -605,29 +582,6 @@ export default function FileActivitiesFilters({
       )}
 
       <Divider flexItem orientation="vertical" sx={{ mx: 0.25, borderColor: color_border }} />
-
-      <ToggleButtonGroup
-        value="ADMIN_EDIT_REQUESTS"
-        exclusive
-        onChange={(_, v) => v && onModeSwitchToGeneral(v)}
-        size="small"
-        sx={{
-          "& .MuiToggleButton-root": {
-            textTransform: "none",
-            fontWeight: 900,
-            borderRadius: "10px",
-            px: 1.2,
-            py: 0.6,
-            background: color_white,
-            border: `1px solid ${color_border}`,
-          },
-        }}
-      >
-        <ToggleButton value="GENERAL">
-          <DashboardIcon sx={{ fontSize: 18, mr: 0.75 }} />
-          General
-        </ToggleButton>
-      </ToggleButtonGroup>
 
       <Button variant="contained" onClick={handleApplyClick} sx={primaryBtnSx}>
         Apply
