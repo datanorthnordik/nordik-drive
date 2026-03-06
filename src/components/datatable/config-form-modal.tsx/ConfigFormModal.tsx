@@ -67,6 +67,8 @@ type Props = {
 
   onSaved?: (answers: Record<string, any>) => void;
   addInfoConfig?: any;
+
+  isEditable?: boolean;
 };
 
 export default function ConfigFormModal({
@@ -80,6 +82,7 @@ export default function ConfigFormModal({
   savePath = "/form/answers",
   onSaved,
   addInfoConfig,
+  isEditable = true,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const identityRef = useRef<string>("");
@@ -126,7 +129,7 @@ export default function ConfigFormModal({
   const formKey = useMemo(() => (formConfig?.key ? String(formConfig.key) : ""), [formConfig]);
 
   const title = formConfig?.display_name || formConfig?.name || "Form";
-  const editable = formConfig?.editable !== false;
+  const editable = isEditable && formConfig?.editable !== false;
 
   const {
     data: fetchDataRes,
@@ -917,6 +920,8 @@ export default function ConfigFormModal({
       details: buildDetailsPayload(),
       documents,
       photos,
+      firstname: row?.[addInfoConfig?.firstname] || "",
+      lastname: row?.[addInfoConfig?.lastname] || "",
     };
 
     if (fileId && rowId && formKey) {
@@ -1094,10 +1099,10 @@ export default function ConfigFormModal({
             },
           }}
         >
-          Cancel
+          {editable ? "Cancel" : "Close"}
         </Button>
 
-        <Button
+        {editable && <Button
           variant="contained"
           onClick={handleSave}
           disabled={saving}
@@ -1118,7 +1123,7 @@ export default function ConfigFormModal({
           }}
         >
           {saving ? "Saving..." : "Submit"}
-        </Button>
+        </Button>}
       </DialogActions>
 
       <FormPhotoViewerModal

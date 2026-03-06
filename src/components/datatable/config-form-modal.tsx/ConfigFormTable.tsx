@@ -159,7 +159,7 @@ export default function ConfigFormTableSection({
                 </TableCell>
               ))}
 
-              <TableCell
+              {editable&& <TableCell
                 rowSpan={hasGroup ? 2 : 1}
                 sx={{
                   fontWeight: 900,
@@ -172,7 +172,7 @@ export default function ConfigFormTableSection({
                 }}
               >
                 Actions
-              </TableCell>
+              </TableCell>}
             </TableRow>
 
             {hasGroup ? (
@@ -392,7 +392,7 @@ export default function ConfigFormTableSection({
                   );
                 })}
 
-                <TableCell
+                {editable && <TableCell
                   sx={{
                     width: actionColWidth,
                     minWidth: actionColWidth,
@@ -417,14 +417,14 @@ export default function ConfigFormTableSection({
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
-                </TableCell>
+                </TableCell>}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Box>
 
-      {tbl.allow_add_rows ? (
+      {editable && tbl.allow_add_rows ? (
         <Button
           startIcon={<AddIcon />}
           onClick={() => editable && addRow(tbl)}

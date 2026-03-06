@@ -95,7 +95,7 @@ export default function ConfigFormFieldRenderer({
 
     return (
       <Box sx={isMissing ? missingWrapSx : undefined}>
-        <AdditionalDocsCard
+        {editable && <AdditionalDocsCard
           additionalDocs={additionalDocs}
           totalAdditionalDocsMB={getDocsMB(additionalDocs)}
           totalCombinedMB={totalCombinedMB}
@@ -105,7 +105,7 @@ export default function ConfigFormFieldRenderer({
           archiveConsent={consentGiven}
           setArchiveConsent={setConsentGiven}
           config={cfg}
-        />
+        />}
         {renderExistingDocumentsGrid(field.key)}
         {isMissing ? (
           <Typography sx={{ mt: 0.75, color: color_error, fontWeight: 900 }}>
@@ -129,7 +129,7 @@ export default function ConfigFormFieldRenderer({
 
     return (
       <Box sx={isMissing ? missingWrapSx : undefined}>
-        <PhotoUploadCard
+        {editable &&<PhotoUploadCard
           photos={photos}
           setPhotos={onPhotosChange}
           totalCombinedMB={totalCombinedMB}
@@ -139,7 +139,7 @@ export default function ConfigFormFieldRenderer({
           setConsent={setConsentGiven}
           disabled={!editable}
           config={cfg}
-        />
+        />}
         {renderExistingPhotosGrid(field.key)}
         {isMissing ? (
           <Typography sx={{ mt: 0.75, color: color_error, fontWeight: 900 }}>

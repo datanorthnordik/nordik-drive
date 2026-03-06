@@ -366,24 +366,6 @@ describe("UserActivity", () => {
     expect(logsFetch).toHaveBeenCalledWith(expect.objectContaining({ page: 1, page_size: 20 }));
   });
 
-  test("clicking File management calls onModeChange(FILE_MANAGEMENT)", async () => {
-    const onModeChange = jest.fn();
-
-    setupUseFetchForUserActivity({
-      usersData: { users: [] },
-      communitiesData: { communities: [] },
-      filesData: { files: [] },
-      logsData: null,
-    });
-
-    render(<UserActivity mode="GENERAL" onModeChange={onModeChange} />);
-
-    // In expanded filter view by default
-    await userEvent.click(screen.getByRole("button", { name: /file management/i }));
-
-    expect(onModeChange).toHaveBeenCalledWith("FILE_MANAGEMENT");
-  });
-
   test("passes selected filters to ActivityVisualization", async () => {
     setupUseFetchForUserActivity({
       usersData: { users: [] },

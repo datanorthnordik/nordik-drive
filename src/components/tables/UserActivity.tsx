@@ -459,29 +459,6 @@ export default function UserActivity({
 
               {/* right: File management + Edit search */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                <ToggleButtonGroup
-                  value={mode}
-                  exclusive
-                  onChange={handleModeSwitch}
-                  size="small"
-                  sx={{
-                    "& .MuiToggleButton-root": {
-                      textTransform: "none",
-                      fontWeight: 900,
-                      borderRadius: "10px",
-                      px: 1.2,
-                      py: 0.6,
-                      background: color_white,
-                      border: `1px solid ${color_border}`,
-                    },
-                  }}
-                >
-                  <ToggleButton value="FILE_MANAGEMENT">
-                    <FolderIcon sx={{ fontSize: 18, mr: 0.75 }} />
-                    File management
-                  </ToggleButton>
-                </ToggleButtonGroup>
-
                 <Button
                   variant="contained"
                   onClick={() => setShowFilters(true)}
@@ -633,29 +610,6 @@ export default function UserActivity({
               </Button>
 
               <Divider flexItem orientation="vertical" sx={{ mx: 0.25, borderColor: color_border }} />
-
-              <ToggleButtonGroup
-                value={mode}
-                exclusive
-                onChange={handleModeSwitch}
-                size="small"
-                sx={{
-                  "& .MuiToggleButton-root": {
-                    textTransform: "none",
-                    fontWeight: 900,
-                    borderRadius: "10px",
-                    px: 1.2,
-                    py: 0.6,
-                    background: color_white,
-                    border: `1px solid ${color_border}`,
-                  },
-                }}
-              >
-                <ToggleButton value="FILE_MANAGEMENT">
-                  <FolderIcon sx={{ fontSize: 18, mr: 0.75 }} />
-                  File management
-                </ToggleButton>
-              </ToggleButtonGroup>
 
               <IconButton
                 onClick={() => setShowFilters(false)}

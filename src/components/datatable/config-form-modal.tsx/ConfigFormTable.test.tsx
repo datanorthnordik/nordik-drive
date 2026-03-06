@@ -234,12 +234,12 @@ describe("ConfigFormTableSection", () => {
     expect(props.addRow).toHaveBeenCalledWith(props.tbl);
   });
 
-  it("disables remove and add actions when not editable", () => {
+  it("shows remove and add actions when editable", () => {
     const col = makeCol();
     setHeaderForCols([col]);
 
     const props = makeProps({
-      editable: false,
+      editable: true,
       tbl: makeTbl({
         allow_add_rows: true,
         add_row_label: "Add resident",
@@ -248,17 +248,97 @@ describe("ConfigFormTableSection", () => {
 
     render(<ConfigFormTableSection {...props} />);
 
-    const removeBtn = screen.getByRole("button", { name: "remove row" });
-    const addBtn = screen.getByRole("button", { name: "Add resident" });
+    expect(screen.getByText("Actions")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /remove row/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add resident/i })).toBeInTheDocument();
+  });
 
-    expect(removeBtn).toBeDisabled();
-    expect(addBtn).toBeDisabled();
+  it("calls removeRow when editable remove button is clicked", () => {
+    const col = makeCol();
+    setHeaderForCols([col]);
 
-    fireEvent.click(removeBtn);
-    fireEvent.click(addBtn);
+    const props = makeProps({
+      editable: true,
+      tbl: makeTbl({
+        allow_add_rows: true,
+        add_row_label: "Add resident",
+      }),
+    });
 
-    expect(props.removeRow).not.toHaveBeenCalled();
-    expect(props.addRow).not.toHaveBeenCalled();
+    render(<ConfigFormTableSection {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /remove row/i }));
+
+    expect(props.removeRow).toHaveBeenCalledTimes(1);
+    expect(props.removeRow).toHaveBeenCalledWith(props.tbl, 0);
+  });
+
+  it("calls addRow when editable add button is clicked", () => {
+    const col = makeCol();
+    setHeaderForCols([col]);
+
+    const props = makeProps({
+      editable: true,
+      tbl: makeTbl({
+        allow_add_rows: true,
+        add_row_label: "Add resident",
+      }),
+    });
+
+    render(<ConfigFormTableSection {...props} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Add resident/i }));
+
+    expect(props.addRow).toHaveBeenCalledTimes(1);
+    expect(props.addRow).toHaveBeenCalledWith(props.tbl);
+  });
+
+  it("does not show add row button when allow_add_rows is false", () => {
+    const col = makeCol();
+    setHeaderForCols([col]);
+
+    const props = makeProps({
+      editable: true,
+      tbl: makeTbl({
+        allow_add_rows: false,
+        add_row_label: "Add resident",
+      }),
+    });
+
+    render(<ConfigFormTableSection {...props} />);
+
+    expect(screen.queryByRole("button", { name: /Add resident/i })).not.toBeInTheDocument();
+  });
+
+  it("renders read-only cell value and no editable textbox when not editable", () => {
+    const col = makeCol({ key: "name", label: "Name", type: "text" });
+    setHeaderForCols([col]);
+
+    const props = makeProps({
+      editable: false,
+      rows: [{ name: "John Doe" }],
+    });
+
+    render(<ConfigFormTableSection {...props} />);
+
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("John Doe")).not.toBeInTheDocument();
+  });
+
+  it("renders raw dropdown value as read-only text when not editable and not server-backed", () => {
+    const col = makeCol({ key: "status", label: "Status", type: "dropdown" });
+    setHeaderForCols([col]);
+
+    const props = makeProps({
+      editable: false,
+      rows: [{ status: "approved" }],
+      lookupOptionsByPath: {},
+    });
+
+    render(<ConfigFormTableSection {...props} />);
+
+    expect(screen.getByText("approved")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("shows dropdown lookup error helper text for editable server-backed dropdown", () => {
