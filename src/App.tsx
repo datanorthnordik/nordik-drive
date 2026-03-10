@@ -22,10 +22,10 @@ import UserActivity from "./components/tables/UserActivity";
 import ContactUs from "./pages/contact_us/ContactUs";
 import Acknowledgement from "./pages/Acknowledgement/Acknowledgement";
 import CoronerPage from "./pages/CoronerPage/CoronerPage";
-import PendingRequests from "./pages/pending-requests/PendingRequests";
+import PendingRequests from "./pages/request_hub/PendingRequests";
 import FileActivities from "./components/tables/FileActivities";
 import ActivityLogs from "./components/tables/ActivityLogs";
-import MyRequests from "./pages/pending-requests/MyRequests";
+import MyRequests from "./pages/request_hub/MyRequests";
 import { useSelector } from "react-redux";
 
 

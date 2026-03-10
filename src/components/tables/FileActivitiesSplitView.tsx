@@ -9,7 +9,17 @@ import { GridReadyEvent } from "ag-grid-community";
 import { FileButton } from "../../components/buttons/Button";
 import FileActivityVisualization from "../../components/activity/FileActivityVisualization";
 import { Clause, Mode } from "./FileActivitiesShared";
-import { color_border, color_secondary, color_text_secondary, color_white, color_white_smoke, color_background, color_light_gray, color_text_primary, color_secondary_dark } from "../../constants/colors";
+import {
+  color_border,
+  color_secondary,
+  color_text_secondary,
+  color_white,
+  color_white_smoke, 
+  color_background, 
+  color_light_gray, 
+  color_text_primary, 
+  color_secondary_dark
+} from "../../constants/colors";
 
 type Props = {
   themeLightWarm: any;
