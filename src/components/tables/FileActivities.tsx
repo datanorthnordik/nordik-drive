@@ -42,7 +42,6 @@ import {
 
 import {
   color_background,
-  color_border,
   color_secondary,
   color_secondary_dark,
   color_text_primary,

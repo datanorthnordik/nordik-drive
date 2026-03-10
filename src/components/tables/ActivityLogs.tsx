@@ -30,7 +30,6 @@ import {
   color_text_secondary,
   color_text_light,
   color_background,
-  color_success,
 } from "../../constants/colors";
 
 // existing components (unchanged)
