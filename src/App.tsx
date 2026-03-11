@@ -18,15 +18,13 @@ import AuthInitializer from "./components/AuthInitializer";
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import UserActivity from "./components/tables/UserActivity";
 import ContactUs from "./pages/contact_us/ContactUs";
 import Acknowledgement from "./pages/Acknowledgement/Acknowledgement";
 import CoronerPage from "./pages/CoronerPage/CoronerPage";
-import PendingRequests from "./pages/request_hub/PendingRequests";
-import FileActivities from "./components/tables/FileActivities";
 import ActivityLogs from "./components/tables/ActivityLogs";
-import MyRequests from "./pages/request_hub/MyRequests";
 import { useSelector } from "react-redux";
+import AdminRequestsWrapper from "./pages/request_hub/AdminRequestsWrapper";
+import MyRequestsWrapper from "./pages/request_hub/MyRequestsWrapper";
 
 
 function App() {
@@ -144,7 +142,7 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout showHeader={true}>
-                {user?.role == "Admin" ? <PendingRequests/>  : <MyRequests />}
+                {user?.role == "Admin" ? <AdminRequestsWrapper/>  : <MyRequestsWrapper />}
               </Layout>
             </ProtectedRoute>
           }

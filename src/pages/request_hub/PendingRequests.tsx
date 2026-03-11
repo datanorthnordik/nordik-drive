@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -24,8 +26,6 @@ import {
   color_text_primary,
   color_text_light,
   color_white,
-  header_height,
-  header_mobile_height,
 } from "../../constants/colors";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
@@ -41,7 +41,6 @@ const PendingRequests: React.FC = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [searchText, setSearchText] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -50,15 +49,6 @@ const PendingRequests: React.FC = () => {
   useEffect(() => {
     if (data) setRequests((data as any).requests || []);
   }, [data]);
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 900);
-    onResize();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const topOffset = isMobile ? header_mobile_height : header_height;
 
   const filtered = useMemo(() => {
     const search = searchText.toLowerCase().trim();
@@ -106,12 +96,14 @@ const PendingRequests: React.FC = () => {
   return (
     <Box
       sx={{
-        height: `calc(100vh - ${topOffset})`,
-        mt: topOffset,
-        p: { xs: 1.5, md: 2.5 },
+        height: "100%",
+        minHeight: 0,
+        p: { xs: 1, md: 1.25 },
         boxSizing: "border-box",
         overflow: "hidden",
         backgroundColor: color_background,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Loader loading={loading} />
@@ -129,7 +121,6 @@ const PendingRequests: React.FC = () => {
           backgroundColor: color_white,
         }}
       >
-        {/* Header (title + search) */}
         <Box
           sx={{
             px: { xs: 1.75, md: 2.25 },
@@ -191,13 +182,12 @@ const PendingRequests: React.FC = () => {
           />
         </Box>
 
-        {/* Table area */}
         <TableContainer
           sx={{
             flex: 1,
             minHeight: 0,
             overflow: "auto",
-            backgroundColor: color_background, // matches the empty area below rows in your UX
+            backgroundColor: color_background,
           }}
         >
           <Table stickyHeader size="small" sx={{ minWidth: 900 }}>
@@ -289,10 +279,16 @@ const PendingRequests: React.FC = () => {
                 ))
               )}
 
-              {/* Small spacer so last row never feels clipped */}
               {filtered.length > 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ height: 14, borderBottom: "none", backgroundColor: color_background }} />
+                  <TableCell
+                    colSpan={6}
+                    sx={{
+                      height: 14,
+                      borderBottom: "none",
+                      backgroundColor: color_background,
+                    }}
+                  />
                 </TableRow>
               )}
             </TableBody>

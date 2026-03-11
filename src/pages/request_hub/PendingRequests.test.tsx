@@ -11,6 +11,7 @@ import {
 import "@testing-library/jest-dom";
 
 import PendingRequests from "./PendingRequests";
+import RequestHub from "./RequestHub";
 import useFetch from "../../hooks/useFetch";
 
 // --------------------
@@ -262,22 +263,45 @@ describe("PendingRequests (100% coverage)", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  test("mobile resize branch + listener cleanup", async () => {
+  test("renders correctly on narrow width and supports requests with zero details", async () => {
+  Object.defineProperty(window, "innerWidth", { value: 700, writable: true });
+
+  dataNext = {
+    requests: [
+      mkReq({
+        request_id: 55,
+        firstname: "Athul",
+        lastname: "N",
+        efirstname: "Kavya",
+        elastname: "G",
+        details: [],
+      }),
+    ],
+  };
+
+  render(<PendingRequests />);
+
+  await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+
+  expect(screen.getByText("Pending Edit Requests")).toBeInTheDocument();
+  expect(screen.getByText("Kavya G")).toBeInTheDocument();
+  expect(screen.getByText("Athul N")).toBeInTheDocument();
+  expect(screen.getByText("0 changes")).toBeInTheDocument();
+  expect(screen.queryByText("No pending requests")).not.toBeInTheDocument();
+});
+
+test("registers resize listener and cleans it up", () => {
     const addSpy = jest.spyOn(window, "addEventListener");
     const removeSpy = jest.spyOn(window, "removeEventListener");
 
-    const { unmount } = render(<PendingRequests />);
+    const { unmount } = render(
+      <RequestHub addInfoRequests={<div>add info</div>} />
+    );
 
     expect(addSpy).toHaveBeenCalledWith("resize", expect.any(Function));
 
-    act(() => {
-      (window as any).innerWidth = 700;
-      window.dispatchEvent(new Event("resize"));
-    });
-
-    expect(screen.getByText("Pending Edit Requests")).toBeInTheDocument();
-
     unmount();
+
     expect(removeSpy).toHaveBeenCalledWith("resize", expect.any(Function));
 
     addSpy.mockRestore();
