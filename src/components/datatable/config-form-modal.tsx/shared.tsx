@@ -122,6 +122,105 @@ export type LookupItem = {
   [key: string]: any;
 };
 
+export type ReviewableStatus = "approved" | "rejected" | "pending";
+
+export type PhotoGridItem = {
+  id: number;
+  status?: ReviewableStatus;
+  photo_comment?: string;      // uploader comment
+  reviewer_comment?: string;   // admin review comment
+  [key: string]: any;
+};
+
+export type DocumentGridItem = {
+  id: number;
+  file_name?: string;
+  filename?: string;
+  mime_type?: string;
+  size_bytes?: number;
+  document_category?: string;
+  status?: ReviewableStatus;
+  reviewer_comment?: string;   // admin review comment
+  [key: string]: any;
+};
+
+export type PhotoGridProps = {
+  title?: string;
+  loading?: boolean;
+  emptyText?: string;
+  photos: PhotoGridItem[];
+  getPhotoUrl: (id: number) => string;
+  onOpenViewer: (idx: number) => void;
+
+  showDownload?: boolean;
+  onDownloadSingle?: (id: number, filename: string, mime: string) => void;
+  downloadFilename?: (photo: PhotoGridItem) => string;
+  downloadMime?: (photo: PhotoGridItem) => string;
+
+  cardBorderColor?: string;
+  cardWidth?: number;
+  imageHeight?: number;
+  containerSx?: any;
+  cardSx?: any;
+
+  statusLabel?: (st: ReviewableStatus) => string;
+  statusChipSx?: (st: ReviewableStatus) => any;
+
+  primaryBtnSx?: any;
+  showStatusChip?: boolean;
+
+  showApproveReject?: boolean;
+  onApprove?: (id: number) => void;
+  onReject?: (id: number) => void;
+  approveBtnSx?: any;
+  rejectBtnSx?: any;
+
+  showReviewerCommentField?: boolean;
+  reviewerCommentLabel?: string;
+  onReviewerCommentChange?: (id: number, value: string) => void | undefined;
+};
+
+export type DocumentGridProps = {
+  title?: string;
+  loading?: boolean;
+  emptyText?: string;
+  documents: DocumentGridItem[];
+  onOpenViewer: (idx: number) => void;
+
+  showCategoryChip?: boolean;
+  showSizeChip?: boolean;
+
+  showViewButton?: boolean;
+  viewLabel?: string;
+  viewBtnSx?: any;
+
+  showDownload?: boolean;
+  onDownloadSingle?: (id: number, filename: string, mime: string) => void;
+  resolveFilename?: (doc: DocumentGridItem) => string;
+  resolveMime?: (doc: DocumentGridItem) => string;
+
+  showApproveReject?: boolean;
+  onApprove?: (id: number) => void;
+  onReject?: (id: number) => void;
+  approveBtnSx?: any;
+  rejectBtnSx?: any;
+
+  showReviewerCommentField?: boolean;
+  reviewerCommentLabel?: string;
+  onReviewerCommentChange?: (id: number, value: string) => void;
+
+  cardBorderColor?: string;
+  cardWidth?: number;
+  containerSx?: any;
+  cardSx?: any;
+
+  statusLabel?: (st: ReviewableStatus) => string;
+  statusChipSx?: (st: ReviewableStatus) => any;
+
+  primaryBtnSx?: any;
+  showStatusChip?: boolean;
+};
+
 export const meets = (answers: any, cond?: Cond) => {
   if (!cond) return true;
   return answers?.[cond.field] === cond.equals;

@@ -31,22 +31,11 @@ import {
 import ConfigFormModal from "../datatable/config-form-modal.tsx/ConfigFormModal";
 import { FormCfg } from "../datatable/config-form-modal.tsx/shared";
 import FormSubmissionGrid, { FormSubmissionRow } from "./FormSubmissionGrid";
-
-type UserAuth = {
-  id: number;
-  firstname: string;
-  lastname: string;
-  email?: string;
-};
+import { FORM_SUBMISSION_STATUS_OPTIONS } from "../../constants/statuses";
 
 type FileWithUser = {
   id: number;
   filename: string;
-};
-
-type UsersResp = {
-  message?: string;
-  users?: UserAuth[];
 };
 
 type FilesResp = {
@@ -69,6 +58,11 @@ type SelectOption = {
 
 type FormOption = {
   key: string;
+  label: string;
+};
+
+type StatusOption = {
+  value: string;
   label: string;
 };
 
@@ -97,7 +91,7 @@ export default function FormSubmissionLogs() {
   const [selectedForm, setSelectedForm] = useState<FormOption | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [selectedCreatedBy, setSelectedCreatedBy] = useState<SelectOption | null>(null);
+  const [selectedStatuses, setSelectedStatuses] = useState<StatusOption[]>([]);
 
   const [rows, setRows] = useState<FormSubmissionRow[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,12 +113,6 @@ export default function FormSubmissionLogs() {
     fetchData: fetchSubmissions,
     data: searchResp,
   } = useFetch(`${API_BASE}/form/search`, "POST", false);
-
-  const {
-    loading: usersLoading,
-    fetchData: fetchUsers,
-    data: usersResp,
-  } = useFetch(`${API_BASE}/user`, "GET", false);
 
   const {
     loading: filesLoading,
@@ -157,23 +145,8 @@ export default function FormSubmissionLogs() {
   );
 
   useEffect(() => {
-    fetchUsers();
     fetchFiles();
-  }, [fetchUsers, fetchFiles]);
-
-  const userOptions = useMemo<SelectOption[]>(() => {
-    const resp = usersResp as UsersResp | undefined;
-    const users = resp?.users ?? [];
-
-    return users
-      .map((u) => ({
-        id: String(u.id),
-        label:
-          `${u.firstname || ""} ${u.lastname || ""}`.trim() +
-          (u.email ? ` (${u.email})` : ""),
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [usersResp]);
+  }, [fetchFiles]);
 
   const fileOptions = useMemo<SelectOption[]>(() => {
     const resp = filesResp as FilesResp | undefined;
@@ -296,9 +269,9 @@ export default function FormSubmissionLogs() {
 
     if (selectedFile) body.file_id = Number(selectedFile.id);
     if (selectedForm?.key) body.form_key = selectedForm.key;
-    if (firstName.trim()) body.firstname = firstName.trim();
-    if (lastName.trim()) body.lastname = lastName.trim();
-    if (selectedCreatedBy) body.created_by = Number(selectedCreatedBy.id);
+    if (firstName.trim()) body.first_name = firstName.trim();
+    if (lastName.trim()) body.last_name = lastName.trim();
+    if (selectedStatuses.length > 0) body.status = selectedStatuses.map((s) => s.value);
 
     appliedRef.current = body;
     fetchPage(1);
@@ -311,7 +284,7 @@ export default function FormSubmissionLogs() {
     setSelectedForm(null);
     setFirstName("");
     setLastName("");
-    setSelectedCreatedBy(null);
+    setSelectedStatuses([]);
     setFormOptionsFromApi([]);
 
     appliedRef.current = {};
@@ -333,14 +306,16 @@ export default function FormSubmissionLogs() {
     if (selectedForm) chips.push(`Form type: ${selectedForm.label}`);
     if (firstName.trim()) chips.push(`First name: ${firstName.trim()}`);
     if (lastName.trim()) chips.push(`Last name: ${lastName.trim()}`);
-    if (selectedCreatedBy) chips.push(`Created by: ${selectedCreatedBy.label}`);
+    if (selectedStatuses.length > 0) {
+      chips.push(`Status: ${selectedStatuses.map((s) => s.label).join(", ")}`);
+    }
 
     return chips;
-  }, [selectedFile, selectedForm, firstName, lastName, selectedCreatedBy]);
+  }, [selectedFile, selectedForm, firstName, lastName, selectedStatuses]);
 
   return (
     <>
-      <Loader loading={searchLoading || usersLoading || filesLoading || formsLoading || configLoading} />
+      <Loader loading={searchLoading || filesLoading || formsLoading || configLoading} />
 
       <Box
         sx={{
@@ -517,21 +492,31 @@ export default function FormSubmissionLogs() {
               />
 
               <Autocomplete
+                multiple
                 size="small"
-                options={userOptions}
-                value={selectedCreatedBy}
-                onChange={(_, value) => setSelectedCreatedBy(value)}
-                loading={usersLoading}
+                options={FORM_SUBMISSION_STATUS_OPTIONS}
+                value={selectedStatuses}
+                onChange={(_, value) => setSelectedStatuses(value)}
                 disablePortal
+                disableCloseOnSelect
                 clearOnEscape
-                isOptionEqualToValue={(option, value) => option.id === value.id}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
                 getOptionLabel={(option) => option?.label || ""}
-                noOptionsText="No users found"
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option.value}
+                      label={option.label}
+                      size="small"
+                    />
+                  ))
+                }
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Created By"
-                    placeholder="Search creator"
+                    label="Status"
+                    placeholder={selectedStatuses.length > 0 ? "" : "Select status"}
                   />
                 )}
               />

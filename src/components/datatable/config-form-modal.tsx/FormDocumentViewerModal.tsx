@@ -4,10 +4,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogContent,
   Divider,
+  TextField,
   Typography,
 } from "@mui/material";
 
@@ -28,6 +30,8 @@ import {
   color_text_primary,
   color_text_secondary,
   color_text_light,
+  color_success,
+  color_error,
 } from "../../../constants/colors";
 
 export type ViewerStatus = "approved" | "rejected" | "pending" | null | undefined;
@@ -38,6 +42,7 @@ export interface FormViewerDoc {
   mime_type?: string;
   file_category?: string;
   file_size_bytes?: number;
+  reviewer_comment?: string;
   status?: ViewerStatus;
   [key: string]: any;
 }
@@ -53,12 +58,12 @@ export interface FormDocumentViewerModalProps {
   apiBase: string;
   blobEndpointPath?: string;
 
-  /** Parent actions (kept configurable) */
   onOpen?: (doc: FormViewerDoc) => void;
   onDownload?: (doc: FormViewerDoc) => void;
 
   onApprove?: (doc: FormViewerDoc) => void;
   onReject?: (doc: FormViewerDoc) => void;
+  onReviewerCommentChange?: (doc: FormViewerDoc, value: string) => void;
 
   showOpenButton?: boolean;
   showDownloadButton?: boolean;
@@ -70,6 +75,7 @@ export interface FormDocumentViewerModalProps {
   tipText?: string;
 
   maxTextChars?: number;
+  showReviewerCommentField?: boolean;
 }
 
 const normalizeBlob = (x: any): Blob | null => {
@@ -144,6 +150,37 @@ const readBlobAsText = (blob: Blob) =>
     reader.readAsText(blob);
   });
 
+const statusChipSx = (st?: ViewerStatus) => {
+  if (st === "approved") {
+    return {
+      color: color_success,
+      backgroundColor: "rgba(39, 174, 96, 0.12)",
+      border: "1px solid rgba(39, 174, 96, 0.25)",
+      fontWeight: 900,
+    };
+  }
+  if (st === "rejected") {
+    return {
+      color: color_error,
+      backgroundColor: "rgba(231, 76, 60, 0.12)",
+      border: "1px solid rgba(231, 76, 60, 0.25)",
+      fontWeight: 900,
+    };
+  }
+  return {
+    color: color_text_secondary,
+    backgroundColor: "rgba(107, 114, 128, 0.12)",
+    border: "1px solid rgba(107, 114, 128, 0.25)",
+    fontWeight: 900,
+  };
+};
+
+const labelFromStatus = (st?: ViewerStatus) => {
+  if (st === "approved") return "Approved";
+  if (st === "rejected") return "Rejected";
+  return "Pending";
+};
+
 export default function FormDocumentViewerModal({
   open,
   onClose,
@@ -156,6 +193,7 @@ export default function FormDocumentViewerModal({
   onDownload,
   onApprove,
   onReject,
+  onReviewerCommentChange,
   showOpenButton = true,
   showDownloadButton = true,
   showApproveReject = false,
@@ -165,6 +203,7 @@ export default function FormDocumentViewerModal({
   bottomOpenLabel = "View",
   tipText = "If preview doesn’t load for some file types, use Open.",
   maxTextChars = 200000,
+  showReviewerCommentField = false,
 }: FormDocumentViewerModalProps) {
   const [index, setIndex] = useState<number>(startIndex || 0);
   const [docBlobUrl, setDocBlobUrl] = useState<string>("");
@@ -179,7 +218,18 @@ export default function FormDocumentViewerModal({
     error: fileBlobError,
   } = useFetch<any>(`${apiBase}${blobEndpointPath}`, "GET", false);
 
+  const safeStartIndex = useMemo(
+    () => Math.min(Math.max(startIndex || 0, 0), Math.max(docs.length - 1, 0)),
+    [startIndex, docs.length]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setIndex(safeStartIndex);
+  }, [open, safeStartIndex]);
+
   const currentDoc: FormViewerDoc | undefined = docs[index];
+  const currentDocId = currentDoc?.id ?? null;
 
   const currentDocMime = useMemo(() => {
     if (!currentDoc) return "";
@@ -194,35 +244,23 @@ export default function FormDocumentViewerModal({
     setDocTextPreview("");
   }, []);
 
-  const openDocAtIndex = useCallback(
-    async (idx: number) => {
-      const doc = docs[idx];
-      if (!doc) return;
-
-      clearPreview();
-
-      await fetchFileBlob(undefined, undefined, false, {
-        path: doc.id,
-        responseType: "blob",
-      });
-    },
-    [docs, clearPreview, fetchFileBlob]
-  );
-
-  useEffect(() => {
-    if (!open) return;
-
-    const safe = Math.min(Math.max(startIndex || 0, 0), Math.max(docs.length - 1, 0));
-    setIndex(safe);
-    void openDocAtIndex(safe);
-  }, [open, startIndex, docs.length, openDocAtIndex]);
-
   useEffect(() => {
     return () => {
       const prev = lastBlobUrlRef.current;
       if (prev) URL.revokeObjectURL(prev);
     };
   }, []);
+
+  useEffect(() => {
+    if (!open || !currentDocId) return;
+
+    clearPreview();
+
+    void fetchFileBlob(undefined, undefined, false, {
+      path: currentDocId,
+      responseType: "blob",
+    });
+  }, [open, currentDocId, fetchFileBlob, clearPreview]);
 
   useEffect(() => {
     if (!open) return;
@@ -252,17 +290,13 @@ export default function FormDocumentViewerModal({
     }
   }, [fileBlobData, open, currentDocMime, maxTextChars]);
 
-  const setIndexAndLoad = useCallback(
-    async (nextIdx: number) => {
-      const safe = Math.min(Math.max(nextIdx, 0), Math.max(docs.length - 1, 0));
-      setIndex(safe);
-      await openDocAtIndex(safe);
-    },
-    [docs.length, openDocAtIndex]
-  );
+  const handlePrev = () => {
+    setIndex((prev) => Math.max(prev - 1, 0));
+  };
 
-  const handlePrev = () => void setIndexAndLoad(index - 1);
-  const handleNext = () => void setIndexAndLoad(index + 1);
+  const handleNext = () => {
+    setIndex((prev) => Math.min(prev + 1, docs.length - 1));
+  };
 
   const openInNewTab = useCallback(() => {
     if (!docBlobUrl || !currentDoc) return;
@@ -468,135 +502,85 @@ export default function FormDocumentViewerModal({
       >
         <Box
           sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            gap: 2,
             height: "100%",
-            borderRadius: 2,
-            border: `1px solid ${color_border}`,
-            background: color_white,
-            overflow: "hidden",
-            boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
-            position: "relative",
           }}
         >
-          {fileBlobLoading && (
-            <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
-              <CircularProgress size={24} />
-              <Typography sx={{ fontWeight: 700, color: color_text_primary }}>
-                Loading document...
-              </Typography>
-            </Box>
-          )}
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 0,
+              borderRadius: 2,
+              border: `1px solid ${color_border}`,
+              background: color_white,
+              overflow: "hidden",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.12)",
+              position: "relative",
+            }}
+          >
+            {fileBlobLoading && (
+              <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
+                <CircularProgress size={24} />
+                <Typography sx={{ fontWeight: 700, color: color_text_primary }}>
+                  Loading document...
+                </Typography>
+              </Box>
+            )}
 
-          {!fileBlobLoading && fileBlobError && (
-            <Box sx={{ p: 3 }}>
-              <Typography sx={{ fontWeight: 900, mb: 1, color: color_text_primary }}>
-                Failed to load document
-              </Typography>
-              <Typography sx={{ color: color_text_light }}>{String(fileBlobError)}</Typography>
-            </Box>
-          )}
+            {!fileBlobLoading && fileBlobError && (
+              <Box sx={{ p: 3 }}>
+                <Typography sx={{ fontWeight: 900, mb: 1, color: color_text_primary }}>
+                  Failed to load document
+                </Typography>
+                <Typography sx={{ color: color_text_light }}>{String(fileBlobError)}</Typography>
+              </Box>
+            )}
 
-          {!fileBlobLoading && docBlobUrl && (
-            <>
-              {isPdfMime(currentDocMime) && (
-                <iframe
-                  title="pdf-viewer"
-                  src={docBlobUrl}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    border: 0,
-                    background: "#fff",
-                  }}
-                />
-              )}
-
-              {isImageMime(currentDocMime) && (
-                <Box
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    background: color_background,
-                    overflow: "auto",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    p: 2,
-                  }}
-                >
-                  <img
+            {!fileBlobLoading && docBlobUrl && (
+              <>
+                {isPdfMime(currentDocMime) && (
+                  <iframe
+                    title="pdf-viewer"
                     src={docBlobUrl}
-                    alt={currentDoc?.file_name || "document"}
                     style={{
-                      display: "block",
-                      maxWidth: "100%",
-                      maxHeight: "100%",
-                      objectFit: "contain",
+                      width: "100%",
+                      height: "100%",
+                      border: 0,
+                      background: "#fff",
                     }}
                   />
-                </Box>
-              )}
+                )}
 
-              {(isDocxMime(currentDocMime) || isExcelMime(currentDocMime)) && (
-                <Box
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    p: 3,
-                    textAlign: "center",
-                  }}
-                >
-                  <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
-                    Preview not supported for {isDocxMime(currentDocMime) ? "DOC/DOCX" : "Excel"} in browser.
-                  </Typography>
-                  <Typography sx={{ color: color_text_light, mb: 2 }}>
-                    Use Open or Download.
-                  </Typography>
-
-                  <Button
-                    onClick={handleOpenAction}
-                    variant="contained"
-                    startIcon={<OpenInNewIcon />}
+                {isImageMime(currentDocMime) && (
+                  <Box
                     sx={{
-                      fontWeight: 900,
-                      background: color_secondary,
-                      "&:hover": { background: color_secondary_dark },
+                      width: "100%",
+                      height: "100%",
+                      background: color_background,
+                      overflow: "auto",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      p: 2,
                     }}
                   >
-                    Open
-                  </Button>
-                </Box>
-              )}
-
-              {!isPdfMime(currentDocMime) &&
-                !isImageMime(currentDocMime) &&
-                !isDocxMime(currentDocMime) &&
-                !isExcelMime(currentDocMime) &&
-                docTextPreview && (
-                  <Box sx={{ p: 2 }}>
-                    <pre
+                    <img
+                      src={docBlobUrl}
+                      alt={currentDoc?.file_name || "document"}
                       style={{
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        margin: 0,
-                        color: color_text_primary,
-                        fontFamily:
-                          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                        fontSize: 13,
+                        display: "block",
+                        maxWidth: "100%",
+                        maxHeight: "100%",
+                        objectFit: "contain",
                       }}
-                    >
-                      {docTextPreview}
-                    </pre>
+                    />
                   </Box>
                 )}
 
-              {!isPdfMime(currentDocMime) &&
-                !isImageMime(currentDocMime) &&
-                !isDocxMime(currentDocMime) &&
-                !isExcelMime(currentDocMime) &&
-                !docTextPreview && (
+                {(isDocxMime(currentDocMime) || isExcelMime(currentDocMime)) && (
                   <Box
                     sx={{
                       height: "100%",
@@ -609,7 +593,7 @@ export default function FormDocumentViewerModal({
                     }}
                   >
                     <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
-                      Preview not available for this file type.
+                      Preview not supported for {isDocxMime(currentDocMime) ? "DOC/DOCX" : "Excel"} in browser.
                     </Typography>
                     <Typography sx={{ color: color_text_light, mb: 2 }}>
                       Use Open or Download.
@@ -629,22 +613,120 @@ export default function FormDocumentViewerModal({
                     </Button>
                   </Box>
                 )}
-            </>
-          )}
 
-          {!fileBlobLoading && !fileBlobError && !docBlobUrl && (
+                {!isPdfMime(currentDocMime) &&
+                  !isImageMime(currentDocMime) &&
+                  !isDocxMime(currentDocMime) &&
+                  !isExcelMime(currentDocMime) &&
+                  docTextPreview && (
+                    <Box sx={{ p: 2 }}>
+                      <pre
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                          margin: 0,
+                          color: color_text_primary,
+                          fontFamily:
+                            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                          fontSize: 13,
+                        }}
+                      >
+                        {docTextPreview}
+                      </pre>
+                    </Box>
+                  )}
+
+                {!isPdfMime(currentDocMime) &&
+                  !isImageMime(currentDocMime) &&
+                  !isDocxMime(currentDocMime) &&
+                  !isExcelMime(currentDocMime) &&
+                  !docTextPreview && (
+                    <Box
+                      sx={{
+                        height: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        p: 3,
+                        textAlign: "center",
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                        Preview not available for this file type.
+                      </Typography>
+                      <Typography sx={{ color: color_text_light, mb: 2 }}>
+                        Use Open or Download.
+                      </Typography>
+
+                      <Button
+                        onClick={handleOpenAction}
+                        variant="contained"
+                        startIcon={<OpenInNewIcon />}
+                        sx={{
+                          fontWeight: 900,
+                          background: color_secondary,
+                          "&:hover": { background: color_secondary_dark },
+                        }}
+                      >
+                        Open
+                      </Button>
+                    </Box>
+                  )}
+              </>
+            )}
+
+            {!fileBlobLoading && !fileBlobError && !docBlobUrl && (
+              <Box
+                sx={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  p: 3,
+                }}
+              >
+                <Typography sx={{ color: color_text_light, fontWeight: 700 }}>
+                  Document not loaded yet.
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {showReviewerCommentField && currentDoc && (
             <Box
               sx={{
-                height: "100%",
+                width: { xs: "100%", md: 340 },
+                flexShrink: 0,
+                borderRadius: 2,
+                border: `1px solid ${color_border}`,
+                background: color_white,
+                p: 2,
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                p: 3,
+                flexDirection: "column",
+                gap: 1.25,
+                overflowY: "auto",
               }}
             >
-              <Typography sx={{ color: color_text_light, fontWeight: 700 }}>
-                Document not loaded yet.
+              <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
+                Review
               </Typography>
+
+              <Chip
+                size="small"
+                label={labelFromStatus(currentDoc.status)}
+                sx={{ alignSelf: "flex-start", ...statusChipSx(currentDoc.status) }}
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Review Comment"
+                value={String(currentDoc.reviewer_comment || "")}
+                onChange={(e) => onReviewerCommentChange?.(currentDoc, e.target.value)}
+                multiline
+                minRows={4}
+              />
             </Box>
           )}
         </Box>

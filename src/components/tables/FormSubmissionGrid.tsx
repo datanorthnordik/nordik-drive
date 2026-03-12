@@ -35,8 +35,8 @@ export type FormSubmissionRow = {
   file_name: string;
   form_key: string;
   form_label?: string;
-  firstname: string;
-  lastname: string;
+  first_name: string;
+  last_name: string;
   created_by: string;
   edited_by: string;
   reviewed_by: string;

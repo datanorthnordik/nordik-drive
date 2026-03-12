@@ -8,7 +8,7 @@ import {
   CardMedia,
   Chip,
   CircularProgress,
-  Grid,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -17,6 +17,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import {
   color_border,
   color_secondary,
+  color_secondary_dark,
   color_text_light,
   color_text_primary,
   color_text_secondary,
@@ -41,7 +42,6 @@ export function PhotoGrid({
   downloadMime,
 
   cardBorderColor = color_secondary,
-  cardWidth = 240,
   imageHeight = 140,
   containerSx,
   cardSx,
@@ -51,15 +51,27 @@ export function PhotoGrid({
 
   primaryBtnSx,
   showStatusChip = true,
+
+  showApproveReject = false,
+  onApprove,
+  onReject,
+  approveBtnSx,
+  rejectBtnSx,
+
+  showReviewerCommentField = false,
+  reviewerCommentLabel = "Review Comment",
+  onReviewerCommentChange,
 }: PhotoGridProps) {
-  const labelOf = (st: "approved" | "rejected" | "pending") =>
-    statusLabel
+  const labelOf = (st: "approved" | "rejected" | "pending") => {
+    return  statusLabel
       ? statusLabel(st)
       : st === "approved"
         ? "Approved"
         : st === "rejected"
           ? "Rejected"
           : "Pending";
+  }
+   
 
   const defaultPhotoChipSx = (st: "approved" | "rejected" | "pending") => {
     if (st === "approved") {
@@ -98,6 +110,100 @@ export function PhotoGrid({
   const chipSx = (st: "approved" | "rejected" | "pending") =>
     statusChipSx ? statusChipSx(st) : defaultPhotoChipSx(st);
 
+  const defaultApproveBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_secondary,
+    color: color_white,
+    "&:hover": { background: color_secondary_dark },
+  };
+
+  const defaultRejectBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_primary,
+    color: color_white,
+    "&:hover": { background: color_primary },
+  };
+
+  const defaultPrimaryBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_secondary,
+    color: color_white,
+    "&:hover": { background: color_secondary_dark },
+  };
+
+  const renderCommentCard = (label: string, value: string, emptyTextValue: string) => {
+    const trimmed = String(value || "").trim();
+    const hasValue = trimmed.length > 0;
+    const isLong = trimmed.length > 100;
+    const displayValue = hasValue
+      ? isLong
+        ? `${trimmed.slice(0, 97).trimEnd()}...`
+        : trimmed
+      : emptyTextValue;
+
+    return (
+      <Tooltip
+        title={isLong ? trimmed : ""}
+        arrow
+        placement="top-start"
+        disableHoverListener={!isLong}
+        disableFocusListener={!isLong}
+        disableTouchListener={!isLong}
+      >
+        <Box
+          sx={{
+            p: 1,
+            borderRadius: 2,
+            border: `1px solid ${color_border}`,
+            backgroundColor: "rgba(2, 6, 23, 0.03)",
+            minHeight: 92,
+            maxHeight: 92,
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "0.78rem",
+              fontWeight: 900,
+              color: color_text_light,
+              mb: 0.35,
+              letterSpacing: "0.02em",
+              flexShrink: 0,
+            }}
+          >
+            {label}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: "0.98rem",
+              fontWeight: 800,
+              color: hasValue ? color_text_primary : color_text_secondary,
+              lineHeight: 1.45,
+              wordBreak: "break-word",
+              whiteSpace: "normal",
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 2,
+            }}
+          >
+            {displayValue}
+          </Typography>
+        </Box>
+      </Tooltip>
+    );
+  };
+
   return (
     <Box>
       <Typography variant="h6" sx={{ mt: 3, mb: 1, fontWeight: 900, color: color_text_primary }}>
@@ -125,164 +231,199 @@ export function PhotoGrid({
             {emptyText}
           </Typography>
         ) : (
-          <Grid container spacing={1.75}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(1, minmax(0, 1fr))",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(3, minmax(0, 1fr))",
+                lg: "repeat(4, minmax(0, 1fr))",
+                xl: "repeat(5, minmax(0, 1fr))",
+              },
+              gap: 1.75,
+              alignItems: "stretch",
+            }}
+          >
             {photos.map((photo, idx) => {
               const st = normalizeStatus(photo.status);
               const url = getPhotoUrl(photo.id);
               const dlName = downloadFilename ? downloadFilename(photo) : `photo_${photo.id}.jpg`;
               const dlMime = downloadMime ? downloadMime(photo) : "image/jpeg";
 
-              const rawComment = (photo.photo_comment || "").trim();
-              const hasComment = rawComment.length > 0;
-              const isLongComment = rawComment.length > 100;
-              const displayComment = hasComment
-                ? isLongComment
-                  ? `${rawComment.slice(0, 97).trimEnd()}...`
-                  : rawComment
-                : "No comment";
+              const uploaderComment = String(photo.photo_comment || "");
+              const reviewerComment = String((photo as any).reviewer_comment || "");
 
               return (
-                <Grid key={photo.id}>
-                  <Card
-                    data-testid={`photo-card-${photo.id}`}
-                    onClick={() => onOpenViewer(idx)}
+                <Card
+                  key={photo.id}
+                  data-testid={`photo-card-${photo.id}`}
+                  onClick={() => onOpenViewer(idx)}
+                  sx={{
+                    width: "100%",
+                    minWidth: 0,
+                    borderRadius: 2,
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    backgroundColor: color_white,
+                    border: `1px solid ${cardBorderColor}`,
+                    boxShadow: "0 8px 18px rgba(2,6,23,0.06)",
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    "&:hover": { boxShadow: "0 12px 26px rgba(2,6,23,0.10)" },
+                    ...cardSx,
+                  }}
+                >
+                  <CardMedia
+                    component="img"
+                    height={imageHeight}
+                    image={url}
+                    sx={{ objectFit: "cover", flexShrink: 0 }}
+                  />
+
+                  <Box
                     sx={{
-                      width: cardWidth,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      backgroundColor: color_white,
-                      border: `1px solid ${cardBorderColor}`,
-                      boxShadow: "0 8px 18px rgba(2,6,23,0.06)",
+                      p: 1.2,
                       display: "flex",
                       flexDirection: "column",
-                      height: "100%",
-                      "&:hover": { boxShadow: "0 12px 26px rgba(2,6,23,0.10)" },
-                      ...cardSx,
+                      gap: 1.1,
+                      flex: 1,
+                      minWidth: 0,
                     }}
                   >
-                    <CardMedia
-                      component="img"
-                      height={imageHeight}
-                      image={url}
-                      sx={{ objectFit: "cover", flexShrink: 0 }}
-                    />
-
                     <Box
                       sx={{
-                        p: 1.2,
                         display: "flex",
-                        flexDirection: "column",
-                        gap: 1.1,
-                        flex: 1,
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 1,
+                        minHeight: 28,
                       }}
                     >
-                      <Box
+                      {showStatusChip ? (
+                        <Chip
+                          size="small"
+                          label={labelOf(st)}
+                          data-testid={`photo-status-${photo.id}`}
+                          sx={chipSx(st)}
+                        />
+                      ) : (
+                        <Box />
+                      )}
+
+                      <Typography
                         sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 1,
-                          minHeight: 28,
+                          fontSize: "0.86rem",
+                          fontWeight: 900,
+                          color: color_text_light,
                         }}
                       >
-                        {showStatusChip ? (
-                          <Chip
-                            size="small"
-                            label={labelOf(st)}
-                            data-testid={`photo-status-${photo.id}`}
-                            sx={chipSx(st)}
-                          />
-                        ) : (
-                          <Box />
+                        ID: {photo.id}
+                      </Typography>
+                    </Box>
+
+                    {renderCommentCard("Uploader Comment", uploaderComment, "No uploader comment")}
+
+                    {showReviewerCommentField && (
+                      <Box onClick={(e) => e.stopPropagation()}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={reviewerCommentLabel}
+                          value={reviewerComment}
+                          onChange={(e) => onReviewerCommentChange?.(photo.id, e.target.value)}
+                          multiline
+                          minRows={2}
+                        />
+                      </Box>
+                    )}
+
+                    {(showApproveReject || showDownload || !!onDownloadSingle) && (
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                          gap: 1,
+                          mt: "auto",
+                          alignItems: "stretch",
+                        }}
+                      >
+                        {showApproveReject && (
+                          <>
+                            <Button
+                              size="small"
+                              fullWidth
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onApprove?.(photo.id);
+                              }}
+                              sx={{
+                                ...(approveBtnSx || defaultApproveBtnSx),
+                                minWidth: 0,
+                                px: 1.25,
+                                py: 0.8,
+                                fontSize: "0.88rem",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Approve
+                            </Button>
+
+                            <Button
+                              size="small"
+                              fullWidth
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onReject?.(photo.id);
+                              }}
+                              sx={{
+                                ...(rejectBtnSx || defaultRejectBtnSx),
+                                minWidth: 0,
+                                px: 1.25,
+                                py: 0.8,
+                                fontSize: "0.88rem",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Reject
+                            </Button>
+                          </>
                         )}
 
-                        <Typography
-                          sx={{
-                            fontSize: "0.86rem",
-                            fontWeight: 900,
-                            color: color_text_light,
-                          }}
-                        >
-                          ID: {photo.id}
-                        </Typography>
-                      </Box>
-
-                      <Tooltip
-                        title={isLongComment ? rawComment : ""}
-                        arrow
-                        placement="top-start"
-                        disableHoverListener={!isLongComment}
-                        disableFocusListener={!isLongComment}
-                        disableTouchListener={!isLongComment}
-                      >
-                        <Box
-                          sx={{
-                            p: 1,
-                            borderRadius: 2,
-                            border: `1px solid ${color_border}`,
-                            backgroundColor: "rgba(2, 6, 23, 0.03)",
-                            minHeight: 92,
-                            maxHeight: 92,
-                            boxSizing: "border-box",
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "flex-start",
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: "0.78rem",
-                              fontWeight: 900,
-                              color: color_text_light,
-                              mb: 0.35,
-                              letterSpacing: "0.02em",
-                              flexShrink: 0,
-                            }}
-                          >
-                            Comment
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              fontSize: "0.98rem",
-                              fontWeight: 800,
-                              color: hasComment ? color_text_primary : color_text_secondary,
-                              lineHeight: 1.45,
-                              wordBreak: "break-word",
-                              whiteSpace: "normal",
-                              overflow: "hidden",
-                              display: "-webkit-box",
-                              WebkitBoxOrient: "vertical",
-                              WebkitLineClamp: 2,
-                            }}
-                          >
-                            {displayComment}
-                          </Typography>
-                        </Box>
-                      </Tooltip>
-
-                      {(showDownload || !!onDownloadSingle) ? (
-                        <Box sx={{ pt: 0.1, mt: "auto" }}>
+                        {(showDownload || !!onDownloadSingle) && (
                           <Button
                             size="small"
+                            fullWidth
                             startIcon={<DownloadIcon fontSize="small" />}
                             onClick={(e) => {
                               e.stopPropagation();
                               onDownloadSingle?.(photo.id, dlName, dlMime);
                             }}
-                            sx={primaryBtnSx}
+                            sx={{
+                              ...(primaryBtnSx || defaultPrimaryBtnSx),
+                              gridColumn: "1 / -1",
+                              minWidth: 0,
+                              px: 1.25,
+                              py: 0.8,
+                              fontSize: "0.88rem",
+                              whiteSpace: "nowrap",
+                              "& .MuiButton-startIcon": {
+                                mr: 0.6,
+                                ml: 0,
+                              },
+                            }}
                           >
                             Download
                           </Button>
-                        </Box>
-                      ) : null}
-                    </Box>
-                  </Card>
-                </Grid>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                </Card>
               );
             })}
-          </Grid>
+          </Box>
         )}
       </Box>
     </Box>

@@ -1,12 +1,13 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Chip, CircularProgress, Typography } from "@mui/material";
+import { Box, Button, Chip, CircularProgress, TextField, Typography } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 
 import {
   color_border,
   color_secondary,
+  color_secondary_dark,
   color_text_light,
   color_text_primary,
   color_text_secondary,
@@ -42,8 +43,11 @@ export function DocumentGrid({
   approveBtnSx,
   rejectBtnSx,
 
+  showReviewerCommentField = false,
+  reviewerCommentLabel = "Review Comment",
+  onReviewerCommentChange,
+
   cardBorderColor = color_secondary,
-  cardWidth = 360,
   containerSx,
   cardSx,
 
@@ -99,8 +103,11 @@ export function DocumentGrid({
     backgroundColor: color_white,
     color: color_text_secondary,
     border: `1px solid ${color_border}`,
-    borderRadius: 1,
-    px: 2.25,
+    borderRadius: "10px",
+    px: 1,
+    py: 0.7,
+    fontSize: "0.82rem",
+    whiteSpace: "nowrap",
     "&:hover": { backgroundColor: "rgba(2,6,23,0.03)" },
   };
 
@@ -112,6 +119,33 @@ export function DocumentGrid({
     color: color_text_primary,
     backgroundColor: "rgba(148, 163, 184, 0.18)",
     border: `1px solid ${color_border}`,
+  };
+
+  const defaultApproveBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_secondary,
+    color: color_white,
+    "&:hover": { background: color_secondary_dark },
+  };
+
+  const defaultRejectBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_primary,
+    color: color_white,
+    "&:hover": { background: color_primary },
+  };
+
+  const defaultPrimaryBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_secondary,
+    color: color_white,
+    "&:hover": { background: color_secondary_dark },
   };
 
   return (
@@ -143,8 +177,14 @@ export function DocumentGrid({
         ) : (
           <Box
             sx={{
-              display: "flex",
-              flexWrap: "wrap",
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(1, minmax(0, 1fr))",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(3, minmax(0, 1fr))",
+                lg: "repeat(4, minmax(0, 1fr))",
+                xl: "repeat(5, minmax(0, 1fr))",
+              },
               gap: 1.75,
               alignItems: "stretch",
             }}
@@ -159,76 +199,98 @@ export function DocumentGrid({
                 `document_${doc.id}`;
 
               const mime = resolveMime?.(doc) || doc.mime_type || "";
+              const reviewerComment = String((doc as any).reviewer_comment || "");
+
+              const hasActions = showViewButton || showDownload || !!onDownloadSingle || showApproveReject;
 
               return (
                 <Box
                   key={doc.id}
+                  data-testid={`doc-card-${doc.id}`}
+                  onClick={() => onOpenViewer(idx)}
                   sx={{
-                    flex: `1 1 ${cardWidth}px`,
+                    width: "100%",
                     minWidth: 0,
-                    maxWidth: "100%",
+                    minHeight: "100%",
+                    borderRadius: 2,
+                    p: 2,
+                    backgroundColor: color_white,
+                    border: `1px solid ${cardBorderColor}`,
+                    boxShadow: "0 8px 18px rgba(2,6,23,0.06)",
+                    cursor: "pointer",
+                    boxSizing: "border-box",
+                    display: "flex",
+                    flexDirection: "column",
+                    "&:hover": { boxShadow: "0 12px 26px rgba(2,6,23,0.10)" },
+                    ...cardSx,
                   }}
                 >
-                  <Box
-                    data-testid={`doc-card-${doc.id}`}
-                    onClick={() => onOpenViewer(idx)}
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+                    {showCategoryChip && (
+                      <Chip
+                        size="small"
+                        label={categoryLabel(doc.document_category)}
+                        sx={softChipSx}
+                      />
+                    )}
+
+                    {showSizeChip && (
+                      <Chip size="small" label={formatBytes(doc.size_bytes)} sx={softChipSx} />
+                    )}
+
+                    {showStatusChip && (
+                      <Chip
+                        size="small"
+                        label={labelOf(st)}
+                        data-testid={`doc-status-${doc.id}`}
+                        sx={chipSx(st)}
+                      />
+                    )}
+                  </Box>
+
+                  <Typography sx={{ mt: 1.2, fontWeight: 900, color: color_text_light }}>
+                    ID: {doc.id}
+                  </Typography>
+
+                  <Typography
                     sx={{
-                      width: "100%",
-                      minHeight: "100%",
-                      borderRadius: 2,
-                      p: 2,
-                      backgroundColor: color_white,
-                      border: `1px solid ${cardBorderColor}`,
-                      boxShadow: "0 8px 18px rgba(2,6,23,0.06)",
-                      cursor: "pointer",
-                      boxSizing: "border-box",
-                      "&:hover": { boxShadow: "0 12px 26px rgba(2,6,23,0.10)" },
-                      ...cardSx,
+                      mt: 0.75,
+                      fontWeight: 900,
+                      fontSize: "1.25rem",
+                      color: color_text_primary,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
                     }}
+                    title={filename}
                   >
-                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
-                      {showCategoryChip && (
-                        <Chip
-                          size="small"
-                          label={categoryLabel(doc.document_category)}
-                          sx={softChipSx}
-                        />
-                      )}
+                    {filename}
+                  </Typography>
 
-                      {showSizeChip && (
-                        <Chip size="small" label={formatBytes(doc.size_bytes)} sx={softChipSx} />
-                      )}
-
-                      {showStatusChip && (
-                        <Chip
-                          size="small"
-                          label={labelOf(st)}
-                          data-testid={`doc-status-${doc.id}`}
-                          sx={chipSx(st)}
-                        />
-                      )}
+                  {showReviewerCommentField && (
+                    <Box sx={{ mt: 1.2 }} onClick={(e) => e.stopPropagation()}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label={reviewerCommentLabel}
+                        value={reviewerComment}
+                        onChange={(e) => onReviewerCommentChange?.(doc.id, e.target.value)}
+                        multiline
+                        minRows={2}
+                      />
                     </Box>
+                  )}
 
-                    <Typography sx={{ mt: 1.2, fontWeight: 900, color: color_text_light }}>
-                      ID: {doc.id}
-                    </Typography>
-
-                    <Typography
+                  {hasActions && (
+                    <Box
                       sx={{
-                        mt: 0.75,
-                        fontWeight: 900,
-                        fontSize: "1.55rem",
-                        color: color_text_primary,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        gap: 1,
+                        mt: 1.4,
+                        alignItems: "stretch",
                       }}
-                      title={filename}
                     >
-                      {filename}
-                    </Typography>
-
-                    <Box sx={{ display: "flex", gap: 1, mt: 1.4, flexWrap: "wrap" }}>
                       {showViewButton && (
                         <Button
                           data-testid={`doc-view-${doc.id}`}
@@ -237,7 +299,14 @@ export function DocumentGrid({
                             e.stopPropagation();
                             onOpenViewer(idx);
                           }}
-                          sx={viewBtnSx || defaultViewBtnSx}
+                          sx={{
+                            ...(viewBtnSx || defaultViewBtnSx),
+                            minWidth: 0,
+                            px: 1.25,
+                            py: 0.8,
+                            fontSize: "0.88rem",
+                            whiteSpace: "nowrap",
+                          }}
                         >
                           {viewLabel}
                         </Button>
@@ -246,12 +315,24 @@ export function DocumentGrid({
                       {(showDownload || !!onDownloadSingle) && (
                         <Button
                           size="small"
+                          fullWidth
                           startIcon={<DownloadIcon fontSize="small" />}
                           onClick={(e) => {
                             e.stopPropagation();
                             onDownloadSingle?.(doc.id, filename, mime);
                           }}
-                          sx={primaryBtnSx}
+                          sx={{
+                            ...(primaryBtnSx || defaultPrimaryBtnSx),
+                            minWidth: 0,
+                            px: 1.25,
+                            py: 0.8,
+                            fontSize: "0.88rem",
+                            whiteSpace: "nowrap",
+                            "& .MuiButton-startIcon": {
+                              mr: 0.6,
+                              ml: 0,
+                            },
+                          }}
                         >
                           Download
                         </Button>
@@ -266,7 +347,14 @@ export function DocumentGrid({
                               e.stopPropagation();
                               onApprove?.(doc.id);
                             }}
-                            sx={approveBtnSx}
+                            sx={{
+                              ...(approveBtnSx || defaultApproveBtnSx),
+                              minWidth: 0,
+                              px: 1.25,
+                              py: 0.8,
+                              fontSize: "0.88rem",
+                              whiteSpace: "nowrap",
+                            }}
                           >
                             Approve
                           </Button>
@@ -278,14 +366,21 @@ export function DocumentGrid({
                               e.stopPropagation();
                               onReject?.(doc.id);
                             }}
-                            sx={rejectBtnSx}
+                            sx={{
+                              ...(rejectBtnSx || defaultRejectBtnSx),
+                              minWidth: 0,
+                              px: 1.25,
+                              py: 0.8,
+                              fontSize: "0.88rem",
+                              whiteSpace: "nowrap",
+                            }}
                           >
                             Reject
                           </Button>
                         </>
                       )}
                     </Box>
-                  </Box>
+                  )}
                 </Box>
               );
             })}

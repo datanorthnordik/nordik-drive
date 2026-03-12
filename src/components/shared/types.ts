@@ -31,7 +31,12 @@ export type PhotoGridItem = {
   size_bytes?: number;
   mime_type?: string;
   is_approved?: boolean;
+
+  // uploader comment
   photo_comment?: string;
+
+  // reviewer/admin comment
+  reviewer_comment?: string;
 };
 
 export type PhotoGridProps = {
@@ -48,6 +53,18 @@ export type PhotoGridProps = {
   onDownloadSingle?: (id: number, filename?: string, mime?: string) => void;
   downloadFilename?: (p: PhotoGridItem) => string;
   downloadMime?: (p: PhotoGridItem) => string;
+
+  // review actions
+  showApproveReject?: boolean;
+  onApprove?: (id: number) => void;
+  onReject?: (id: number) => void;
+  approveBtnSx?: any;
+  rejectBtnSx?: any;
+
+  // reviewer comment
+  showReviewerCommentField?: boolean;
+  reviewerCommentLabel?: string;
+  onReviewerCommentChange?: (id: number, value: string) => void;
 
   // styling
   cardBorderColor?: string; // default: color_secondary
@@ -71,8 +88,9 @@ export type DocumentGridItem = {
   mime_type?: string;
   size_bytes?: number;
   document_category?: string;
-  status?: FileReviewStatus;
-  is_approved?: boolean;
+  status?: "approved" | "rejected" | "pending";
+  reviewer_comment?: string;
+  [key: string]: any;
 };
 
 export type DocumentGridProps = {
@@ -97,11 +115,16 @@ export type DocumentGridProps = {
   resolveFilename?: (d: DocumentGridItem) => string;
   resolveMime?: (d: DocumentGridItem) => string;
 
-  showApproveReject?: boolean;     // default false
+  showApproveReject?: boolean; // default false
   onApprove?: (id: number) => void;
   onReject?: (id: number) => void;
   approveBtnSx?: any;
   rejectBtnSx?: any;
+
+  // reviewer comment
+  showReviewerCommentField?: boolean;
+  reviewerCommentLabel?: string;
+  onReviewerCommentChange?: (id: number, value: string) => void;
 
   // styling
   cardBorderColor?: string; // default: color_secondary
@@ -114,5 +137,5 @@ export type DocumentGridProps = {
   statusChipSx?: (st: "approved" | "rejected" | "pending") => any;
 
   primaryBtnSx?: any;
-  showStatusChip?:boolean
+  showStatusChip?: boolean;
 };
