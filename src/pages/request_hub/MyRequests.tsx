@@ -25,15 +25,12 @@ import {
   color_text_light,
   color_white,
   color_warning,
-  header_height,
-  header_mobile_height,
 } from "../../constants/colors";
 
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
 import MyRequestDetailsModal from "./MyRequestDetailsModal";
 import { useSelector } from "react-redux";
-
 
 type TabKey = "pending" | "approved";
 
@@ -47,7 +44,6 @@ const formatWhen = (iso?: string) => {
   return String(iso).replace("T", " ").replace("Z", "");
 };
 
-// NO RED (Rejected uses neutral/grey)
 const statusChipSx = (status?: string) => {
   const s = String(status || "").toLowerCase();
 
@@ -99,32 +95,20 @@ const buildRequestsUrl = (statusCsv: string, id?: string) => {
 };
 
 const MyRequests: React.FC = () => {
-
   const [tab, setTab] = useState<TabKey>("pending");
   const [searchText, setSearchText] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 900);
-    onResize();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const topOffset = isMobile ? header_mobile_height : header_height;
   const user = useSelector((state: any) => state.auth.user);
 
-  //  Separate API calls:
-  // - pending list
-  // - approved + rejected list together
   const pendingUrl = useMemo(
-    () => buildRequestsUrl("pending", user.id || undefined),
-    [user.id]
+    () => buildRequestsUrl("pending", user?.id || undefined),
+    [user?.id]
   );
+
   const approvedRejectedUrl = useMemo(
-    () => buildRequestsUrl("approved,rejected", user.id || undefined),
-    [user.id]
+    () => buildRequestsUrl("approved,rejected", user?.id || undefined),
+    [user?.id]
   );
 
   const {
@@ -141,14 +125,12 @@ const MyRequests: React.FC = () => {
 
   const loading = pendingLoading || approvedRejectedLoading;
 
-  //  Fetch both whenever the URLs change (email/status)
   useEffect(() => {
     fetchPending();
     fetchApprovedRejected();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingUrl, approvedRejectedUrl]);
 
-  //  Refresh both (fixes the “refresh makes other tab 0” issue)
   const refreshBoth = useCallback(() => {
     fetchPending();
     fetchApprovedRejected();
@@ -156,12 +138,12 @@ const MyRequests: React.FC = () => {
 
   const pending: any[] = (pendingData as any)?.requests || [];
   const approvedRejected: any[] = (approvedRejectedData as any)?.requests || [];
-
   const activeList = tab === "pending" ? pending : approvedRejected;
 
   const filtered = useMemo(() => {
     const s = searchText.toLowerCase().trim();
     if (!s) return activeList;
+
     return activeList.filter((r) => {
       const file = getFilename(r).toLowerCase();
       const id = String(r.request_id || "").toLowerCase();
@@ -172,12 +154,14 @@ const MyRequests: React.FC = () => {
   return (
     <Box
       sx={{
-        height: `calc(100vh - ${topOffset})`,
-        mt: topOffset,
-        p: { xs: 1.5, md: 2.5 },
+        height: "100%",
+        minHeight: 0,
+        p: { xs: 1, md: 1.25 },
         boxSizing: "border-box",
         overflow: "hidden",
         backgroundColor: color_background,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Loader loading={loading} />
@@ -195,7 +179,6 @@ const MyRequests: React.FC = () => {
           backgroundColor: color_white,
         }}
       >
-        {/* Header */}
         <Box
           sx={{
             px: { xs: 1.75, md: 2.25 },
@@ -214,7 +197,14 @@ const MyRequests: React.FC = () => {
             <Typography sx={{ fontWeight: 900, color: color_secondary, fontSize: "1rem" }}>
               My Requests
             </Typography>
-            <Typography sx={{ mt: 0.25, color: color_text_light, fontSize: "0.8rem", fontWeight: 700 }}>
+            <Typography
+              sx={{
+                mt: 0.25,
+                color: color_text_light,
+                fontSize: "0.8rem",
+                fontWeight: 700,
+              }}
+            >
               Check status, approvals, and uploaded files.
             </Typography>
           </Box>
@@ -251,8 +241,7 @@ const MyRequests: React.FC = () => {
           />
         </Box>
 
-        {/* Tabs */}
-        <Box sx={{ px: { xs: 1.25, md: 2.25 }, pt: 1, background: color_white }}>
+        <Box sx={{ px: { xs: 1.25, md: 2.25 }, pt: 1, background: color_white, flexShrink: 0 }}>
           <Tabs
             value={tab}
             onChange={(_, v) => setTab(v)}
@@ -276,14 +265,21 @@ const MyRequests: React.FC = () => {
               "& .MuiTabs-indicator": { display: "none" },
             }}
           >
-            <Tab data-testid="tab-pending" value="pending" label={`Pending (${pending.length})`} />
-            <Tab data-testid="tab-approved" value="approved" label={`Approved/Rejected (${approvedRejected.length})`} />
+            <Tab
+              data-testid="tab-pending"
+              value="pending"
+              label={`Pending (${pending.length})`}
+            />
+            <Tab
+              data-testid="tab-approved"
+              value="approved"
+              label={`Approved/Rejected (${approvedRejected.length})`}
+            />
           </Tabs>
 
           <Divider sx={{ mt: 1, borderColor: color_border }} />
         </Box>
 
-        {/* Content */}
         <Box
           sx={{
             flex: 1,
@@ -306,7 +302,14 @@ const MyRequests: React.FC = () => {
               <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
                 {tab === "pending" ? "No pending requests." : "No approved/rejected requests."}
               </Typography>
-              <Typography sx={{ mt: 0.5, color: color_text_light, fontWeight: 700, fontSize: "0.85rem" }}>
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  color: color_text_light,
+                  fontWeight: 700,
+                  fontSize: "0.85rem",
+                }}
+              >
                 If you recently submitted something, refresh in a moment.
               </Typography>
               <Button
@@ -329,6 +332,7 @@ const MyRequests: React.FC = () => {
             <Stack spacing={1.25}>
               {filtered.map((req) => {
                 const chip = statusChipSx(req.status);
+
                 return (
                   <Paper
                     key={req.request_id}
@@ -341,7 +345,14 @@ const MyRequests: React.FC = () => {
                       backgroundColor: color_white,
                     }}
                   >
-                    <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 1,
+                        flexWrap: "wrap",
+                      }}
+                    >
                       <Box sx={{ minWidth: 0 }}>
                         <Typography
                           sx={{
@@ -357,8 +368,17 @@ const MyRequests: React.FC = () => {
                         >
                           {getFilename(req)}
                         </Typography>
-                        <Typography sx={{ mt: 0.25, color: color_text_light, fontWeight: 800, fontSize: "0.8rem" }}>
-                          Request #{req.request_id} • Created {formatWhen(req.created_at)} • {getChangeCount(req)} changes
+
+                        <Typography
+                          sx={{
+                            mt: 0.25,
+                            color: color_text_light,
+                            fontWeight: 800,
+                            fontSize: "0.8rem",
+                          }}
+                        >
+                          Request #{req.request_id} • Created {formatWhen(req.created_at)} •{" "}
+                          {getChangeCount(req)} changes
                         </Typography>
                       </Box>
 

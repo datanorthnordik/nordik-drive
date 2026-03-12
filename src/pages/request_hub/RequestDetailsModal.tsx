@@ -615,7 +615,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     size_bytes: d.size_bytes,
     mime_type: d.mime_type,
     document_category: d.document_category,
-    status: d.status ?? null,
+    status: d.status ?? undefined,
   }));
 
 

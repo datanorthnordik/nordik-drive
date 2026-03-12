@@ -10,6 +10,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  TextField,
   Tooltip,
   Typography,
   useMediaQuery,
@@ -48,7 +49,13 @@ export interface FormViewerPhoto {
   id: number;
   file_name?: string;
   mime_type?: string;
+
+  // uploader comment
   file_comment?: string;
+
+  // admin review comment
+  reviewer_comment?: string;
+
   status?: ViewerStatus;
   [key: string]: any;
 }
@@ -66,12 +73,14 @@ export interface FormPhotoViewerModalProps {
 
   onApprove?: (photo: FormViewerPhoto) => void;
   onReject?: (photo: FormViewerPhoto) => void;
+  onReviewerCommentChange?: (photo: FormViewerPhoto, value: string) => void;
 
   showDownloadButton?: boolean;
   showApproveReject?: boolean;
   showCommentsPanel?: boolean;
   showStatusPill?: boolean;
   showThumbnails?: boolean;
+  showReviewerCommentField?: boolean;
 }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -119,11 +128,13 @@ export default function FormPhotoViewerModal({
   onDownload,
   onApprove,
   onReject,
+  onReviewerCommentChange,
   showDownloadButton = true,
   showApproveReject = false,
   showCommentsPanel = true,
   showStatusPill = false,
   showThumbnails = true,
+  showReviewerCommentField = false,
 }: FormPhotoViewerModalProps) {
   const theme = useTheme();
   const isSmDown = useMediaQuery(theme.breakpoints.down("sm"));
@@ -141,19 +152,26 @@ export default function FormPhotoViewerModal({
 
   const [currentIndex, setCurrentIndex] = useState<number>(safeStartIndex);
   const [zoom, setZoom] = useState<number>(1);
+  const [isCommentFocused, setIsCommentFocused] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setCurrentIndex(safeStartIndex);
     setZoom(1);
+    setIsCommentFocused(false);
     setTimeout(() => galleryRef.current?.slideToIndex?.(safeStartIndex), 0);
   }, [open, safeStartIndex]);
 
   const currentPhoto = photos[currentIndex];
 
-  const commentText = useMemo(
+  const uploaderCommentText = useMemo(
     () => (currentPhoto?.file_comment || "").trim(),
     [currentPhoto?.file_comment]
+  );
+
+  const reviewerCommentText = useMemo(
+    () => currentPhoto?.reviewer_comment || "",
+    [currentPhoto?.reviewer_comment]
   );
 
   const galleryItems = useMemo(
@@ -189,6 +207,11 @@ export default function FormPhotoViewerModal({
     const next = Math.min(currentIndex + 1, photos.length - 1);
     setCurrentIndex(next);
     galleryRef.current?.slideToIndex?.(next);
+  };
+
+  const stopGalleryKeyCapture = (e: React.KeyboardEvent) => {
+    e.stopPropagation();
+    (e.nativeEvent as any).stopImmediatePropagation?.();
   };
 
   const toolIconBtnSx = {
@@ -264,6 +287,8 @@ export default function FormPhotoViewerModal({
     [currentPhoto, showStatusPill, showThumbnails, zoom]
   );
 
+  const sidePanel = currentPhoto && (showCommentsPanel || showReviewerCommentField);
+
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
       <DialogTitle
@@ -316,9 +341,11 @@ export default function FormPhotoViewerModal({
                 showFullscreenButton={false}
                 showThumbnails={showThumbnails}
                 thumbnailPosition="bottom"
+                disableKeyDown={isCommentFocused}
                 onSlide={(idx) => {
                   setCurrentIndex(idx);
                   setZoom(1);
+                  setIsCommentFocused(false);
                 }}
                 renderItem={renderZoomableItem}
               />
@@ -425,68 +452,142 @@ export default function FormPhotoViewerModal({
               </Box>
             </Box>
 
-            {showCommentsPanel && !isSmDown && (
+            {!isSmDown && sidePanel && (
               <Box
+                onClick={(e) => e.stopPropagation()}
+                onKeyDownCapture={stopGalleryKeyCapture}
+                onKeyUpCapture={stopGalleryKeyCapture}
                 sx={{
                   width: 360,
                   background: color_white,
                   borderLeft: `1px solid ${color_border}`,
                   p: 2,
                   overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.25,
                 }}
               >
-                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 1 }}>
+                <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
                   Comments
                 </Typography>
 
-                <Divider sx={{ mb: 1.2 }} />
+                <Divider />
 
-                <Typography
-                  sx={{
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    color: commentText ? color_text_secondary : color_text_light,
-                    fontWeight: 650,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {commentText || "No comments"}
-                </Typography>
+                {showCommentsPanel && (
+                  <>
+                    <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+                      Uploader Comment
+                    </Typography>
+                    <Typography
+                      sx={{
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        color: uploaderCommentText ? color_text_secondary : color_text_light,
+                        fontWeight: 650,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {uploaderCommentText || "No comments"}
+                    </Typography>
+                  </>
+                )}
+
+                {showReviewerCommentField && currentPhoto && (
+                  <>
+                    <Divider />
+                    <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+                      Review
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      label={labelFromStatus(currentPhoto.status)}
+                      sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
+                    />
+
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Review Comment"
+                      value={reviewerCommentText}
+                      onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
+                      onFocus={() => setIsCommentFocused(true)}
+                      onBlur={() => setIsCommentFocused(false)}
+                      onKeyDownCapture={stopGalleryKeyCapture}
+                      onKeyUpCapture={stopGalleryKeyCapture}
+                      multiline
+                      minRows={4}
+                    />
+                  </>
+                )}
               </Box>
             )}
 
-            {showCommentsPanel && isSmDown && (
+            {isSmDown && sidePanel && (
               <Box
+                onClick={(e) => e.stopPropagation()}
+                onKeyDownCapture={stopGalleryKeyCapture}
+                onKeyUpCapture={stopGalleryKeyCapture}
                 sx={{
-                  position: "fixed",
-                  left: 12,
-                  right: 12,
-                  bottom: 86,
-                  zIndex: 1395,
-                  background: color_white,
-                  border: `1px solid ${color_border}`,
+                  width: { xs: "100%", md: 340 },
+                  flexShrink: 0,
                   borderRadius: 2,
-                  p: 1.25,
-                  maxHeight: "22vh",
+                  border: `1px solid ${color_border}`,
+                  background: color_white,
+                  p: 2,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.25,
                   overflowY: "auto",
-                  boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
                 }}
               >
-                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
                   Comments
                 </Typography>
 
-                <Typography
-                  sx={{
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    color: commentText ? color_text_secondary : color_text_light,
-                    fontWeight: 650,
-                    lineHeight: 1.45,
-                  }}
-                >
-                  {commentText || "No comments"}
-                </Typography>
+                {showCommentsPanel && (
+                  <>
+                    <Typography sx={{ fontWeight: 800, color: color_text_primary, fontSize: 13 }}>
+                      Uploader Comment
+                    </Typography>
+                    <Typography
+                      sx={{
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-word",
+                        color: uploaderCommentText ? color_text_secondary : color_text_light,
+                        fontWeight: 650,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {uploaderCommentText || "No comments"}
+                    </Typography>
+                  </>
+                )}
+
+                {showReviewerCommentField && currentPhoto && (
+                  <>
+                    <Divider />
+                    <Chip
+                      size="small"
+                      label={labelFromStatus(currentPhoto.status)}
+                      sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Review Comment"
+                      value={reviewerCommentText}
+                      onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
+                      onFocus={() => setIsCommentFocused(true)}
+                      onBlur={() => setIsCommentFocused(false)}
+                      onKeyDownCapture={stopGalleryKeyCapture}
+                      onKeyUpCapture={stopGalleryKeyCapture}
+                      multiline
+                      minRows={4}
+                    />
+                  </>
+                )}
               </Box>
             )}
           </Box>

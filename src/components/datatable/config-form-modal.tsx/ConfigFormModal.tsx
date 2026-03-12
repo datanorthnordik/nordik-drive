@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  TextField,
   Typography,
 } from "@mui/material";
 import toast from "react-hot-toast";
@@ -29,9 +30,11 @@ import useConfigFormLookups from "./hooks/useConfigFormLookups";
 import {
   color_border,
   color_focus_ring,
+  color_primary,
   color_secondary,
   color_secondary_dark,
   color_text_primary,
+  color_warning,
   color_white,
   color_white_smoke,
   shadow_auth_button,
@@ -53,6 +56,35 @@ import {
   resolveRowId,
 } from "./shared";
 
+type ReviewUiAction = "approved" | "rejected" | "moreInfo";
+type UploadReviewStatus = "approved" | "rejected" | "pending";
+
+type UploadReviewDraft = {
+  status: UploadReviewStatus;
+  reviewer_comment: string;
+};
+
+type PendingAction =
+  | null
+  | { type: "save" }
+  | {
+      type: "review";
+      reviewBody: {
+        submission_id: number;
+        submission_review: {
+          status: string;
+          reviewer_comment: string;
+        };
+        upload_reviews: {
+          upload_id: number;
+          status: string;
+          reviewer_comment: string;
+        }[];
+      };
+    };
+
+type RequestPhase = "idle" | "starting" | "waiting";
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -69,6 +101,14 @@ type Props = {
   addInfoConfig?: any;
 
   isEditable?: boolean;
+
+  review?: boolean;
+  reviewPath?: string;
+  reviewStatuses?: {
+    approved: string;
+    rejected: string;
+    moreInfo: string;
+  };
 };
 
 export default function ConfigFormModal({
@@ -83,6 +123,9 @@ export default function ConfigFormModal({
   onSaved,
   addInfoConfig,
   isEditable = true,
+  review = false,
+  reviewPath = "/form/answers/review",
+  reviewStatuses,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const identityRef = useRef<string>("");
@@ -106,11 +149,22 @@ export default function ConfigFormModal({
 
   const [existingPhotoViewerOpen, setExistingPhotoViewerOpen] = useState(false);
   const [existingPhotoViewerIndex, setExistingPhotoViewerIndex] = useState(0);
-  const [existingPhotoViewerItems, setExistingPhotoViewerItems] = useState<FormViewerPhoto[]>([]);
+  const [existingPhotoViewerFieldKey, setExistingPhotoViewerFieldKey] = useState("");
 
   const [existingDocViewerOpen, setExistingDocViewerOpen] = useState(false);
   const [existingDocViewerIndex, setExistingDocViewerIndex] = useState(0);
-  const [existingDocViewerItems, setExistingDocViewerItems] = useState<FormViewerDoc[]>([]);
+  const [existingDocViewerFieldKey, setExistingDocViewerFieldKey] = useState("");
+
+  const [submissionID, setSubmissionID] = useState<number>(0);
+  const [reviewComment, setReviewComment] = useState("");
+
+  const [uploadReviewDrafts, setUploadReviewDrafts] = useState<Record<number, UploadReviewDraft>>(
+    {}
+  );
+
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [savePhase, setSavePhase] = useState<RequestPhase>("idle");
+  const [reviewPhase, setReviewPhase] = useState<RequestPhase>("idle");
 
   const missField = (k: string) => `f:${k}`;
   const missCell = (t: string, r: number, c: string) => `t:${t}:${r}:${c}`;
@@ -128,9 +182,6 @@ export default function ConfigFormModal({
   const rowId = useMemo(() => resolveRowId(row), [row]);
   const formKey = useMemo(() => (formConfig?.key ? String(formConfig.key) : ""), [formConfig]);
 
-  const title = formConfig?.display_name || formConfig?.name || "Form";
-  const editable = isEditable && formConfig?.editable !== false;
-
   const {
     data: fetchDataRes,
     error: fetchErr,
@@ -139,11 +190,16 @@ export default function ConfigFormModal({
   } = useFetch(`${apiBase}${fetchPath}`, "GET", false);
 
   const {
-    data: saveDataRes,
     error: saveErr,
     loading: saving,
     fetchData: saveAnswers,
   } = useFetch(`${apiBase}${savePath}`, "POST", false);
+
+  const {
+    error: reviewErr,
+    loading: reviewing,
+    fetchData: submitReview,
+  } = useFetch(`${apiBase}${reviewPath}`, "POST", false);
 
   const {
     data: uploadBlobData,
@@ -151,6 +207,10 @@ export default function ConfigFormModal({
     loading: uploadBlobLoading,
     error: uploadBlobError,
   } = useFetch<any>(`${apiBase}/form/answers/upload`, "GET", false);
+
+  const title = formConfig?.display_name || formConfig?.name || "Form";
+  const editable = isEditable && formConfig?.editable !== false;
+  const isProcessing = saving || reviewing || savePhase !== "idle" || reviewPhase !== "idle";
 
   const {
     lookupOptionsByPath,
@@ -166,11 +226,102 @@ export default function ConfigFormModal({
     setAnswers,
   });
 
+  const normalizeUploadStatus = useCallback((value: any): UploadReviewStatus => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized === "approved") return "approved";
+    if (normalized === "rejected") return "rejected";
+    return "pending";
+  }, []);
+
+  const reviewStatusToApiStatus = useCallback(
+    (status: UploadReviewStatus) => {
+      if (status === "approved") return reviewStatuses?.approved || "approved";
+      if (status === "rejected") return reviewStatuses?.rejected || "rejected";
+      return "";
+    },
+    [reviewStatuses]
+  );
+
+  const uiActionToApiStatus = useCallback(
+    (action: ReviewUiAction) => {
+      if (!reviewStatuses) return "";
+      if (action === "approved") return reviewStatuses.approved;
+      if (action === "rejected") return reviewStatuses.rejected;
+      return reviewStatuses.moreInfo;
+    },
+    [reviewStatuses]
+  );
+
+  const getUploadReviewDraft = useCallback(
+    (uploadId: number): UploadReviewDraft => {
+      return uploadReviewDrafts[uploadId] || { status: "pending", reviewer_comment: "" };
+    },
+    [uploadReviewDrafts]
+  );
+
+  const setUploadReviewStatus = useCallback((uploadId: number, status: UploadReviewStatus) => {
+    setUploadReviewDrafts((prev) => ({
+      ...prev,
+      [uploadId]: {
+        ...(prev[uploadId] || { reviewer_comment: "" }),
+        status,
+      },
+    }));
+  }, []);
+
+  const setUploadReviewerComment = useCallback((uploadId: number, value: string) => {
+    setUploadReviewDrafts((prev) => ({
+      ...prev,
+      [uploadId]: {
+        ...(prev[uploadId] || { status: "pending" }),
+        reviewer_comment: value,
+      },
+    }));
+  }, []);
+
+  const existingPhotoViewerItems = useMemo<FormViewerPhoto[]>(() => {
+    const items = existingPhotosByField[existingPhotoViewerFieldKey] || [];
+    return items
+      .map((p) => {
+        const id = Number(p.id);
+        if (!id || Number.isNaN(id)) return null;
+        const draft = getUploadReviewDraft(id);
+        return {
+          id,
+          file_name: p.file_name,
+          mime_type: p.mime_type || "",
+          file_comment: p.file_comment || "",
+          reviewer_comment: draft.reviewer_comment || "",
+          status: draft.status,
+        } as FormViewerPhoto;
+      })
+      .filter(Boolean) as FormViewerPhoto[];
+  }, [existingPhotosByField, existingPhotoViewerFieldKey, getUploadReviewDraft]);
+
+  const existingDocViewerItems = useMemo<FormViewerDoc[]>(() => {
+    const items = existingDocsByField[existingDocViewerFieldKey] || [];
+    return items
+      .map((d) => {
+        const id = Number(d.id);
+        if (!id || Number.isNaN(id)) return null;
+        const draft = getUploadReviewDraft(id);
+        return {
+          id,
+          file_name: d.file_name,
+          mime_type: d.mime_type || "",
+          file_category: d.file_category || "",
+          file_size_bytes: d.file_size_bytes || 0,
+          reviewer_comment: draft.reviewer_comment || "",
+          status: draft.status,
+        } as FormViewerDoc;
+      })
+      .filter(Boolean) as FormViewerDoc[];
+  }, [existingDocsByField, existingDocViewerFieldKey, getUploadReviewDraft]);
+
   useEffect(() => {
     if (!open) return;
     setMissingKeys(new Set());
   }, [open]);
-
 
   useEffect(() => {
     if (!open || !formConfig) return;
@@ -194,6 +345,16 @@ export default function ConfigFormModal({
       setExistingPhotosByField({});
       setConsentGiven(false);
       setPendingMediaAction(null);
+      setSubmissionID(0);
+      setReviewComment("");
+      setUploadReviewDrafts({});
+      setPendingAction(null);
+      setSavePhase("idle");
+      setReviewPhase("idle");
+      setExistingPhotoViewerOpen(false);
+      setExistingDocViewerOpen(false);
+      setExistingPhotoViewerFieldKey("");
+      setExistingDocViewerFieldKey("");
       resetLookupState();
     }
 
@@ -231,6 +392,9 @@ export default function ConfigFormModal({
     });
 
     const docsMap: Record<string, ExistingDocumentItem[]> = {};
+    const photosMap: Record<string, ExistingPhotoItem[]> = {};
+    const draftMap: Record<number, UploadReviewDraft> = {};
+
     incomingDocuments.forEach((d: any, idx: number) => {
       const key = String(d?.detail_key || "");
       if (!key) return;
@@ -244,9 +408,16 @@ export default function ConfigFormModal({
         file_url: d?.file_url || d?.doc_link || "",
         file_category: d?.file_category || d?.doc_category || "",
       });
+
+      const uploadId = Number(d?.id || 0);
+      if (uploadId > 0) {
+        draftMap[uploadId] = {
+          status: normalizeUploadStatus(d?.status),
+          reviewer_comment: String(d?.reviewer_comment || ""),
+        };
+      }
     });
 
-    const photosMap: Record<string, ExistingPhotoItem[]> = {};
     incomingPhotos.forEach((p: any, idx: number) => {
       const key = String(p?.detail_key || "");
       if (!key) return;
@@ -260,16 +431,27 @@ export default function ConfigFormModal({
         file_url: p?.file_url || p?.doc_link || "",
         file_comment: p?.file_comment || p?.doc_comment || "",
       });
+
+      const uploadId = Number(p?.id || 0);
+      if (uploadId > 0) {
+        draftMap[uploadId] = {
+          status: normalizeUploadStatus(p?.status),
+          reviewer_comment: String(p?.reviewer_comment || ""),
+        };
+      }
     });
 
     setAnswers(next);
     setExistingDocsByField(docsMap);
     setExistingPhotosByField(photosMap);
+    setUploadReviewDrafts(draftMap);
     setMissingKeys(new Set());
     setConsentGiven(
       Boolean(root?.consent ?? root?.consent_given ?? next?.consent ?? next?.archive_consent)
     );
-  }, [fetchDataRes, formConfig]);
+    setSubmissionID(Number(root?.id || 0));
+    setReviewComment(String(root?.reviewer_comment || ""));
+  }, [fetchDataRes, formConfig, normalizeUploadStatus]);
 
   useEffect(() => {
     if (fetchErr) toast.error(fetchErr);
@@ -280,11 +462,8 @@ export default function ConfigFormModal({
   }, [saveErr]);
 
   useEffect(() => {
-    if (saveDataRes && !saveErr)  {
-        toast.success(`${formConfig?.display_name} details updated successfully`)
-        onClose();
-    }
-  }, [saveDataRes, saveErr]);
+    if (reviewErr) toast.error(reviewErr);
+  }, [reviewErr]);
 
   useEffect(() => {
     if (uploadBlobError) toast.error(uploadBlobError);
@@ -319,6 +498,68 @@ export default function ConfigFormModal({
 
     setPendingMediaAction(null);
   }, [uploadBlobData, pendingMediaAction]);
+
+  useEffect(() => {
+    if (savePhase === "starting" && saving) {
+      setSavePhase("waiting");
+    }
+  }, [savePhase, saving]);
+
+  useEffect(() => {
+    if (reviewPhase === "starting" && reviewing) {
+      setReviewPhase("waiting");
+    }
+  }, [reviewPhase, reviewing]);
+
+  useEffect(() => {
+    if (savePhase !== "waiting" || saving) return;
+
+    if (saveErr) {
+      setSavePhase("idle");
+      setReviewPhase("idle");
+      setPendingAction(null);
+      return;
+    }
+
+    if (pendingAction?.type === "review") {
+      setSavePhase("idle");
+      setReviewPhase("starting");
+      void submitReview(pendingAction.reviewBody, undefined, false);
+      return;
+    }
+
+    toast.success(`${formConfig?.display_name} details updated successfully`);
+    onSaved?.(answers);
+    setSavePhase("idle");
+    setPendingAction(null);
+    onClose();
+  }, [
+    savePhase,
+    saving,
+    saveErr,
+    pendingAction,
+    submitReview,
+    formConfig,
+    answers,
+    onSaved,
+    onClose,
+  ]);
+
+  useEffect(() => {
+    if (reviewPhase !== "waiting" || reviewing) return;
+
+    if (reviewErr) {
+      setReviewPhase("idle");
+      setPendingAction(null);
+      return;
+    }
+
+    toast.success("Review submitted successfully");
+    onSaved?.(answers);
+    setReviewPhase("idle");
+    setPendingAction(null);
+    onClose();
+  }, [reviewPhase, reviewing, reviewErr, answers, onSaved, onClose]);
 
   const setField = (k: string, v: any) => {
     setAnswers((prev) => ({ ...prev, [k]: v }));
@@ -369,7 +610,7 @@ export default function ConfigFormModal({
     [totalDocsBytes, totalPhotosBytes]
   );
 
-  const needsCommonConsent = useMemo(() => {
+  const needsConsent = useMemo(() => {
     if (!formConfig?.consent) return false;
 
     return (formConfig.sections || []).some(
@@ -384,7 +625,7 @@ export default function ConfigFormModal({
   const getDocsMB = (items: AdditionalDocItem[]) =>
     items.reduce((sum, d) => sum + (d.file?.size || 0), 0) / (1024 * 1024);
 
-  const statusChipHiddenSx = () => ({ display: "none" });
+  
 
   const gridPrimaryBtnSx = {
     textTransform: "none",
@@ -407,6 +648,24 @@ export default function ConfigFormModal({
     color: color_text_primary,
     border: `1px solid ${color_border}`,
     "&:hover": { background: color_white_smoke },
+  };
+
+  const gridApproveBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_secondary,
+    color: color_white,
+    "&:hover": { background: color_secondary_dark },
+  };
+
+  const gridRejectBtnSx = {
+    textTransform: "none",
+    fontWeight: 900,
+    borderRadius: "10px",
+    background: color_primary,
+    color: color_white,
+    "&:hover": { background: color_primary },
   };
 
   const syncAdditionalDocsAnswer = (fieldKey: string, docs: AdditionalDocItem[]) => {
@@ -462,24 +721,10 @@ export default function ConfigFormModal({
 
   const openExistingPhotoModal = useCallback(
     (fieldKey: string, idx: number) => {
-      const items = (existingPhotosByField[fieldKey] || [])
-        .map((p) => {
-          const id = Number(p.id);
-          if (!id || Number.isNaN(id)) return null;
-
-          return {
-            id,
-            file_name: p.file_name,
-            mime_type: p.mime_type || "",
-            file_comment: p.file_comment || "",
-          } as FormViewerPhoto;
-        })
-        .filter(Boolean) as FormViewerPhoto[];
-
+      const items = existingPhotosByField[fieldKey] || [];
       if (!items.length) return;
-
       const safeIdx = Math.min(Math.max(idx, 0), items.length - 1);
-      setExistingPhotoViewerItems(items);
+      setExistingPhotoViewerFieldKey(fieldKey);
       setExistingPhotoViewerIndex(safeIdx);
       setExistingPhotoViewerOpen(true);
     },
@@ -488,25 +733,10 @@ export default function ConfigFormModal({
 
   const openExistingDocModal = useCallback(
     (fieldKey: string, idx: number) => {
-      const items = (existingDocsByField[fieldKey] || [])
-        .map((d) => {
-          const id = Number(d.id);
-          if (!id || Number.isNaN(id)) return null;
-
-          return {
-            id,
-            file_name: d.file_name,
-            mime_type: d.mime_type || "",
-            file_category: d.file_category || "",
-            file_size_bytes: d.file_size_bytes || 0,
-          } as FormViewerDoc;
-        })
-        .filter(Boolean) as FormViewerDoc[];
-
+      const items = existingDocsByField[fieldKey] || [];
       if (!items.length) return;
-
       const safeIdx = Math.min(Math.max(idx, 0), items.length - 1);
-      setExistingDocViewerItems(items);
+      setExistingDocViewerFieldKey(fieldKey);
       setExistingDocViewerIndex(safeIdx);
       setExistingDocViewerOpen(true);
     },
@@ -806,6 +1036,100 @@ export default function ConfigFormModal({
     return true;
   };
 
+  const validateReview = (submissionAction: ReviewUiAction) => {
+    if (!reviewStatuses) {
+      toast.error("Review status configuration is missing.");
+      return false;
+    }
+
+    if (!submissionID) {
+      toast.error("Submission ID not found.");
+      return false;
+    }
+
+    if ((submissionAction === "rejected" || submissionAction === "moreInfo") && !reviewComment.trim()) {
+      toast.error("Review comment is required.");
+      return false;
+    }
+
+    for (const [uploadId, draft] of Object.entries(uploadReviewDrafts)) {
+      if (draft.status === "rejected" && !draft.reviewer_comment.trim()) {
+        toast.error(`Review comment is required for rejected file #${uploadId}.`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const buildSaveRequestBody = async () => {
+    const documents = await buildDocumentsPayload();
+    const photos = await buildPhotosPayload();
+
+    return {
+      file_id: fileId,
+      row_id: rowId,
+      file_name: String(file?.filename || ""),
+      form_key: formKey,
+      form_label: String(formConfig?.display_name || ""),
+      consent_text: needsConsent ? String(formConfig?.consent || "") : "",
+      consent: needsConsent ? consentGiven : false,
+      details: buildDetailsPayload(),
+      documents,
+      photos,
+      firstname: row?.[addInfoConfig?.firstname] || "",
+      lastname: row?.[addInfoConfig?.lastname] || "",
+    };
+  };
+
+  const startSaveFlow = async (action: PendingAction) => {
+    if (!formConfig) return;
+    if (!validate()) return;
+
+    const requestBody = await buildSaveRequestBody();
+
+    if (!fileId || !rowId || !formKey) {
+      toast.error("Missing file, row, or form identity.");
+      return;
+    }
+
+    setPendingAction(action);
+    setSavePhase("starting");
+    setReviewPhase("idle");
+
+    await saveAnswers(requestBody, undefined, false);
+  };
+
+  const handleSave = async () => {
+    await startSaveFlow({ type: "save" });
+  };
+
+  const handleReviewAction = async (submissionAction: ReviewUiAction) => {
+    if (!validateReview(submissionAction)) return;
+
+    const upload_reviews = Object.entries(uploadReviewDrafts)
+      .filter(([, draft]) => draft.status !== "pending")
+      .map(([uploadId, draft]) => ({
+        upload_id: Number(uploadId),
+        status: reviewStatusToApiStatus(draft.status),
+        reviewer_comment: draft.reviewer_comment.trim(),
+      }));
+
+    const reviewBody = {
+      submission_id: submissionID,
+      submission_review: {
+        status: uiActionToApiStatus(submissionAction),
+        reviewer_comment: reviewComment.trim(),
+      },
+      upload_reviews,
+    };
+
+    await startSaveFlow({
+      type: "review",
+      reviewBody,
+    });
+  };
+
   const renderExistingDocumentsGrid = useCallback(
     (fieldKey: string) => {
       const items = existingDocsByField[fieldKey] || [];
@@ -815,6 +1139,7 @@ export default function ConfigFormModal({
         .map((d) => {
           const id = Number(d.id);
           if (!id || Number.isNaN(id)) return null;
+          const draft = getUploadReviewDraft(id);
 
           return {
             id,
@@ -823,7 +1148,8 @@ export default function ConfigFormModal({
             mime_type: d.mime_type || "",
             size_bytes: d.file_size_bytes || 0,
             document_category: d.file_category || "",
-            status: "approved",
+            status: draft.status,
+            reviewer_comment: draft.reviewer_comment || "",
           };
         })
         .filter(Boolean) as any[];
@@ -840,19 +1166,34 @@ export default function ConfigFormModal({
           showSizeChip={true}
           showViewButton={true}
           showDownload={true}
-          showApproveReject={false}
           onOpenViewer={(idx: any) => openExistingDocModal(fieldKey, Number(idx))}
           onDownloadSingle={(id: any, filename: any, mime: any) =>
             void handleDownloadExistingDoc(Number(id), filename, mime)
           }
-          statusLabel={() => ""}
-          statusChipSx={statusChipHiddenSx}
+          statusLabel={(st) => (st === "approved" ? "Approved" : st === "rejected" ? "Rejected" : "Pending")}
+          statusChipSx={ undefined }
           primaryBtnSx={gridPrimaryBtnSx}
           viewBtnSx={gridViewBtnSx}
+          showApproveReject={review}
+          onApprove={(id) => setUploadReviewStatus(Number(id), "approved")}
+          onReject={(id) => setUploadReviewStatus(Number(id), "rejected")}
+          approveBtnSx={gridApproveBtnSx}
+          rejectBtnSx={gridRejectBtnSx}
+          showReviewerCommentField={review}
+          reviewerCommentLabel="Review Comment"
+          onReviewerCommentChange={(id:any, value:any) => setUploadReviewerComment(Number(id), value)}
         />
       );
     },
-    [existingDocsByField, openExistingDocModal, handleDownloadExistingDoc]
+    [
+      existingDocsByField,
+      getUploadReviewDraft,
+      openExistingDocModal,
+      handleDownloadExistingDoc,
+      review,
+      setUploadReviewStatus,
+      setUploadReviewerComment,
+    ]
   );
 
   const renderExistingPhotosGrid = useCallback(
@@ -864,11 +1205,13 @@ export default function ConfigFormModal({
         .map((p) => {
           const id = Number(p.id);
           if (!id || Number.isNaN(id)) return null;
+          const draft = getUploadReviewDraft(id);
 
           return {
             id,
-            status: "approved",
+            status: draft.status,
             photo_comment: p.file_comment || "",
+            reviewer_comment: draft.reviewer_comment || "",
           };
         })
         .filter(Boolean) as any[];
@@ -887,49 +1230,32 @@ export default function ConfigFormModal({
           onDownloadSingle={(id: any) =>
             void handleDownloadExistingPhoto(Number(id), `photo_${id}.jpg`)
           }
-          statusLabel={() => ""}
-          statusChipSx={statusChipHiddenSx}
+          showStatusChip={true}
+          statusLabel={(st) =>  (st === "approved" ? "Approved" : st === "rejected" ? "Rejected" : "Pending") }
+          statusChipSx={undefined}
           primaryBtnSx={gridPrimaryBtnSx}
+          showApproveReject={review}
+          onApprove={(id:any) => setUploadReviewStatus(Number(id), "approved")}
+          onReject={(id:any) => setUploadReviewStatus(Number(id), "rejected")}
+          approveBtnSx={gridApproveBtnSx}
+          rejectBtnSx={gridRejectBtnSx}
+          showReviewerCommentField={review}
+          reviewerCommentLabel="Review Comment"
+          onReviewerCommentChange={(id:any, value:any) => setUploadReviewerComment(Number(id), value)}
         />
       );
     },
-    [existingPhotosByField, apiBase, openExistingPhotoModal, handleDownloadExistingPhoto]
+    [
+      existingPhotosByField,
+      apiBase,
+      getUploadReviewDraft,
+      openExistingPhotoModal,
+      handleDownloadExistingPhoto,
+      review,
+      setUploadReviewStatus,
+      setUploadReviewerComment,
+    ]
   );
-
-  const handleSave = async () => {
-    if (!formConfig) return;
-
-    if (needsCommonConsent && !consentGiven) {
-      toast.error("Please provide consent before submitting.");
-      return;
-    }
-
-    if (!validate()) return;
-
-    const documents = await buildDocumentsPayload();
-    const photos = await buildPhotosPayload();
-
-    const requestBody = {
-      file_id: fileId,
-      row_id: rowId,
-      file_name: String(file?.filename || ""),
-      form_key: formKey,
-      form_label: String(formConfig?.display_name),
-      consent_text: needsCommonConsent ? String(formConfig?.consent || "") : "",
-      consent: needsCommonConsent ? consentGiven : false,
-      details: buildDetailsPayload(),
-      documents,
-      photos,
-      firstname: row?.[addInfoConfig?.firstname] || "",
-      lastname: row?.[addInfoConfig?.lastname] || "",
-    };
-
-    if (fileId && rowId && formKey) {
-      await saveAnswers(requestBody, undefined, false);
-    }
-
-    onSaved?.(answers);
-  };
 
   if (!formConfig) return null;
 
@@ -1048,7 +1374,38 @@ export default function ConfigFormModal({
           );
         })}
 
-        {needsCommonConsent ? (
+        {review ? (
+          <Box
+            sx={{
+              mt: 0.5,
+              p: 1.5,
+              borderRadius: "12px",
+              border: `1px solid ${color_border}`,
+              background: color_white,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+            }}
+          >
+            <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
+              Review Comment
+            </Typography>
+
+            <TextField
+              fullWidth
+              size="small"
+              label="Review Comment"
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              multiline
+              minRows={3}
+              helperText="Required when rejecting or asking for more information."
+              disabled={isProcessing}
+            />
+          </Box>
+        ) : null}
+
+        {!review && needsConsent ? (
           <Box
             sx={{
               mt: 0.5,
@@ -1083,6 +1440,7 @@ export default function ConfigFormModal({
       >
         <Button
           onClick={onClose}
+          disabled={isProcessing}
           sx={{
             textTransform: "none",
             fontWeight: 900,
@@ -1102,28 +1460,89 @@ export default function ConfigFormModal({
           {editable ? "Cancel" : "Close"}
         </Button>
 
-        {editable && <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving}
-          sx={{
-            textTransform: "none",
-            fontWeight: 900,
-            borderRadius: "10px",
-            px: 3.2,
-            py: 1.1,
-            background: color_secondary,
-            color: color_white,
-            boxShadow: shadow_auth_button,
-            "&:hover": { background: color_secondary_dark },
-            "&:focus-visible": {
-              outline: `3px solid ${color_focus_ring}`,
-              outlineOffset: "2px",
-            },
-          }}
-        >
-          {saving ? "Saving..." : "Submit"}
-        </Button>}
+        {!review && (
+          <Button
+            variant="contained"
+            onClick={() => void handleSave()}
+            disabled={isProcessing}
+            sx={{
+              textTransform: "none",
+              fontWeight: 900,
+              borderRadius: "10px",
+              px: 3.2,
+              py: 1.1,
+              background: color_secondary,
+              color: color_white,
+              boxShadow: shadow_auth_button,
+              "&:hover": { background: color_secondary_dark },
+              "&:focus-visible": {
+                outline: `3px solid ${color_focus_ring}`,
+                outlineOffset: "2px",
+              },
+            }}
+          >
+            {isProcessing ? "Saving..." : "Submit"}
+          </Button>
+        )}
+
+        {review && (
+          <>
+            <Button
+              variant="contained"
+              onClick={() => void handleReviewAction("moreInfo")}
+              disabled={isProcessing}
+              sx={{
+                textTransform: "none",
+                fontWeight: 900,
+                borderRadius: "10px",
+                px: 2.8,
+                py: 1.1,
+                background: color_warning,
+                color: color_white,
+                "&:hover": { background: color_warning },
+              }}
+            >
+              {isProcessing ? "Processing..." : "Need More Info"}
+            </Button>
+
+            <Button
+              variant="contained"
+              onClick={() => void handleReviewAction("rejected")}
+              disabled={isProcessing}
+              sx={{
+                textTransform: "none",
+                fontWeight: 900,
+                borderRadius: "10px",
+                px: 2.6,
+                py: 1.1,
+                background: color_primary,
+                color: color_white,
+                "&:hover": { background: color_primary },
+              }}
+            >
+              {isProcessing ? "Processing..." : "Reject"}
+            </Button>
+
+            <Button
+              variant="contained"
+              onClick={() => void handleReviewAction("approved")}
+              disabled={isProcessing}
+              sx={{
+                textTransform: "none",
+                fontWeight: 900,
+                borderRadius: "10px",
+                px: 2.8,
+                py: 1.1,
+                background: color_secondary,
+                color: color_white,
+                boxShadow: shadow_auth_button,
+                "&:hover": { background: color_secondary_dark },
+              }}
+            >
+              {isProcessing ? "Processing..." : "Approve"}
+            </Button>
+          </>
+        )}
       </DialogActions>
 
       <FormPhotoViewerModal
@@ -1139,11 +1558,17 @@ export default function ConfigFormModal({
             photo.file_name || `photo_${photo.id}.jpg`
           )
         }
+        onApprove={review ? (photo) => setUploadReviewStatus(Number(photo.id), "approved") : undefined}
+        onReject={review ? (photo) => setUploadReviewStatus(Number(photo.id), "rejected") : undefined}
+        onReviewerCommentChange={
+          review ? (photo:any, value:any) => setUploadReviewerComment(Number(photo.id), value) : undefined
+        }
         showDownloadButton={true}
-        showApproveReject={false}
+        showApproveReject={review}
         showCommentsPanel={true}
-        showStatusPill={false}
+        showStatusPill={review}
         showThumbnails={true}
+        showReviewerCommentField={review}
       />
 
       <FormDocumentViewerModal
@@ -1164,13 +1589,19 @@ export default function ConfigFormModal({
             doc.mime_type || "application/octet-stream"
           )
         }
+        onApprove={review ? (doc) => setUploadReviewStatus(Number(doc.id), "approved") : undefined}
+        onReject={review ? (doc) => setUploadReviewStatus(Number(doc.id), "rejected") : undefined}
+        onReviewerCommentChange={
+          review ? (doc, value) => setUploadReviewerComment(Number(doc.id), value) : undefined
+        }
         showOpenButton={true}
         showDownloadButton={true}
-        showApproveReject={false}
+        showApproveReject={review}
         showBottomBar={true}
         showPrevNext={true}
         showBottomOpenButton={true}
         bottomOpenLabel="View"
+        showReviewerCommentField={review}
       />
     </Dialog>
   );
