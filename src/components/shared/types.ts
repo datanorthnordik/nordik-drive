@@ -30,7 +30,6 @@ export type PhotoGridItem = {
   file_name?: string;
   size_bytes?: number;
   mime_type?: string;
-  is_approved?: boolean;
 
   // uploader comment
   photo_comment?: string;
@@ -79,6 +78,8 @@ export type PhotoGridProps = {
 
   primaryBtnSx?: any;
   showStatusChip?: boolean;
+  disableReviewerCommentField?: boolean;
+  viewReviewerComment?: boolean;
 };
 
 export type DocumentGridItem = {
@@ -138,4 +139,6 @@ export type DocumentGridProps = {
 
   primaryBtnSx?: any;
   showStatusChip?: boolean;
+  disableReviewerCommentField?: boolean;
+  viewReviewerComment?: boolean;
 };

@@ -162,7 +162,7 @@ export default function FileActivitiesFilters({
     if (fieldKey === "status") return statusOptions;
     if (fieldKey === "file_id") return fileOptions;
     if (fieldKey === "requested_by") return userOptions;
-    if (fieldKey === "approved_by") return userOptions;
+    if (fieldKey === "reviewed_by") return userOptions;
     if (fieldKey === "consent") return boolOptions;
     if (fieldKey === "field_key") return fieldList;
 
