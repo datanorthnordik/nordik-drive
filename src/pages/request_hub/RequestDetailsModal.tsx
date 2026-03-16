@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+"use client";
+
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -12,11 +14,7 @@ import {
   TableBody,
   TextField,
   Typography,
-  Grid,
-  Card,
-  CardMedia,
   Box,
-  Chip,
   CircularProgress,
   Divider,
   TableContainer,
@@ -67,7 +65,8 @@ interface RequestPhoto {
   mime_type?: string;
   document_type?: "photo" | "document";
   document_category?: string;
-  photo_comment?: string
+  photo_comment?: string;
+  reviewer_comment?: string;
 }
 
 interface RequestDoc {
@@ -78,7 +77,14 @@ interface RequestDoc {
   document_type: "document";
   document_category: string;
   status?: ReviewStatus;
+  reviewer_comment?: string;
 }
+
+type PhotoReviewInput = {
+  photo_id: number;
+  status: "approved" | "rejected";
+  reviewer_comment: string;
+};
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
 
@@ -104,7 +110,12 @@ const categoryLabel = (cat?: string) => {
   return map[cat] || cat;
 };
 
-
+const normalizeInitialReviewStatus = (value: any): ReviewStatus => {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "approved") return "approved";
+  if (v === "rejected") return "rejected";
+  return null;
+};
 
 const isImageMime = (m?: string) => !!m && m.startsWith("image/");
 const isPdfMime = (m?: string) => m === "application/pdf";
@@ -165,10 +176,13 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   const [photos, setPhotos] = useState<RequestPhoto[]>([]);
   const [docs, setDocs] = useState<RequestDoc[]>([]);
 
+  // request-level review
+  const [requestReviewComment, setRequestReviewComment] = useState("");
+  const [pendingRequestAction, setPendingRequestAction] = useState<"approved" | "rejected" | null>(null);
+
   // Photo viewer
   const [viewerOpen, setViewerOpen] = useState(false);
   const [startIndex, setStartIndex] = useState(0);
-  const [viewerIndex, setViewerIndex] = useState(0);
 
   // Doc viewer
   const [docViewerOpen, setDocViewerOpen] = useState(false);
@@ -180,23 +194,20 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
   // keep last created blob URL so we can revoke it safely
   const [lastBlobUrl, setLastBlobUrl] = useState<string>("");
-  const handledApproveRef = React.useRef(false);
-  const submitLockRef = React.useRef(false);
 
-
-
-
+  const handledApproveRef = useRef(false);
+  const submitLockRef = useRef(false);
 
   // ---------------------------------------
   // APIs
   // ---------------------------------------
-  const { data: approvalResponse, fetchData: approveRequest, loading } = useFetch(
+  const { data: reviewRequestResponse, fetchData: reviewRequest, loading: requestLoading } = useFetch(
     `${API_BASE}/api/file/approve/request`,
     "PUT",
     false
   );
 
-  const { fetchData: submitReview, loading: reviewLoading } = useFetch(
+  const { fetchData: submitReview, loading: mediaReviewLoading } = useFetch(
     `${API_BASE}/api/file/photos/review`,
     "POST",
     false
@@ -214,7 +225,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     false
   );
 
-  // blob fetch (doc viewer)
+  // blob fetch (doc viewer) - kept so existing modal-open flow remains unchanged
   const {
     data: fileBlobData,
     fetchData: fetchFileBlob,
@@ -222,13 +233,10 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     error: fileBlobError,
   } = useFetch<any>(`${API_BASE}/api/file/doc`, "GET", false);
 
-
   const handleOpenViewer = (idx: number) => {
     setStartIndex(idx);
     setViewerOpen(true);
   };
-
-
 
   const handleApprovePhotoById = (id: number) => {
     setPhotos((prev) =>
@@ -242,6 +250,29 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     );
   };
 
+  const handleApproveDocById = (id: number) => {
+    setDocs((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d))
+    );
+  };
+
+  const handleRejectDocById = (id: number) => {
+    setDocs((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d))
+    );
+  };
+
+  const setPhotoReviewCommentById = (id: number, value: string) => {
+    setPhotos((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, reviewer_comment: value } : p))
+    );
+  };
+
+  const setDocReviewCommentById = (id: number, value: string) => {
+    setDocs((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, reviewer_comment: value } : d))
+    );
+  };
 
   // ---------------------------------------
   // Derived current doc (NO hooks)
@@ -260,15 +291,18 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     loadPhotos();
     loadDocs();
     setEditableDetails(request.details || []);
+    setRequestReviewComment(String(request?.reviewer_comment || ""));
+    setPendingRequestAction(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, request?.request_id]);
+  }, [open, request?.request_id, request?.reviewer_comment]);
 
   useEffect(() => {
     if ((photoData as any)?.photos) {
       setPhotos(
         (photoData as any).photos.map((p: any) => ({
           ...p,
-          status: p.status ?? null,
+          status: normalizeInitialReviewStatus(p.status),
+          reviewer_comment: String(p.reviewer_comment || ""),
         }))
       );
     } else {
@@ -281,7 +315,8 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
       setDocs(
         (docsData as any).docs.map((d: any) => ({
           ...d,
-          status: d.status ?? null,
+          status: normalizeInitialReviewStatus(d.status),
+          reviewer_comment: String(d.reviewer_comment || ""),
         }))
       );
     } else {
@@ -290,14 +325,18 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   }, [docsData]);
 
   useEffect(() => {
-    if (!approvalResponse) return;
+    if (!reviewRequestResponse) return;
     if (handledApproveRef.current) return;
 
     handledApproveRef.current = true;
-    toast.success("Request approved successfully.");
+    toast.success(
+      pendingRequestAction === "rejected"
+        ? "Request rejected successfully."
+        : "Request approved successfully."
+    );
     onApproved?.();
     onClose();
-  }, [approvalResponse, onApproved, onClose]);
+  }, [reviewRequestResponse, pendingRequestAction, onApproved, onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -311,6 +350,12 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     };
   }, [lastBlobUrl]);
 
+  useEffect(() => {
+    if (fileBlobError) {
+      toast.error(fileBlobError);
+    }
+  }, [fileBlobError]);
+
   // ---------------------------------------
   // Helpers
   // ---------------------------------------
@@ -318,18 +363,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     const updated = [...editableDetails];
     updated[index].new_value = value;
     setEditableDetails(updated);
-  };
-
-  const borderForStatus = (status?: ReviewStatus) => {
-    if (status === "approved") return `3px solid ${color_success}`;
-    if (status === "rejected") return `3px solid ${color_error}`;
-    return "2px solid transparent";
-  };
-
-  const shadowForStatus = (status?: ReviewStatus) => {
-    if (status === "approved") return "0 0 8px rgba(39, 174, 96, 0.35)";
-    if (status === "rejected") return "0 0 8px rgba(231, 76, 60, 0.35)";
-    return undefined;
   };
 
   const readBlobAsText = (blob: Blob) =>
@@ -388,31 +421,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     "&:hover": { backgroundColor: color_background },
   };
 
-  const statusChipSx = (status?: ReviewStatus) => ({
-    height: 22,
-    fontSize: "0.72rem",
-    fontWeight: 900,
-    borderRadius: "999px",
-    color:
-      status === "approved"
-        ? color_success
-        : status === "rejected"
-          ? color_primary
-          : color_text_light,
-    backgroundColor:
-      status === "approved"
-        ? "rgba(39, 174, 96, 0.12)"
-        : status === "rejected"
-          ? "rgba(166, 29, 51, 0.12)"
-          : "rgba(107, 114, 128, 0.12)",
-    border:
-      status === "approved"
-        ? `1px solid rgba(39, 174, 96, 0.25)`
-        : status === "rejected"
-          ? `1px solid rgba(166, 29, 51, 0.25)`
-          : `1px solid rgba(107, 114, 128, 0.25)`,
-  });
-
   const infoRowSx = {
     display: "flex",
     gap: 1,
@@ -447,43 +455,66 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   });
 
   // ---------------------------------------
-  // Approve All
+  // Request review submission
   // ---------------------------------------
-  const handleApprove = async () => {
+  const validateBeforeSubmit = (requestStatus: "approved" | "rejected") => {
+    const hasPendingPhoto = photos.some((p) => p.status === null);
+    const hasPendingDoc = docs.some((d) => d.status === null);
+
+    if ((photos.length > 0 && hasPendingPhoto) || (docs.length > 0 && hasPendingDoc)) {
+      toast.error("Please approve or reject all uploaded photos and documents before submitting the review.");
+      return false;
+    }
+
+    const rejectedPhotoWithoutComment = photos.find(
+      (p) => p.status === "rejected" && !String(p.reviewer_comment || "").trim()
+    );
+    if (rejectedPhotoWithoutComment) {
+      toast.error("Review comment is required for rejected photos.");
+      return false;
+    }
+
+    const rejectedDocWithoutComment = docs.find(
+      (d) => d.status === "rejected" && !String(d.reviewer_comment || "").trim()
+    );
+    if (rejectedDocWithoutComment) {
+      toast.error("Review comment is required for rejected documents.");
+      return false;
+    }
+
+    if (requestStatus === "rejected" && !requestReviewComment.trim()) {
+      toast.error("Review comment is required when rejecting the request.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmitRequestReview = async (requestStatus: "approved" | "rejected") => {
     if (submitLockRef.current) return;
     submitLockRef.current = true;
 
     try {
-      const hasPendingPhoto = photos.some((p) => p.status === null);
-      const hasPendingDoc = docs.some((d) => d.status === null);
+      if (!validateBeforeSubmit(requestStatus)) return;
 
-      if (
-        (photos.length > 0 && hasPendingPhoto) ||
-        (docs.length > 0 && hasPendingDoc)
-      ) {
-        toast.error(
-          "Please approve or reject all uploaded photos and documents before approving all changes."
-        );
-        return;
+      const reviews: PhotoReviewInput[] = [...photos, ...docs]
+        .filter((x: any) => x.status === "approved" || x.status === "rejected")
+        .map((x: any) => ({
+          photo_id: x.id,
+          status: x.status as "approved" | "rejected",
+          reviewer_comment: String(x.reviewer_comment || "").trim(),
+        }));
+
+      if (reviews.length > 0) {
+        await submitReview({ reviews });
       }
 
-      const approvedIds = [...photos, ...docs]
-        .filter((x: any) => x.status === "approved")
-        .map((x: any) => x.id);
+      setPendingRequestAction(requestStatus);
 
-      const rejectedIds = [...photos, ...docs]
-        .filter((x: any) => x.status === "rejected")
-        .map((x: any) => x.id);
-
-      if (approvedIds.length > 0 || rejectedIds.length > 0) {
-        await submitReview({
-          approved_photos: approvedIds,
-          rejected_photos: rejectedIds,
-        });
-      }
-
-      approveRequest({
+      await reviewRequest({
         request_id: request.request_id,
+        status: requestStatus,
+        reviewer_comment: requestReviewComment.trim(),
         updates: editableDetails,
       });
     } finally {
@@ -515,40 +546,10 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     [docs, clearPreview, fetchFileBlob]
   );
 
-
   const handleOpenDocViewer = (idx: number) => {
     setDocViewerIndex(idx);
     setDocViewerOpen(true);
-    openDocAtIndex(idx); // fire and forget
-  };
-
-
-  const handlePrevDoc = async () => {
-    const nextIdx = Math.max(docViewerIndex - 1, 0);
-    setDocViewerIndex(nextIdx);
-    await openDocAtIndex(nextIdx);
-  };
-
-  const handleNextDoc = async () => {
-    const nextIdx = Math.min(docViewerIndex + 1, docs.length - 1);
-    setDocViewerIndex(nextIdx);
-    await openDocAtIndex(nextIdx);
-  };
-
-  const handleApproveCurrentDoc = () => {
-    setDocs((prev) =>
-      prev.map((d, idx) =>
-        idx === docViewerIndex ? { ...d, status: "approved" } : d
-      )
-    );
-  };
-
-  const handleRejectCurrentDoc = () => {
-    setDocs((prev) =>
-      prev.map((d, idx) =>
-        idx === docViewerIndex ? { ...d, status: "rejected" } : d
-      )
-    );
+    openDocAtIndex(idx);
   };
 
   useEffect(() => {
@@ -578,56 +579,31 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     }
   }, [fileBlobData, docViewerOpen, currentDocMime]);
 
-  const openDocInNewTab = () => {
-    if (!docBlobUrl || !currentDoc) {
-      toast.error("Document not loaded yet.");
-      return;
-    }
-
-    const fileName = ensureHasExtension(
-      currentDoc?.file_name || `document_${currentDoc?.id}`,
-      currentDocMime
-    );
-
-    const a = document.createElement("a");
-    a.href = docBlobUrl;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
-
   const photoGridItems = photos.map((p) => ({
     id: p.id,
     status: p.status ?? null,
     file_name: p.file_name,
     size_bytes: p.size_bytes,
     mime_type: p.mime_type,
-    photo_comment: p.photo_comment
+    photo_comment: p.photo_comment,
+    reviewer_comment: p.reviewer_comment || "",
   }));
 
   const docGridItems = docs.map((d) => ({
     id: d.id,
     file_name: d.file_name,
-    filename: d.file_name, // your DocumentGrid supports filename or file_name
+    filename: d.file_name,
     size_bytes: d.size_bytes,
     mime_type: d.mime_type,
     document_category: d.document_category,
     status: d.status ?? undefined,
+    reviewer_comment: d.reviewer_comment || "",
   }));
 
-
-  //  Hook rule safe: NO conditional hooks above
   if (!request) return null;
 
-  // ---------------------------
-  // MAIN MODAL (REDESIGNED)
-  // ---------------------------
   return (
     <>
-      {/* MAIN MODAL */}
       <Dialog
         open={open}
         onClose={onClose}
@@ -646,10 +622,10 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
       >
         <DialogTitle sx={{ p: 2 }}>
           <Typography sx={{ fontWeight: 900, color: color_text_primary, fontSize: "1.05rem" }}>
-            Approve Edit Request #{request.request_id}
+            Review Edit Request #{request.request_id}
           </Typography>
           <Typography sx={{ mt: 0.5, color: color_text_light, fontSize: "0.8rem", fontWeight: 700 }}>
-            Review the changes and uploaded files before approving.
+            Review the changes and uploaded files before approving or rejecting.
           </Typography>
         </DialogTitle>
 
@@ -685,7 +661,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
               </Typography>
             </Box>
 
-            {/* Consent blocks (UX-style notices) */}
             <Box sx={{ mt: 1 }}>
               <Box sx={noticeBoxSx(request?.consent ? "ok" : "warn")}>
                 {!request?.consent && (
@@ -782,7 +757,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           </Box>
 
           {/* PHOTOS SECTION */}
-          {/* PHOTOS SECTION */}
           <PhotoGrid
             title="Uploaded Photos"
             loading={false}
@@ -791,7 +765,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             getPhotoUrl={(id) => getBinaryUrl(id)}
             onOpenViewer={(idx) => handleOpenViewer(idx)}
             showDownload={false}
-            cardBorderColor={color_secondary}     // blue border (already default)
+            cardBorderColor={color_secondary}
             containerSx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
@@ -799,10 +773,16 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
               p: 1.5,
               mb: 2,
             }}
+            showApproveReject={true}
+            onApprove={handleApprovePhotoById}
+            onReject={handleRejectPhotoById}
+            approveBtnSx={approveBtnSx}
+            rejectBtnSx={rejectBtnSx}
+            showReviewerCommentField={true}
+            reviewerCommentLabel="Review Comment"
+            onReviewerCommentChange={(id, value) => setPhotoReviewCommentById(Number(id), value)}
           />
 
-
-          {/* DOCUMENTS SECTION */}
           {/* DOCUMENTS SECTION */}
           <DocumentGrid
             title="Uploaded Documents"
@@ -816,15 +796,14 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             viewLabel="View"
             viewBtnSx={viewBtnSx}
             showApproveReject={true}
-            onApprove={(id) =>
-              setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)))
-            }
-            onReject={(id) =>
-              setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)))
-            }
+            onApprove={handleApproveDocById}
+            onReject={handleRejectDocById}
             approveBtnSx={approveBtnSx}
             rejectBtnSx={rejectBtnSx}
-            cardBorderColor={color_secondary}     // blue border
+            showReviewerCommentField={true}
+            reviewerCommentLabel="Review Comment"
+            onReviewerCommentChange={(id, value) => setDocReviewCommentById(Number(id), value)}
+            cardBorderColor={color_secondary}
             containerSx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
@@ -832,6 +811,49 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
               p: 1.5,
             }}
           />
+
+          {/* REQUEST REVIEW COMMENT */}
+          <Box
+            sx={{
+              backgroundColor: color_white,
+              border: `1px solid ${color_border}`,
+              borderRadius: 2,
+              p: 1.5,
+              mt: 2,
+            }}
+          >
+            <Typography
+              sx={{
+                fontWeight: 900,
+                color: color_text_primary,
+                fontSize: "0.95rem",
+                mb: 1,
+              }}
+            >
+              Review Comment
+            </Typography>
+
+            <TextField
+              fullWidth
+              size="small"
+              label="Review Comment"
+              value={requestReviewComment}
+              onChange={(e) => setRequestReviewComment(e.target.value)}
+              multiline
+              minRows={3}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 1,
+                  fontWeight: 800,
+                  color: color_text_secondary,
+                  "& fieldset": { borderColor: color_border },
+                  "&:hover fieldset": { borderColor: color_text_secondary },
+                  "&.Mui-focused fieldset": { borderColor: color_secondary },
+                },
+              }}
+              helperText="Required when the request is rejected."
+            />
+          </Box>
         </DialogContent>
 
         <DialogActions
@@ -848,20 +870,28 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           </Button>
 
           <Button
+            data-testid="reject-request-btn"
+            variant="contained"
+            onClick={() => void handleSubmitRequestReview("rejected")}
+            disabled={requestLoading || mediaReviewLoading}
+            sx={rejectBtnSx}
+          >
+            {requestLoading || mediaReviewLoading ? "Processing..." : "Reject Request"}
+          </Button>
+
+          <Button
             data-testid="approve-all-btn"
             variant="contained"
-            onClick={handleApprove}
-            disabled={loading || reviewLoading}
+            onClick={() => void handleSubmitRequestReview("approved")}
+            disabled={requestLoading || mediaReviewLoading}
             sx={approveBtnSx}
           >
-            {loading ? "Approving..." : "Approve All Changes"}
+            {requestLoading || mediaReviewLoading ? "Processing..." : "Approve All Changes"}
           </Button>
         </DialogActions>
-      </Dialog >
+      </Dialog>
 
-      {/* PHOTO VIEWER (unchanged UI for now) */}
-
-      < PhotoViewerModal
+      <PhotoViewerModal
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}
         photos={photos}
@@ -869,12 +899,15 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         mode="review"
         onApprove={handleApprovePhotoById}
         onReject={handleRejectPhotoById}
+        onReviewerCommentChange={(photo, value) =>
+          setPhotoReviewCommentById(Number(photo.id), value)
+        }
         showThumbnails={false}
         showStatusPill={true}
+        showCommentsPanel={true}
+        showReviewerCommentField={true}
         only_approved={false}
       />
-
-
 
       <DocumentViewerModal
         open={docViewerOpen}
@@ -885,12 +918,12 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         apiBase={API_BASE}
         blobEndpointPath="/api/file/doc"
         showApproveReject={true}
-        onApprove={(id) =>
-          setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)))
+        onApprove={handleApproveDocById}
+        onReject={handleRejectDocById}
+        onReviewerCommentChange={(doc, value) =>
+          setDocReviewCommentById(Number(doc.id), value)
         }
-        onReject={(id) =>
-          setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)))
-        }
+        showReviewerCommentField={true}
         bottomOpenLabel="View"
       />
     </>
@@ -899,7 +932,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
 export default ApproveRequestModal;
 
-// Names constansts for test
+// Names constants for test
 export const __test__ = {
   formatBytes,
   categoryLabel,
@@ -911,4 +944,3 @@ export const __test__ = {
   isDocxMime,
   isExcelMime,
 };
-

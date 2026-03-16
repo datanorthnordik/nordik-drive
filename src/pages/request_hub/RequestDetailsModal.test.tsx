@@ -93,7 +93,6 @@ let loadDocsSpy: jest.Mock;
 let fetchFileBlobSpy: jest.Mock;
 
 function setupUseFetchRoutingMock() {
-  // fresh spies each time except submitReviewSpy (we may set it as deferred in a test)
   approveRequestSpy = jest.fn();
   submitReviewSpy = submitReviewSpy ?? jest.fn(() => Promise.resolve());
   loadPhotosSpy = jest.fn();
@@ -131,6 +130,7 @@ const baseRequest = (over: Partial<any> = {}) => ({
   lastname: "N",
   consent: false,
   archive_consent: true,
+  reviewer_comment: "",
   details: [
     { id: 1, row_id: 1, field_name: "name", old_value: "", new_value: "new1" },
     { id: 2, row_id: 2, field_name: "city", old_value: "old2", new_value: "new2" },
@@ -152,7 +152,6 @@ beforeEach(() => {
   fileBlobLoadingNext = false;
   fileBlobErrorNext = null;
 
-  // default submitReview spy (can be replaced by a test before calling setupUseFetchRoutingMock)
   submitReviewSpy = jest.fn(() => Promise.resolve());
 
   setupUseFetchRoutingMock();
@@ -178,9 +177,9 @@ describe("ApproveRequestModal helpers (__test__)", () => {
   test("formatBytes branches", () => {
     expect(__test__.formatBytes(undefined)).toBe("0 B");
     expect(__test__.formatBytes(0)).toBe("0 B");
-    expect(__test__.formatBytes(9)).toBe("9 B"); // i === 0 branch
-    expect(__test__.formatBytes(1024)).toBe("1.0 KB"); //  fixed
-    expect(__test__.formatBytes(10 * 1024)).toBe("10 KB"); // val >= 10 branch
+    expect(__test__.formatBytes(9)).toBe("9 B");
+    expect(__test__.formatBytes(1024)).toBe("1.0 KB");
+    expect(__test__.formatBytes(10 * 1024)).toBe("10 KB");
   });
 
   test("categoryLabel branches", () => {
@@ -209,23 +208,31 @@ describe("ApproveRequestModal helpers (__test__)", () => {
     expect(__test__.isImageMime("image/png")).toBe(true);
     expect(__test__.isImageMime("application/pdf")).toBe(false);
     expect(__test__.isPdfMime("application/pdf")).toBe(true);
-    expect(__test__.isDocxMime("application/vnd.openxmlformats-officedocument.wordprocessingml.document")).toBe(true);
+    expect(
+      __test__.isDocxMime("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    ).toBe(true);
     expect(__test__.isExcelMime("application/vnd.ms-excel")).toBe(true);
   });
 });
 
 describe("ApproveRequestModal UI", () => {
   test("returns null when request is missing", () => {
-    const { container } = render(<ApproveRequestModal open={true} request={null} onClose={jest.fn()} />);
+    const { container } = render(
+      <ApproveRequestModal open={true} request={null} onClose={jest.fn()} />
+    );
     expect(container).toBeEmptyDOMElement();
   });
 
-  test("open loads photos + docs, renders consent texts, renders details table and edits field", async () => {
+  test("open loads photos + docs, renders consent texts, renders details table and request review comment", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = { docs: [] };
 
     render(
-      <ApproveRequestModal open={true} request={baseRequest({ consent: false, archive_consent: true })} onClose={jest.fn()} />
+      <ApproveRequestModal
+        open={true}
+        request={baseRequest({ consent: false, archive_consent: true, reviewer_comment: "existing review" })}
+        onClose={jest.fn()}
+      />
     );
 
     await waitFor(() => {
@@ -248,10 +255,13 @@ describe("ApproveRequestModal UI", () => {
 
     expect(screen.getByText("No photos submitted.")).toBeInTheDocument();
     expect(screen.getByText("No documents submitted.")).toBeInTheDocument();
+
+    const requestCommentField = screen.getByDisplayValue("existing review") as HTMLInputElement;
+    expect(requestCommentField).toBeInTheDocument();
   });
 
   test("photo approve/reject via viewer updates status chip label", async () => {
-    photoDataNext = { photos: [{ id: 101, mime_type: "image/png", status: null }] };
+    photoDataNext = { photos: [{ id: 101, mime_type: "image/png", status: null, reviewer_comment: "" }] };
     docsDataNext = { docs: [] };
 
     render(<ApproveRequestModal open={true} request={baseRequest()} onClose={jest.fn()} />);
@@ -282,6 +292,7 @@ describe("ApproveRequestModal UI", () => {
           document_type: "document",
           document_category: "birth_certificate",
           status: null,
+          reviewer_comment: "",
         },
         {
           id: 202,
@@ -291,18 +302,21 @@ describe("ApproveRequestModal UI", () => {
           document_type: "document",
           document_category: undefined,
           status: "approved",
+          reviewer_comment: "",
         },
       ],
     };
 
     fileBlobDataNext = new Blob(["hello"], { type: "" });
 
-    const { unmount } = render(<ApproveRequestModal open={true} request={baseRequest()} onClose={jest.fn()} />);
+    const { unmount } = render(
+      <ApproveRequestModal open={true} request={baseRequest()} onClose={jest.fn()} />
+    );
 
     await waitFor(() => expect(loadDocsSpy).toHaveBeenCalled());
 
     expect(screen.getByText("Birth Certificate")).toBeInTheDocument();
-    expect(screen.getByText("1.0 KB")).toBeInTheDocument(); //  fixed
+    expect(screen.getByText("1.0 KB")).toBeInTheDocument();
     expect(screen.getByText("0 B")).toBeInTheDocument();
     expect(screen.getByText("Unknown")).toBeInTheDocument();
 
@@ -326,7 +340,7 @@ describe("ApproveRequestModal UI", () => {
   });
 
   test("approve all blocked when any photo/doc pending -> toast.error and no submit", async () => {
-    photoDataNext = { photos: [{ id: 1, status: null }] };
+    photoDataNext = { photos: [{ id: 1, status: null, reviewer_comment: "" }] };
     docsDataNext = {
       docs: [
         {
@@ -337,6 +351,7 @@ describe("ApproveRequestModal UI", () => {
           document_type: "document",
           document_category: "other_document",
           status: "approved",
+          reviewer_comment: "",
         },
       ],
     };
@@ -352,8 +367,23 @@ describe("ApproveRequestModal UI", () => {
     expect(approveRequestSpy).not.toHaveBeenCalled();
   });
 
-  test("approve all submits review + approveRequest; submit-lock prevents double click while pending", async () => {
-    photoDataNext = { photos: [{ id: 11, status: "approved" }] };
+  test("approve all blocked when rejected photo has no review comment", async () => {
+    photoDataNext = { photos: [{ id: 11, status: "rejected", reviewer_comment: "" }] };
+    docsDataNext = { docs: [] };
+
+    render(<ApproveRequestModal open={true} request={baseRequest()} onClose={jest.fn()} />);
+
+    await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId("approve-all-btn"));
+
+    expect((toast as any).error).toHaveBeenCalledWith("Review comment is required for rejected photos.");
+    expect(submitReviewSpy).not.toHaveBeenCalled();
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  });
+
+  test("approve all blocked when rejected document has no review comment", async () => {
+    photoDataNext = { photos: [] };
     docsDataNext = {
       docs: [
         {
@@ -364,6 +394,56 @@ describe("ApproveRequestModal UI", () => {
           document_type: "document",
           document_category: "other_document",
           status: "rejected",
+          reviewer_comment: "",
+        },
+      ],
+    };
+
+    render(<ApproveRequestModal open={true} request={baseRequest()} onClose={jest.fn()} />);
+
+    await waitFor(() => expect(loadDocsSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId("approve-all-btn"));
+
+    expect((toast as any).error).toHaveBeenCalledWith("Review comment is required for rejected documents.");
+    expect(submitReviewSpy).not.toHaveBeenCalled();
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  });
+
+  test("reject request blocked when request review comment is missing", async () => {
+    photoDataNext = { photos: [] };
+    docsDataNext = { docs: [] };
+
+    render(
+      <ApproveRequestModal
+        open={true}
+        request={baseRequest({ reviewer_comment: "" })}
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId("reject-request-btn"));
+
+    expect((toast as any).error).toHaveBeenCalledWith("Review comment is required when rejecting the request.");
+    expect(submitReviewSpy).not.toHaveBeenCalled();
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  });
+
+  test("approve all submits media reviews + request review; submit-lock prevents double click while pending", async () => {
+    photoDataNext = { photos: [] };
+    docsDataNext = {
+      docs: [
+        {
+          id: 22,
+          file_name: "doc.pdf",
+          size_bytes: 10,
+          mime_type: "application/pdf",
+          document_type: "document",
+          document_category: "other_document",
+          status: "rejected",
+          reviewer_comment: "",
         },
       ],
     };
@@ -380,26 +460,71 @@ describe("ApproveRequestModal UI", () => {
 
     render(<ApproveRequestModal open={true} request={baseRequest()} onClose={jest.fn()} />);
 
-    await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
+    await waitFor(() => expect(loadDocsSpy).toHaveBeenCalled());
+
+    const reviewCommentFields = screen.getAllByLabelText("Review Comment");
+    fireEvent.change(reviewCommentFields[0], { target: { value: "Document rejected for correction" } });
 
     fireEvent.click(screen.getByTestId("approve-all-btn"));
-    fireEvent.click(screen.getByTestId("approve-all-btn")); // locked
+    fireEvent.click(screen.getByTestId("approve-all-btn"));
 
     expect(submitReviewSpy).toHaveBeenCalledTimes(1);
 
-    act(() => resolveReview());
+    await act(async () => {
+      resolveReview();
+    });
 
     await waitFor(() => {
       expect(approveRequestSpy).toHaveBeenCalledTimes(1);
     });
 
     expect(submitReviewSpy).toHaveBeenCalledWith({
-      approved_photos: [11],
-      rejected_photos: [22],
+      reviews: [
+        {
+          photo_id: 22,
+          status: "rejected",
+          reviewer_comment: "Document rejected for correction",
+        },
+      ],
     });
 
     expect(approveRequestSpy).toHaveBeenCalledWith({
       request_id: 55,
+      status: "approved",
+      reviewer_comment: "",
+      updates: expect.any(Array),
+    });
+  });
+
+  test("reject request submits request review with review comment", async () => {
+    photoDataNext = { photos: [] };
+    docsDataNext = { docs: [] };
+
+    render(
+      <ApproveRequestModal
+        open={true}
+        request={baseRequest({ reviewer_comment: "" })}
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(loadDocsSpy).toHaveBeenCalled());
+
+    const requestCommentField = screen.getByLabelText("Review Comment") as HTMLInputElement;
+    fireEvent.change(requestCommentField, { target: { value: "Request is incomplete" } });
+
+    fireEvent.click(screen.getByTestId("reject-request-btn"));
+
+    await waitFor(() => {
+      expect(approveRequestSpy).toHaveBeenCalledTimes(1);
+    });
+
+    expect(submitReviewSpy).not.toHaveBeenCalled();
+
+    expect(approveRequestSpy).toHaveBeenCalledWith({
+      request_id: 55,
+      status: "rejected",
+      reviewer_comment: "Request is incomplete",
       updates: expect.any(Array),
     });
   });
@@ -417,7 +542,6 @@ describe("ApproveRequestModal UI", () => {
 
     expect((toast as any).success).not.toHaveBeenCalled();
 
-    // deliver approval response
     approvalResponseNext = { ok: true };
     setupUseFetchRoutingMock();
 
@@ -429,20 +553,16 @@ describe("ApproveRequestModal UI", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    // rerender same state -> should not double fire
     rerender(<ApproveRequestModal open={true} request={baseRequest()} onClose={onClose} onApproved={onApproved} />);
     expect((toast as any).success).toHaveBeenCalledTimes(1);
 
-    // close
     rerender(<ApproveRequestModal open={false} request={baseRequest()} onClose={onClose} onApproved={onApproved} />);
 
-    //  reopen with NO approvalResponse (allows reset effect to run)
     approvalResponseNext = null;
     setupUseFetchRoutingMock();
 
     rerender(<ApproveRequestModal open={true} request={baseRequest()} onClose={onClose} onApproved={onApproved} />);
 
-    //  now deliver new approval response after reopen
     approvalResponseNext = { ok: true, again: true };
     setupUseFetchRoutingMock();
 

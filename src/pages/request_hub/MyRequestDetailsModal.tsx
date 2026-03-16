@@ -54,10 +54,11 @@ interface RequestPhoto {
   file_name?: string;
   size_bytes?: number;
   mime_type?: string;
-  approved_by?: string;
-  approved_at?: string;
-  is_approved?: boolean;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  status: ReviewStatus;
   photo_comment?: string
+  reviewer_comment?: string;
 }
 
 interface RequestDoc {
@@ -65,10 +66,10 @@ interface RequestDoc {
   file_name: string;
   size_bytes: number;
   mime_type?: string;
-  approved_by?: string;
-  approved_at?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
   document_category?: string;
-  is_approved?: boolean;
+  status: ReviewStatus;
 }
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
@@ -96,22 +97,6 @@ function extensionFromMime(mime?: string) {
   if (mime.startsWith("text/")) return ".txt";
   return "";
 }
-
-
-const isZeroTime = (iso?: string) => !iso || String(iso).startsWith("0001-01-01");
-
-const deriveStatus = (requestStatus?: string, is_approved?: boolean): ReviewStatus => {
-  const req = String(requestStatus || "").toLowerCase();
-
-  // if request is approved/rejected and item still not approved => rejected (your rule)
-  const isFinal = req.includes("approved") || req.includes("rejected");
-  if (isFinal && !is_approved) return "rejected";
-
-  if (is_approved) return "approved";
-
-  return "pending";
-};
-
 
 // viewer stage uses dark; palette has no black → use text_primary
 const stageBg = color_text_primary;
@@ -256,9 +241,9 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         file_name: p.file_name,
         size_bytes: p.size_bytes,
         mime_type: p.mime_type,
-        status: deriveStatus(request?.status, p?.is_approved),
-        is_approved: p.is_approved,
-        photo_comment: p.photo_comment
+        status: request?.status,
+        photo_comment: p.photo_comment,
+        reviewer_comment: p.reviewer_comment
       })),
     [photos, request?.status]
   );
@@ -272,8 +257,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         size_bytes: d.size_bytes,
         mime_type: d.mime_type,
         document_category: d.document_category,
-        status: deriveStatus(request?.status, d?.is_approved),
-        is_approved: d.is_approved,
+        status: request?.status,
       })),
     [docs, request?.status]
   );
@@ -435,6 +419,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             viewBtnSx={viewBtnSx}
             showApproveReject={false}
             statusLabel={(st) => st.toUpperCase()}
+            viewReviewerComment={true}
           />
 
 

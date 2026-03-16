@@ -1,4 +1,3 @@
-// PhotoViewer.tsx
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +11,7 @@ import {
     DialogTitle,
     Divider,
     IconButton,
+    TextField,
     Tooltip,
     Typography,
     useMediaQuery,
@@ -55,10 +55,11 @@ export interface ViewerPhoto {
     mime_type?: string;
     status?: ReviewStatus;
 
-    //  for Download All (ZIP) without passing anything:
     request_id?: number;
     requestId?: number;
-    photo_comment?: string
+
+    photo_comment?: string;
+    reviewer_comment?: string;
 
     [key: string]: any;
 }
@@ -72,16 +73,17 @@ interface PhotoViewerModalProps {
     photos: ViewerPhoto[];
     startIndex?: number;
 
-    /** "review" shows Approve/Reject buttons */
     mode?: PhotoViewerMode;
     onApprove?: (id: number) => void;
     onReject?: (id: number) => void;
 
-    /** Show/hide bottom thumbnail strip */
-    showThumbnails?: boolean;
+    onReviewerCommentChange?: (photo: ViewerPhoto, value: string) => void;
 
-    /** Show/hide status pill overlay */
+    showThumbnails?: boolean;
     showStatusPill?: boolean;
+    showCommentsPanel?: boolean;
+    showReviewerCommentField?: boolean;
+
     only_approved?: boolean;
 }
 
@@ -148,9 +150,12 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
     mode = "view",
     onApprove,
     onReject,
+    onReviewerCommentChange,
     showThumbnails = true,
     showStatusPill = true,
-    only_approved = false
+    showCommentsPanel = true,
+    showReviewerCommentField = false,
+    only_approved = false,
 }) => {
     const theme = useTheme();
     const isSmDown = useMediaQuery(theme.breakpoints.down("sm"));
@@ -168,24 +173,28 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
 
     const [currentIndex, setCurrentIndex] = useState<number>(safeStartIndex);
     const [zoom, setZoom] = useState<number>(1);
+    const [isCommentFocused, setIsCommentFocused] = useState(false);
 
-    // reset on open
     useEffect(() => {
         if (!open) return;
         setCurrentIndex(safeStartIndex);
         setZoom(1);
+        setIsCommentFocused(false);
         setTimeout(() => galleryRef.current?.slideToIndex?.(safeStartIndex), 0);
     }, [open, safeStartIndex]);
 
     const currentPhoto = photos?.[currentIndex];
 
-    const commentText = useMemo(
+    const uploaderCommentText = useMemo(
         () => (currentPhoto?.photo_comment || "").trim(),
         [currentPhoto?.photo_comment]
     );
 
+    const reviewerCommentText = useMemo(
+        () => currentPhoto?.reviewer_comment || "",
+        [currentPhoto?.reviewer_comment]
+    );
 
-    //  infer request id from photos (so no prop required)
     const inferredRequestIds = useMemo(() => {
         const set = new Set<number>();
 
@@ -197,8 +206,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
         return Array.from(set).sort((a, b) => a - b);
     }, [photos]);
 
-
-    // ---------------- SINGLE DOWNLOAD (BLOB) ----------------
     const {
         data: mediaBlobData,
         fetchData: fetchMediaBlob,
@@ -258,8 +265,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
 
         try {
             triggerDownloadFromBlob(b, pendingDownload.filename, pendingDownload.mime);
-        } catch (e) {
-            console.error("Download failed", e);
         } finally {
             setPendingDownload(null);
         }
@@ -268,11 +273,9 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
     useEffect(() => {
         if (!pendingDownload) return;
         if (!mediaBlobError) return;
-        console.error("Download failed", mediaBlobError);
         setPendingDownload(null);
     }, [mediaBlobError, pendingDownload]);
 
-    // ---------------- DOWNLOAD ALL PHOTOS ZIP ----------------
     const {
         data: zipBlobData,
         fetchData: fetchZip,
@@ -285,8 +288,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
     const zipLastDoneRef = useRef<number>(0);
 
     const canDownloadAll = inferredRequestIds.length > 0;
-
-
 
     const handleDownloadAllPhotos = useCallback(async () => {
         if (!canDownloadAll || zipLoading) return;
@@ -308,7 +309,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
         };
 
         await fetchZip(body as any, undefined, false, { responseType: "blob" });
-    }, [canDownloadAll, zipLoading, fetchZip, inferredRequestIds]);
+    }, [canDownloadAll, zipLoading, fetchZip, inferredRequestIds, only_approved]);
 
     useEffect(() => {
         if (!open) return;
@@ -337,7 +338,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
         console.error("Download all photos ZIP failed", zipError);
     }, [zipError]);
 
-    // ---------------- VIEWER UI ----------------
     const galleryItems = useMemo(() => {
         return (photos || []).map((p) => ({
             original: buildPhotoUrl(p.id),
@@ -364,6 +364,11 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
         const next = Math.min(currentIndex + 1, photos.length - 1);
         setCurrentIndex(next);
         galleryRef.current?.slideToIndex?.(next);
+    };
+
+    const stopGalleryKeyCapture = (e: React.KeyboardEvent) => {
+        e.stopPropagation();
+        (e.nativeEvent as any).stopImmediatePropagation?.();
     };
 
     const approveBtnSx = {
@@ -452,6 +457,8 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
         [zoom, showThumbnails, showStatusPill, currentPhoto]
     );
 
+    const sidePanelVisible = currentPhoto && (showCommentsPanel || showReviewerCommentField);
+
     return (
         <Dialog open={open} onClose={onClose} fullScreen>
             <DialogTitle
@@ -475,7 +482,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                             : inferredRequestIds.length > 1
                                 ? ` • ${inferredRequestIds.length} Requests`
                                 : ""}
-
                     </Typography>
                 </Box>
 
@@ -501,7 +507,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                     </Box>
                 ) : (
                     <Box sx={{ width: "100%", height: "100%", display: "flex", minHeight: 0 }}>
-                        {/* Left: gallery */}
                         <Box sx={{ flex: 1, minWidth: 0, height: "100%" }}>
                             <ImageGallery
                                 ref={galleryRef}
@@ -511,14 +516,15 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                 showFullscreenButton={false}
                                 showThumbnails={showThumbnails}
                                 thumbnailPosition="bottom"
+                                disableKeyDown={isCommentFocused}
                                 onSlide={(idx) => {
                                     setCurrentIndex(idx);
                                     setZoom(1);
+                                    setIsCommentFocused(false);
                                 }}
                                 renderItem={renderZoomableItem}
                             />
 
-                            {/* Bottom pill bar */}
                             <Box
                                 sx={{
                                     position: "fixed",
@@ -574,7 +580,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     {Math.round(zoom * 100)}%
                                 </Box>
 
-                                {/* Review actions only in review mode */}
                                 {mode === "review" && (
                                     <>
                                         <Button
@@ -597,7 +602,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     </>
                                 )}
 
-                                {/* Download current (blob logic) */}
                                 <Button
                                     variant="contained"
                                     startIcon={
@@ -618,7 +622,6 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     Download
                                 </Button>
 
-                                {/* Download all photos ZIP */}
                                 <Tooltip
                                     title={
                                         canDownloadAll
@@ -668,74 +671,153 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                             </Box>
                         </Box>
 
-                        {/* Comments (desktop: right panel) */}
-                        {!isSmDown && (
+                        {!isSmDown && sidePanelVisible && (
                             <Box
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDownCapture={stopGalleryKeyCapture}
+                                onKeyUpCapture={stopGalleryKeyCapture}
                                 sx={{
                                     width: 360,
                                     background: color_white,
                                     borderLeft: `1px solid ${color_border}`,
                                     p: 2,
                                     overflowY: "auto",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 1.25,
                                 }}
                             >
-                                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 1 }}>
+                                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.25 }}>
                                     Comments
                                 </Typography>
 
-                                <Divider sx={{ mb: 1.2 }} />
+                                <Divider />
 
-                                <Typography
-                                    sx={{
-                                        whiteSpace: "pre-wrap",
-                                        wordBreak: "break-word",
-                                        color: commentText ? color_text_secondary : color_text_light,
-                                        fontWeight: 650,
-                                        lineHeight: 1.5,
-                                    }}
-                                >
-                                    {commentText || "No comments"}
-                                </Typography>
+                                {showCommentsPanel && (
+                                    <>
+                                        <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+                                            Uploader Comment
+                                        </Typography>
+
+                                        <Typography
+                                            sx={{
+                                                whiteSpace: "pre-wrap",
+                                                wordBreak: "break-word",
+                                                color: uploaderCommentText ? color_text_secondary : color_text_light,
+                                                fontWeight: 650,
+                                                lineHeight: 1.5,
+                                            }}
+                                        >
+                                            {uploaderCommentText || "No comments"}
+                                        </Typography>
+                                    </>
+                                )}
+
+                                {showReviewerCommentField && currentPhoto && (
+                                    <>
+                                        <Divider />
+                                        <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+                                            Review
+                                        </Typography>
+
+                                        <Chip
+                                            size="small"
+                                            label={labelFromStatus(currentPhoto.status)}
+                                            sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
+                                        />
+
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label="Review Comment"
+                                            value={reviewerCommentText}
+                                            onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
+                                            onFocus={() => setIsCommentFocused(true)}
+                                            onBlur={() => setIsCommentFocused(false)}
+                                            onKeyDownCapture={stopGalleryKeyCapture}
+                                            onKeyUpCapture={stopGalleryKeyCapture}
+                                            multiline
+                                            minRows={4}
+                                        />
+                                    </>
+                                )}
                             </Box>
                         )}
 
-                        {/* Comments (mobile: bottom overlay) */}
-                        {isSmDown && (
+                        {isSmDown && sidePanelVisible && (
                             <Box
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDownCapture={stopGalleryKeyCapture}
+                                onKeyUpCapture={stopGalleryKeyCapture}
                                 sx={{
                                     position: "fixed",
                                     left: 12,
                                     right: 12,
-                                    bottom: 86, // sits above your bottom pill bar
+                                    bottom: 86,
                                     zIndex: 1395,
                                     background: color_white,
                                     border: `1px solid ${color_border}`,
                                     borderRadius: 2,
                                     p: 1.25,
-                                    maxHeight: "22vh",
+                                    maxHeight: showReviewerCommentField ? "36vh" : "22vh",
                                     overflowY: "auto",
                                     boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 1,
                                 }}
                             >
-                                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                                <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
                                     Comments
                                 </Typography>
 
-                                <Typography
-                                    sx={{
-                                        whiteSpace: "pre-wrap",
-                                        wordBreak: "break-word",
-                                        color: commentText ? color_text_secondary : color_text_light,
-                                        fontWeight: 650,
-                                        lineHeight: 1.45,
-                                    }}
-                                >
-                                    {commentText || "No comments"}
-                                </Typography>
+                                {showCommentsPanel && (
+                                    <>
+                                        <Typography sx={{ fontWeight: 800, color: color_text_primary, fontSize: 13 }}>
+                                            Uploader Comment
+                                        </Typography>
+
+                                        <Typography
+                                            sx={{
+                                                whiteSpace: "pre-wrap",
+                                                wordBreak: "break-word",
+                                                color: uploaderCommentText ? color_text_secondary : color_text_light,
+                                                fontWeight: 650,
+                                                lineHeight: 1.45,
+                                            }}
+                                        >
+                                            {uploaderCommentText || "No comments"}
+                                        </Typography>
+                                    </>
+                                )}
+
+                                {showReviewerCommentField && currentPhoto && (
+                                    <>
+                                        <Divider />
+                                        <Chip
+                                            size="small"
+                                            label={labelFromStatus(currentPhoto.status)}
+                                            sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
+                                        />
+
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            label="Review Comment"
+                                            value={reviewerCommentText}
+                                            onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
+                                            onFocus={() => setIsCommentFocused(true)}
+                                            onBlur={() => setIsCommentFocused(false)}
+                                            onKeyDownCapture={stopGalleryKeyCapture}
+                                            onKeyUpCapture={stopGalleryKeyCapture}
+                                            multiline
+                                            minRows={4}
+                                        />
+                                    </>
+                                )}
                             </Box>
                         )}
                     </Box>
-
                 )}
             </DialogContent>
         </Dialog>

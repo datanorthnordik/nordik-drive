@@ -61,6 +61,7 @@ export function PhotoGrid({
   showReviewerCommentField = false,
   reviewerCommentLabel = "Review Comment",
   onReviewerCommentChange,
+  viewReviewerComment = false,
 }: PhotoGridProps) {
   const labelOf = (st: "approved" | "rejected" | "pending") => {
     return  statusLabel
@@ -338,6 +339,8 @@ export function PhotoGrid({
                         />
                       </Box>
                     )}
+
+                    {renderCommentCard("Reviewer Comment", reviewerComment, "")}
 
                     {(showApproveReject || showDownload || !!onDownloadSingle) && (
                       <Box

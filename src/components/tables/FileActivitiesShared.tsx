@@ -77,7 +77,7 @@ export const COMMON_FIELDS: FieldOption[] = [
   { key: "uploader_community", label: "Uploader Community", type: "select" },
 
   { key: "requested_by", label: "Requested By", type: "select" },
-  { key: "approved_by", label: "Approved By", type: "select" },
+  { key: "reviewed_by", label: "Reviewed By", type: "select" },
   { key: "consent", label: "Consent", type: "select" },
 ];
 
