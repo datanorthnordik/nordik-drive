@@ -34,6 +34,7 @@ import {
 import { AppDispatch, RootState } from "../../store/store";
 import { useDispatch, useSelector } from "react-redux";
 import { apiEnsure } from "../../store/api/apiSlice";
+import { normalizeEmail, trimmedEmailSchema } from "./authValidation";
 
 type SignupFormValues = {
   firstname: string;
@@ -44,14 +45,17 @@ type SignupFormValues = {
   community: string[];
 };
 
+const passwordLengthMessage = "Password must be between 6 and 16 characters";
+
 const schema = yup.object({
   firstname: yup.string().required("First name is required"),
   lastname: yup.string().required("Last name is required"),
-  email: yup.string().email("Invalid email").required("Email is required"),
+  email: trimmedEmailSchema,
   password: yup
     .string()
     .required("Password is required")
-    .min(6, "Password must be at least 6 characters"),
+    .min(6, passwordLengthMessage)
+    .max(16, passwordLengthMessage),
   confirmPassword: yup
     .string()
     .required("Confirm Password is required")
@@ -137,7 +141,7 @@ function Signup() {
     );
     }
 
-    fetchData({ ...formData, community: unique }, null, true);
+    fetchData({ ...formData, email: normalizeEmail(formData.email), community: unique }, null, true);
   };
 
   useEffect(() => {

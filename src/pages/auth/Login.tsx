@@ -33,6 +33,7 @@ import {
   AuthPrimaryButton,
   OrDivider,
 } from "./AuthShared";
+import { normalizeEmail, trimmedEmailSchema } from "./authValidation";
 
 type LoginFormValues = {
   email: string;
@@ -42,7 +43,7 @@ type LoginFormValues = {
 
 //  Explicitly type schema to LoginFormValues
 const schema: yup.ObjectSchema<LoginFormValues> = yup.object({
-  email: yup.string().email("Invalid email").required("Email is required"),
+  email: trimmedEmailSchema,
   password: yup.string().required("Password is required"),
   remember: yup.boolean().required(), //  required boolean
 });
@@ -75,7 +76,7 @@ function Login() {
   );
 
   const onSubmit: SubmitHandler<LoginFormValues> = (formData) => {
-    fetchData(formData, null, true);
+    fetchData({ ...formData, email: normalizeEmail(formData.email) }, null, true);
   };
 
   useEffect(() => {
