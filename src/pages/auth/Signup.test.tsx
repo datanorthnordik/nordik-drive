@@ -205,8 +205,26 @@ describe("Signup", () => {
 
     await user.click(screen.getByRole("button", { name: /sign up/i }));
 
-    expect(await screen.findByText("Password must be at least 6 characters")).toBeInTheDocument();
+    expect(await screen.findByText("Password must be between 6 and 16 characters")).toBeInTheDocument();
     expect(await screen.findByText("Passwords must match")).toBeInTheDocument();
+  });
+
+  test("shows an error and blocks submit when password exceeds 16 characters", async () => {
+    const user = userEvent.setup();
+    const { signupFetch } = setupUseFetchForSignup({ communitiesData: { communities: [] } });
+
+    render(<Signup />);
+
+    await user.type(screen.getByLabelText(/first name/i), "Athul");
+    await user.type(screen.getByLabelText(/last name/i), "N");
+    await user.type(screen.getByLabelText(/email address/i), "athul@test.com");
+    await user.type(screen.getByLabelText(/^password$/i), "12345678901234567");
+    await user.type(screen.getByLabelText(/confirm password/i), "12345678901234567");
+    await user.type(screen.getByPlaceholderText(/search or type a community/i), "Shingwauk");
+    await user.click(screen.getByRole("button", { name: /sign up/i }));
+
+    expect(await screen.findByText("Password must be between 6 and 16 characters")).toBeInTheDocument();
+    expect(signupFetch).not.toHaveBeenCalled();
   });
 
   test("adds missing community (POST) then submits signup with unique cleaned community list (stable)", async () => {
@@ -222,7 +240,7 @@ describe("Signup", () => {
     // Fill required fields FAST (no userEvent.type)
     fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: "Athul" } });
     fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: "N" } });
-    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: "athul@test.com" } });
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: "athul@test.com   " } });
     fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "secret12" } });
     fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: "secret12" } });
 
@@ -249,7 +267,7 @@ describe("Signup", () => {
 
     // signup called with unique cleaned community list
     expect(signupFetch).toHaveBeenCalledWith(
-      expect.objectContaining({ community: ["NewComm"] }),
+      expect.objectContaining({ email: "athul@test.com", community: ["NewComm"] }),
       null,
       true
     );

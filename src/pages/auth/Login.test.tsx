@@ -103,14 +103,14 @@ describe("Login", () => {
     expect(await screen.findByText("Password is required")).toBeInTheDocument();
   });
 
-  test("submits valid form and calls fetchData with payload (remember default false)", async () => {
+  test("submits valid form with trailing spaces in email and calls fetchData with a trimmed payload", async () => {
     const user = userEvent.setup();
     const fetchData = jest.fn();
     mockUseFetchReturn({ fetchData });
 
     render(<Login />);
 
-    await user.type(screen.getByPlaceholderText(/email address/i), "a@b.com");
+    await user.type(screen.getByPlaceholderText(/email address/i), "a@b.com   ");
     await user.type(screen.getByPlaceholderText(/password/i), "secret123");
     await user.click(screen.getByRole("button", { name: /sign in/i }));
 
