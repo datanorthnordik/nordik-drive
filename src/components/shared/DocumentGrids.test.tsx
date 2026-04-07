@@ -312,4 +312,32 @@ describe("DocumentGrid (100% coverage)", () => {
     // Status still present
     expect(screen.getByTestId("doc-status-11")).toBeInTheDocument();
   });
+
+  test("renders reviewer comment as readonly truncated text when viewReviewerComment is enabled", () => {
+    const longReviewerComment = "C".repeat(150);
+
+    render(
+      <DocumentGrid
+        documents={[
+          {
+            id: 44,
+            status: STATUS_PENDING_IN,
+            document_category: "other_document",
+            size_bytes: 1024,
+            filename: "review.pdf",
+            mime_type: "application/pdf",
+            reviewer_comment: longReviewerComment,
+          },
+        ]}
+        onOpenViewer={jest.fn()}
+        viewReviewerComment={true}
+      />
+    );
+
+    const card = screen.getByTestId("doc-card-44");
+
+    expect(within(card).getByText("Review Comment")).toBeInTheDocument();
+    expect(within(card).getByText(/C{20,}/)).toBeInTheDocument();
+    expect(within(card).getAllByText(/\.\.\.$/)).toHaveLength(1);
+  });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Box, Button, Chip, CircularProgress, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, CircularProgress, TextField, Tooltip, Typography } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 
 import {
@@ -46,6 +46,7 @@ export function DocumentGrid({
   showReviewerCommentField = false,
   reviewerCommentLabel = "Review Comment",
   onReviewerCommentChange,
+  disableReviewerCommentField = false,
 
   cardBorderColor = color_secondary,
   containerSx,
@@ -56,6 +57,7 @@ export function DocumentGrid({
 
   primaryBtnSx,
   showStatusChip = true,
+  viewReviewerComment = false,
 }: DocumentGridProps) {
   const labelOf = (st: "approved" | "rejected" | "pending") =>
     statusLabel ? statusLabel(st) : st.toUpperCase();
@@ -146,6 +148,74 @@ export function DocumentGrid({
     background: color_secondary,
     color: color_white,
     "&:hover": { background: color_secondary_dark },
+  };
+
+  const renderCommentCard = (label: string, value: string, emptyTextValue: string) => {
+    const trimmed = String(value || "").trim();
+    const hasValue = trimmed.length > 0;
+    const isLong = trimmed.length > 100;
+    const displayValue = hasValue
+      ? isLong
+        ? `${trimmed.slice(0, 97).trimEnd()}...`
+        : trimmed
+      : emptyTextValue;
+
+    return (
+      <Tooltip
+        title={isLong ? trimmed : ""}
+        arrow
+        placement="top-start"
+        disableHoverListener={!isLong}
+        disableFocusListener={!isLong}
+        disableTouchListener={!isLong}
+      >
+        <Box
+          sx={{
+            mt: 1.2,
+            p: 1,
+            borderRadius: 2,
+            border: `1px solid ${color_border}`,
+            backgroundColor: "rgba(2, 6, 23, 0.03)",
+            minHeight: 92,
+            maxHeight: 92,
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "0.78rem",
+              fontWeight: 900,
+              color: color_text_light,
+              mb: 0.35,
+              letterSpacing: "0.02em",
+              flexShrink: 0,
+            }}
+          >
+            {label}
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: "0.98rem",
+              fontWeight: 800,
+              color: hasValue ? color_text_primary : color_text_secondary,
+              lineHeight: 1.45,
+              wordBreak: "break-word",
+              whiteSpace: "normal",
+              overflow: "hidden",
+              display: "-webkit-box",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 2,
+            }}
+          >
+            {displayValue}
+          </Typography>
+        </Box>
+      </Tooltip>
+    );
   };
 
   return (
@@ -267,7 +337,7 @@ export function DocumentGrid({
                     {filename}
                   </Typography>
 
-                  {showReviewerCommentField && (
+                  {showReviewerCommentField && !disableReviewerCommentField && (
                     <Box sx={{ mt: 1.2 }} onClick={(e) => e.stopPropagation()}>
                       <TextField
                         fullWidth
@@ -280,6 +350,9 @@ export function DocumentGrid({
                       />
                     </Box>
                   )}
+
+                  {(viewReviewerComment || (showReviewerCommentField && disableReviewerCommentField)) &&
+                    renderCommentCard(reviewerCommentLabel, reviewerComment, "No review comment")}
 
                   {hasActions && (
                     <Box

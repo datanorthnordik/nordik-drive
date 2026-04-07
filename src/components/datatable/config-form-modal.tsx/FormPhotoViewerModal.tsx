@@ -81,6 +81,7 @@ export interface FormPhotoViewerModalProps {
   showStatusPill?: boolean;
   showThumbnails?: boolean;
   showReviewerCommentField?: boolean;
+  viewReviewerComment?: boolean;
 }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -135,6 +136,7 @@ export default function FormPhotoViewerModal({
   showStatusPill = false,
   showThumbnails = true,
   showReviewerCommentField = false,
+  viewReviewerComment = false,
 }: FormPhotoViewerModalProps) {
   const theme = useTheme();
   const isSmDown = useMediaQuery(theme.breakpoints.down("sm"));
@@ -173,6 +175,7 @@ export default function FormPhotoViewerModal({
     () => currentPhoto?.reviewer_comment || "",
     [currentPhoto?.reviewer_comment]
   );
+  const readonlyReviewerCommentText = useMemo(() => reviewerCommentText.trim(), [reviewerCommentText]);
 
   const galleryItems = useMemo(
     () =>
@@ -287,7 +290,8 @@ export default function FormPhotoViewerModal({
     [currentPhoto, showStatusPill, showThumbnails, zoom]
   );
 
-  const sidePanel = currentPhoto && (showCommentsPanel || showReviewerCommentField);
+  const showReviewSection = !!currentPhoto && (showReviewerCommentField || viewReviewerComment);
+  const sidePanel = currentPhoto && (showCommentsPanel || showReviewSection);
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen>
@@ -493,7 +497,7 @@ export default function FormPhotoViewerModal({
                   </>
                 )}
 
-                {showReviewerCommentField && currentPhoto && (
+                {showReviewSection && currentPhoto && (
                   <>
                     <Divider />
                     <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
@@ -506,19 +510,33 @@ export default function FormPhotoViewerModal({
                       sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
                     />
 
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Review Comment"
-                      value={reviewerCommentText}
-                      onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
-                      onFocus={() => setIsCommentFocused(true)}
-                      onBlur={() => setIsCommentFocused(false)}
-                      onKeyDownCapture={stopGalleryKeyCapture}
-                      onKeyUpCapture={stopGalleryKeyCapture}
-                      multiline
-                      minRows={4}
-                    />
+                    {showReviewerCommentField ? (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Review Comment"
+                        value={reviewerCommentText}
+                        onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
+                        onFocus={() => setIsCommentFocused(true)}
+                        onBlur={() => setIsCommentFocused(false)}
+                        onKeyDownCapture={stopGalleryKeyCapture}
+                        onKeyUpCapture={stopGalleryKeyCapture}
+                        multiline
+                        minRows={4}
+                      />
+                    ) : (
+                      <Typography
+                        sx={{
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                          color: readonlyReviewerCommentText ? color_text_secondary : color_text_light,
+                          fontWeight: 650,
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {readonlyReviewerCommentText || "No review comment"}
+                      </Typography>
+                    )}
                   </>
                 )}
               </Box>
@@ -565,7 +583,7 @@ export default function FormPhotoViewerModal({
                   </>
                 )}
 
-                {showReviewerCommentField && currentPhoto && (
+                {showReviewSection && currentPhoto && (
                   <>
                     <Divider />
                     <Chip
@@ -573,19 +591,33 @@ export default function FormPhotoViewerModal({
                       label={labelFromStatus(currentPhoto.status)}
                       sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
                     />
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Review Comment"
-                      value={reviewerCommentText}
-                      onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
-                      onFocus={() => setIsCommentFocused(true)}
-                      onBlur={() => setIsCommentFocused(false)}
-                      onKeyDownCapture={stopGalleryKeyCapture}
-                      onKeyUpCapture={stopGalleryKeyCapture}
-                      multiline
-                      minRows={4}
-                    />
+                    {showReviewerCommentField ? (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Review Comment"
+                        value={reviewerCommentText}
+                        onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
+                        onFocus={() => setIsCommentFocused(true)}
+                        onBlur={() => setIsCommentFocused(false)}
+                        onKeyDownCapture={stopGalleryKeyCapture}
+                        onKeyUpCapture={stopGalleryKeyCapture}
+                        multiline
+                        minRows={4}
+                      />
+                    ) : (
+                      <Typography
+                        sx={{
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                          color: readonlyReviewerCommentText ? color_text_secondary : color_text_light,
+                          fontWeight: 650,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {readonlyReviewerCommentText || "No review comment"}
+                      </Typography>
+                    )}
                   </>
                 )}
               </Box>

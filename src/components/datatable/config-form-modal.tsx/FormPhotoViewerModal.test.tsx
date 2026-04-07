@@ -297,4 +297,26 @@ describe("FormPhotoViewerModal", () => {
     expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Download/i })).not.toBeInTheDocument();
   });
+
+  it("shows reviewer comment as readonly text when viewReviewerComment is enabled", () => {
+    const props = makeProps({
+      photos: [
+        makePhoto({
+          id: 5,
+          reviewer_comment: "Reviewed and accepted",
+          status: "approved",
+        }),
+      ],
+      viewReviewerComment: true,
+      showReviewerCommentField: false,
+    });
+
+    render(<FormPhotoViewerModal {...props} />);
+
+    flushTimers();
+
+    expect(screen.getByText("Review")).toBeInTheDocument();
+    expect(screen.getByText("Reviewed and accepted")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Review Comment")).not.toBeInTheDocument();
+  });
 });

@@ -156,6 +156,7 @@ jest.mock("../datatable/config-form-modal.tsx/ConfigFormModal", () => ({
             <div data-testid="cfg-file-id">{String(props.file?.id ?? "")}</div>
             <div data-testid="cfg-file-name">{String(props.file?.filename ?? "")}</div>
             <div data-testid="cfg-form-key">{String(props.formConfig?.key ?? "")}</div>
+            <div data-testid="cfg-fetch-submission-id">{String(props.fetchSubmissionId ?? "")}</div>
             <div data-testid="cfg-editable">{String(props.isEditable)}</div>
             <div data-testid="cfg-addinfo-firstname">
                 {String(props.addInfoConfig?.firstname ?? "")}
@@ -589,6 +590,7 @@ describe("FormSubmissionLogs", () => {
         expect(screen.getByTestId("cfg-file-id")).toHaveTextContent("501");
         expect(screen.getByTestId("cfg-file-name")).toHaveTextContent("z-file.csv");
         expect(screen.getByTestId("cfg-form-key")).toHaveTextContent("boarding_form");
+        expect(screen.getByTestId("cfg-fetch-submission-id")).toHaveTextContent("1");
         expect(screen.getByTestId("cfg-editable")).toHaveTextContent("false");
         expect(screen.getByTestId("cfg-addinfo-firstname")).toHaveTextContent("first_name");
 

@@ -76,6 +76,7 @@ export interface FormDocumentViewerModalProps {
 
   maxTextChars?: number;
   showReviewerCommentField?: boolean;
+  viewReviewerComment?: boolean;
 }
 
 const normalizeBlob = (x: any): Blob | null => {
@@ -204,6 +205,7 @@ export default function FormDocumentViewerModal({
   tipText = "If preview doesn’t load for some file types, use Open.",
   maxTextChars = 200000,
   showReviewerCommentField = false,
+  viewReviewerComment = false,
 }: FormDocumentViewerModalProps) {
   const [index, setIndex] = useState<number>(startIndex || 0);
   const [docBlobUrl, setDocBlobUrl] = useState<string>("");
@@ -230,6 +232,8 @@ export default function FormDocumentViewerModal({
 
   const currentDoc: FormViewerDoc | undefined = docs[index];
   const currentDocId = currentDoc?.id ?? null;
+  const reviewerCommentText = String(currentDoc?.reviewer_comment || "");
+  const readonlyReviewerCommentText = reviewerCommentText.trim();
 
   const currentDocMime = useMemo(() => {
     if (!currentDoc) return "";
@@ -693,7 +697,7 @@ export default function FormDocumentViewerModal({
             )}
           </Box>
 
-          {showReviewerCommentField && currentDoc && (
+          {(showReviewerCommentField || viewReviewerComment) && currentDoc && (
             <Box
               sx={{
                 width: { xs: "100%", md: 340 },
@@ -718,15 +722,29 @@ export default function FormDocumentViewerModal({
                 sx={{ alignSelf: "flex-start", ...statusChipSx(currentDoc.status) }}
               />
 
-              <TextField
-                fullWidth
-                size="small"
-                label="Review Comment"
-                value={String(currentDoc.reviewer_comment || "")}
-                onChange={(e) => onReviewerCommentChange?.(currentDoc, e.target.value)}
-                multiline
-                minRows={4}
-              />
+              {showReviewerCommentField ? (
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Review Comment"
+                  value={reviewerCommentText}
+                  onChange={(e) => onReviewerCommentChange?.(currentDoc, e.target.value)}
+                  multiline
+                  minRows={4}
+                />
+              ) : (
+                <Typography
+                  sx={{
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    color: readonlyReviewerCommentText ? color_text_secondary : color_text_light,
+                    fontWeight: 650,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {readonlyReviewerCommentText || "No review comment"}
+                </Typography>
+              )}
             </Box>
           )}
         </Box>

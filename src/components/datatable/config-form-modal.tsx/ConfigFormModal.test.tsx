@@ -326,6 +326,14 @@ jest.mock("../../shared/PhotoGrids", () => ({
             </button>
 
             <input
+              data-testid="uploader-comment-photo-first"
+              value={first.photo_comment ?? ""}
+              onChange={(e) =>
+                props.onUploaderCommentChange?.(first.id, e.target.value)
+              }
+            />
+
+            <input
               data-testid="comment-photo-first"
               value={first.reviewer_comment ?? ""}
               onChange={(e) =>
@@ -450,6 +458,12 @@ describe("ConfigFormModal", () => {
         loading: false,
         fetchData: jest.fn().mockResolvedValue(undefined),
       },
+      search: {
+        data: null,
+        error: null,
+        loading: false,
+        fetchData: jest.fn().mockResolvedValue(undefined),
+      },
       save: {
         data: null,
         error: null,
@@ -470,8 +484,13 @@ describe("ConfigFormModal", () => {
       },
     };
 
+    let activeAnswersHookCallIndex = 0;
     mockUseFetch.mockImplementation((url: string, method: string) => {
       if (method === "GET" && url === "/api/form/answers") return mockHookState.fetch;
+      if (method === "GET" && url === "/api/form/answers/active") {
+        activeAnswersHookCallIndex += 1;
+        return activeAnswersHookCallIndex % 2 === 1 ? mockHookState.fetch : mockHookState.search;
+      }
       if (method === "POST" && url === "/api/form/answers") return mockHookState.save;
       if (method === "POST" && url === "/api/form/answers/review") return mockHookState.review;
       if (method === "GET" && url === "/api/form/answers/upload") return mockHookState.upload;
@@ -530,6 +549,39 @@ describe("ConfigFormModal", () => {
     });
   });
 
+  it("fetches answers by submission id when fetchSubmissionId is provided", async () => {
+    mockHookState.fetch.data = {
+      data: {
+        id: 333,
+        details: [{ detail_key: "first_name", value: "Fetched by id" }],
+        documents: [],
+        photos: [],
+      },
+    };
+
+    render(
+      <ConfigFormModal
+        {...makeProps({
+          fetchSubmissionId: 333,
+        })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockHookState.fetch.fetchData).toHaveBeenCalledWith(
+        undefined,
+        {
+          id: "333",
+        },
+        false
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("value-first_name")).toHaveTextContent("Fetched by id");
+    });
+  });
+
   it("renders legacy answers shape and refetches when identity changes", async () => {
     mockHookState.fetch.data = {
       answers: {
@@ -577,6 +629,278 @@ describe("ConfigFormModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders readonly mode without submit actions", () => {
+    const props = makeProps({
+      isEditable: false,
+    });
+
+    render(<ConfigFormModal {...props} />);
+
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit" })).not.toBeInTheDocument();
+  });
+
+  it("disables the consent checkbox in readonly mode", () => {
+    const props = makeProps({
+      isEditable: false,
+      formConfig: makeFormConfig({
+        consent: "I agree",
+        sections: [
+          makeSection({
+            fields: [
+              makeField({
+                key: "first_name",
+                consent_required: true,
+              }),
+            ],
+          }),
+        ],
+      }),
+    });
+
+    render(<ConfigFormModal {...props} />);
+
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Submit" })).not.toBeInTheDocument();
+  });
+
+  it("shows an approved warning and opens readonly when the guarded entry already has an approved submission", async () => {
+    mockHookState.search.data = {
+      data: {
+        id: 801,
+        status: "approved",
+        created_by: "owner@nordik.test",
+      },
+    };
+
+    render(
+      <ConfigFormModal
+        {...makeProps({
+          requestGuardEnabled: true,
+          currentUserEmail: "owner@nordik.test",
+        })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockHookState.search.fetchData).toHaveBeenCalledWith(
+        undefined,
+        {
+          row_id: 101,
+          file_id: 202,
+          form_key: "boarding_form",
+        },
+        false
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Boarding Form for Athul Narayanan is already approved.")
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit" })).not.toBeInTheDocument();
+  });
+
+  it("blocks opening the modal when an approved request belongs to a different creator", async () => {
+    mockHookState.search.data = {
+      data: {
+        id: 8011,
+        status: "approved",
+        created_by: "other@nordik.test",
+        submitted_user: {
+          email: "owner@nordik.test",
+        },
+      },
+    };
+
+    const props = makeProps({
+      requestGuardEnabled: true,
+      currentUserEmail: "owner@nordik.test",
+    });
+
+    render(<ConfigFormModal {...props} />);
+
+    await waitFor(() => {
+      expect(mockedToast.error).toHaveBeenCalledWith(
+        "A request for Boarding Form has been already created by someone else."
+      );
+    });
+
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByText("A request for Boarding Form has been already created by someone else.")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Boarding Form for Athul Narayanan is already approved.")
+    ).not.toBeInTheDocument();
+    expect(mockHookState.fetch.fetchData).not.toHaveBeenCalled();
+  });
+
+  it("blocks opening the modal view when another user already has an active request for the same form person pair", async () => {
+    mockHookState.search.data = {
+      data: {
+        id: 802,
+        status: "pending",
+        created_by: "other@nordik.test",
+        submitted_user: {
+          email: "owner@nordik.test",
+        },
+      },
+    };
+
+    const props = makeProps({
+      requestGuardEnabled: true,
+      currentUserEmail: "owner@nordik.test",
+    });
+
+    render(<ConfigFormModal {...props} />);
+
+    await waitFor(() => {
+      expect(mockedToast.error).toHaveBeenCalledWith(
+        "A request for Boarding Form has been already created by someone else."
+      );
+    });
+
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByText("A request for Boarding Form has been already created by someone else.")
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("field-first_name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Submit" })).not.toBeInTheDocument();
+    expect(mockHookState.fetch.fetchData).not.toHaveBeenCalled();
+    expect(mockHookState.save.fetchData).not.toHaveBeenCalled();
+  });
+
+  it("allows the same user to open and save an active request", async () => {
+    mockHookState.fetch.data = {
+      data: {
+        id: 803,
+        details: [{ detail_key: "first_name", value: "Existing value" }],
+        documents: [],
+        photos: [],
+      },
+    };
+    mockHookState.search.data = {
+      data: {
+        id: 803,
+        status: "pending",
+        created_by: {
+          email: "owner@nordik.test",
+        },
+      },
+    };
+
+    render(
+      <ConfigFormModal
+        {...makeProps({
+          requestGuardEnabled: true,
+          currentUserEmail: "owner@nordik.test",
+        })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockHookState.search.fetchData).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(mockHookState.fetch.fetchData).toHaveBeenCalledWith(
+        undefined,
+        {
+          file_id: 202,
+          row_id: 101,
+          form_key: "boarding_form",
+        },
+        false
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(mockHookState.save.fetchData).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockedToast.error).not.toHaveBeenCalledWith(
+      "A request for boarding_form has been already created by someone else."
+    );
+  });
+
+  it("allows creating a new request when the active lookup returns data null", async () => {
+    mockHookState.fetch.data = {
+      data: {
+        details: [{ detail_key: "first_name", value: "Old rejected submission" }],
+        documents: [],
+        photos: [],
+      },
+    };
+    mockHookState.search.data = { data: null };
+
+    render(
+      <ConfigFormModal
+        {...makeProps({
+          requestGuardEnabled: true,
+          currentUserEmail: "owner@nordik.test",
+        })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockHookState.search.fetchData).toHaveBeenCalledTimes(1);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("submission-guard-loading")).not.toBeInTheDocument();
+    });
+
+    expect(mockHookState.fetch.fetchData).not.toHaveBeenCalled();
+    expect(screen.getByTestId("value-first_name")).toHaveTextContent("");
+    expect(screen.queryByText("Old rejected submission")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(mockHookState.save.fetchData).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockedToast.error).not.toHaveBeenCalledWith(
+      "A request for boarding_form has been already created by someone else."
+    );
+    expect(mockedToast.error).not.toHaveBeenCalledWith(
+      "A request for boarding_form has been already created by someone else."
+    );
+  });
+
+  it("does not fetch guarded active form data when the active lookup fails", async () => {
+    mockHookState.search.error = "Active lookup failed";
+
+    render(
+      <ConfigFormModal
+        {...makeProps({
+          requestGuardEnabled: true,
+          currentUserEmail: "owner@nordik.test",
+        })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockHookState.search.fetchData).toHaveBeenCalledWith(
+        undefined,
+        {
+          row_id: 101,
+          file_id: 202,
+          form_key: "boarding_form",
+        },
+        false
+      );
+    });
+
+    expect(mockHookState.fetch.fetchData).not.toHaveBeenCalled();
   });
 
   it("shows validation error for required empty text field and does not save", async () => {
@@ -1010,6 +1334,158 @@ describe("ConfigFormModal", () => {
     });
   });
 
+  it("shows upload reviewer comments only when explicitly enabled", async () => {
+    mockHookState.fetch.data = {
+      data: {
+        id: 55,
+        details: [],
+        documents: [
+          {
+            id: 11,
+            detail_key: "doc_field",
+            file_name: "existing.pdf",
+            mime_type: "application/pdf",
+            file_category: "passport",
+            file_size_bytes: 100,
+            status: "approved",
+            reviewer_comment: "Document looks good.",
+          },
+        ],
+        photos: [
+          {
+            id: 22,
+            detail_key: "photo_field",
+            file_name: "existing.jpg",
+            mime_type: "image/jpeg",
+            file_comment: "front view",
+            file_size_bytes: 200,
+            status: "rejected",
+            reviewer_comment: "Please upload a clearer image.",
+          },
+        ],
+      },
+    };
+
+    const props = makeProps({
+      showUploadReviewerComments: true,
+      formConfig: makeFormConfig({
+        sections: [
+          makeSection({
+            fields: [
+              makeField({
+                key: "doc_field",
+                type: "doc_upload",
+              }),
+              makeField({
+                key: "photo_field",
+                type: "photo_upload",
+              }),
+            ],
+          }),
+        ],
+      }),
+    });
+
+    render(<ConfigFormModal {...props} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("document-grid")).toBeInTheDocument();
+      expect(screen.getByTestId("photo-grid")).toBeInTheDocument();
+    });
+
+    expect(lastDocumentGridProps.viewReviewerComment).toBe(true);
+    expect(lastPhotoGridProps.viewReviewerComment).toBe(true);
+    expect(lastDocumentGridProps.documents[0].reviewer_comment).toBe("Document looks good.");
+    expect(lastPhotoGridProps.photos[0].reviewer_comment).toBe("Please upload a clearer image.");
+    expect(lastDocumentViewerProps?.viewReviewerComment).toBe(true);
+    expect(lastPhotoViewerProps?.viewReviewerComment).toBe(true);
+  });
+
+  it("persists edited uploader comments for existing photos", async () => {
+    mockHookState.fetch.data = {
+      data: {
+        id: 55,
+        details: [],
+        documents: [],
+        photos: [
+          {
+            id: 22,
+            detail_key: "photo_field",
+            file_name: "existing.jpg",
+            mime_type: "image/jpeg",
+            file_comment: "front view",
+            file_size_bytes: 200,
+            status: "pending",
+          },
+        ],
+      },
+    };
+
+    const props = makeProps({
+      formConfig: makeFormConfig({
+        sections: [
+          makeSection({
+            fields: [
+              makeField({
+                key: "photo_field",
+                type: "photo_upload",
+              }),
+            ],
+          }),
+        ],
+      }),
+    });
+
+    render(<ConfigFormModal {...props} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("photo-grid")).toBeInTheDocument();
+    });
+
+    expect(lastPhotoGridProps.showUploaderCommentField).toBe(true);
+
+    fireEvent.change(screen.getByTestId("uploader-comment-photo-first"), {
+      target: { value: "updated uploader note" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(mockHookState.save.fetchData).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockHookState.save.fetchData.mock.calls[0][0].photos).toEqual([
+      expect.objectContaining({
+        id: 22,
+        detail_key: "photo_field",
+        file_name: "existing.jpg",
+        mime_type: "image/jpeg",
+        file_comment: "updated uploader note",
+        is_existing: true,
+      }),
+    ]);
+  });
+
+  it("shows submission review comment as readonly text when not in review mode", async () => {
+    mockHookState.fetch.data = {
+      data: {
+        id: 55,
+        reviewer_comment: "Common review note from admin.",
+        details: [],
+        documents: [],
+        photos: [],
+      },
+    };
+
+    render(<ConfigFormModal {...makeProps()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Common review note from admin.")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText("Review Comment")).not.toBeInTheDocument();
+  });
+
   it("shows review configuration error when reviewStatuses is missing", async () => {
     const props = makeProps({
       review: true,
@@ -1142,6 +1618,77 @@ describe("ConfigFormModal", () => {
     });
 
     expect(mockHookState.save.fetchData).not.toHaveBeenCalled();
+  });
+
+  it("requires reviewers to approve or reject all existing uploads before submitting", async () => {
+    mockHookState.fetch.data = {
+      data: {
+        id: 77,
+        details: [],
+        documents: [
+          {
+            id: 11,
+            detail_key: "doc_field",
+            file_name: "existing.pdf",
+            mime_type: "application/pdf",
+            status: "approved",
+          },
+        ],
+        photos: [
+          {
+            id: 22,
+            detail_key: "photo_field",
+            file_name: "existing.jpg",
+            mime_type: "image/jpeg",
+            file_comment: "front view",
+            status: "pending",
+          },
+        ],
+      },
+    };
+
+    const props = makeProps({
+      review: true,
+      reviewStatuses: {
+        approved: "APPROVED",
+        rejected: "REJECTED",
+        moreInfo: "MORE_INFO",
+      },
+      formConfig: makeFormConfig({
+        sections: [
+          makeSection({
+            fields: [
+              makeField({
+                key: "doc_field",
+                type: "doc_upload",
+              }),
+              makeField({
+                key: "photo_field",
+                type: "photo_upload",
+              }),
+            ],
+          }),
+        ],
+      }),
+    });
+
+    render(<ConfigFormModal {...props} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("document-grid")).toBeInTheDocument();
+      expect(screen.getByTestId("photo-grid")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+
+    await waitFor(() => {
+      expect(mockedToast.error).toHaveBeenCalledWith(
+        "Please approve or reject all uploaded photos and documents before submitting the review."
+      );
+    });
+
+    expect(mockHookState.save.fetchData).not.toHaveBeenCalled();
+    expect(mockHookState.review.fetchData).not.toHaveBeenCalled();
   });
 
   it("submits review flow with mapped upload statuses and closes on success", async () => {

@@ -269,6 +269,46 @@ describe("PhotoGrid", () => {
   expect(textbox).toHaveValue("Rejected because blurry");
 });
 
+  test("changing uploader comment calls onUploaderCommentChange and does not open viewer", async () => {
+    const user = userEvent.setup();
+    const onOpenViewer = jest.fn();
+    const onUploaderCommentChange = jest.fn();
+
+    function Wrapper() {
+      const [photos, setPhotos] = React.useState(makePhotos());
+
+      return (
+        <PhotoGrid
+          photos={photos}
+          getPhotoUrl={getPhotoUrl}
+          onOpenViewer={onOpenViewer}
+          showUploaderCommentField
+          onUploaderCommentChange={(id, value) => {
+            onUploaderCommentChange(id, value);
+            setPhotos((prev) =>
+              prev.map((photo) =>
+                photo.id === id ? { ...photo, photo_comment: value } : photo
+              )
+            );
+          }}
+        />
+      );
+    }
+
+    render(<Wrapper />);
+
+    const card11 = screen.getByTestId("photo-card-11");
+    const textbox = within(card11).getByLabelText("Uploader Comment");
+
+    await user.clear(textbox);
+    await user.type(textbox, "Updated uploader comment");
+
+    expect(onUploaderCommentChange).toHaveBeenCalled();
+    expect(onUploaderCommentChange).toHaveBeenLastCalledWith(11, "Updated uploader comment");
+    expect(onOpenViewer).not.toHaveBeenCalled();
+    expect(textbox).toHaveValue("Updated uploader comment");
+  });
+
   test("renders approve/reject buttons when enabled and clicking them does not open viewer", async () => {
     const user = userEvent.setup();
     const onOpenViewer = jest.fn();
@@ -372,5 +412,31 @@ describe("PhotoGrid", () => {
 
     expect(within(card).getByText(/A{20,}/)).toBeInTheDocument();
     expect(within(card).getByText(/\.\.\.$/)).toBeInTheDocument();
+  });
+
+  test("renders reviewer comment as readonly truncated text when viewReviewerComment is enabled", () => {
+    const longReviewerComment = "B".repeat(150);
+
+    render(
+      <PhotoGrid
+        photos={[
+          {
+            id: 77,
+            status: "pending",
+            photo_comment: "Short uploader comment",
+            reviewer_comment: longReviewerComment,
+          },
+        ]}
+        getPhotoUrl={getPhotoUrl}
+        onOpenViewer={jest.fn()}
+        viewReviewerComment={true}
+      />
+    );
+
+    const card = screen.getByTestId("photo-card-77");
+
+    expect(within(card).getByText("Review Comment")).toBeInTheDocument();
+    expect(within(card).getByText(/B{20,}/)).toBeInTheDocument();
+    expect(within(card).getAllByText(/\.\.\.$/)).toHaveLength(1);
   });
 });

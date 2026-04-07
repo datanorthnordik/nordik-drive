@@ -53,6 +53,9 @@ export default function FormSubmissionRequests() {
   const [activeFormRow, setActiveFormRow] = useState<any>(null);
   const [activeAddInfoConfig, setActiveAddInfoConfig] = useState<any>(null);
   const [activeFileForModal, setActiveFileForModal] = useState<any>(null);
+  const [activeFetchSubmissionId, setActiveFetchSubmissionId] = useState<number | string | null>(
+    null
+  );
 
   const [pendingDetailsRow, setPendingDetailsRow] = useState<FormSubmissionRow | null>(null);
   const [configFileNameToLoad, setConfigFileNameToLoad] = useState("");
@@ -115,6 +118,7 @@ export default function FormSubmissionRequests() {
     setActiveFormRow(null);
     setActiveAddInfoConfig(null);
     setActiveFileForModal(null);
+    setActiveFetchSubmissionId(null);
 
     setPendingDetailsRow(row);
     setConfigFileNameToLoad(row.file_name || "");
@@ -155,6 +159,7 @@ export default function FormSubmissionRequests() {
       filename: pendingDetailsRow.file_name,
     });
 
+    setActiveFetchSubmissionId(pendingDetailsRow.id ?? null);
     setActiveAddInfoConfig(configJson?.addInfo ?? null);
     setActiveFormCfg(matchedFormCfg);
     setCfgFormOpen(true);
@@ -169,6 +174,7 @@ export default function FormSubmissionRequests() {
     setActiveFormRow(null);
     setActiveAddInfoConfig(null);
     setActiveFileForModal(null);
+    setActiveFetchSubmissionId(null);
 
     fetchPage(currentPage);
   };
@@ -269,6 +275,7 @@ export default function FormSubmissionRequests() {
             apiBase={API_BASE}
             addInfoConfig={activeAddInfoConfig}
             fetchPath="/form/answers"
+            fetchSubmissionId={activeFetchSubmissionId}
             savePath="/form/answers"
             isEditable={true}
             review={true}

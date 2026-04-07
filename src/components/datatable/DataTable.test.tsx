@@ -26,6 +26,7 @@ let mockGridApi: any;
 let mockDispatch: jest.Mock;
 
 let mockFileState: any;
+let mockAuthState: any;
 let mockApiEntries: any;
 
 let mockPhotoFetchState: any;
@@ -305,11 +306,13 @@ jest.mock("./DataGridStyles", () => ({
 
 jest.mock("./config-form-modal.tsx/ConfigFormModal", () => ({
     __esModule: true,
-    default: ({ open, row, formConfig, onClose }: any) =>
+    default: ({ open, row, formConfig, onClose, requestGuardEnabled, currentUserEmail }: any) =>
         open ? (
             <div data-testid="config-form-modal">
                 <div data-testid="cfg-row">{JSON.stringify(row)}</div>
                 <div data-testid="cfg-form">{JSON.stringify(formConfig)}</div>
+                <div data-testid="cfg-request-guard-enabled">{String(requestGuardEnabled)}</div>
+                <div data-testid="cfg-current-user-email">{String(currentUserEmail ?? "")}</div>
                 <button onClick={onClose}>close-config-form</button>
             </div>
         ) : null,
@@ -423,6 +426,13 @@ beforeEach(() => {
         selectedCommunities: [],
     };
 
+    mockAuthState = {
+        user: {
+            id: 88,
+            email: "owner@nordik.test",
+        },
+    };
+
     mockApiEntries = {};
 
     mockPhotoFetchState = {
@@ -446,6 +456,7 @@ beforeEach(() => {
     mockedUseSelector.mockImplementation((selector: any) =>
         selector({
             file: mockFileState,
+            auth: mockAuthState,
             api: { entries: mockApiEntries },
         })
     );
@@ -863,6 +874,54 @@ describe("DataGrid", () => {
   expect(row.Name).toBe("");
   expect(row.Tags).toEqual([]);
   expect(row["Required Field"]).toBe("");
+});
+
+    it("passes the request guard props only through the table-opened config form flow", () => {
+  mockApiEntries = {
+    "config_students.csv": {
+      data: {
+        config: {
+          describe: false,
+          community_filter: false,
+          source_filter: false,
+          addInfo: {
+            firstname: "Name",
+            lastname: "Last Name",
+          },
+          columns: [
+            {
+              name: "Attachment",
+              display_name: "Attachment",
+              type: "form",
+              key: "att",
+              additional_field: true,
+            },
+          ],
+        },
+      },
+    },
+  };
+
+  renderComponent([
+    {
+      id: 1,
+      Name: "Alice",
+      "Last Name": "Example",
+      "First Nation/Community": "Garden River",
+      Website: "",
+      DocLink: "",
+      MultiLinks: "",
+      Photos: "",
+      Documents: "",
+    },
+  ]);
+
+  const ui = renderCell("__form__att", "", mockBaseRows[0]);
+  fireEvent.click(ui.getByRole("button", { name: /add\/view/i }));
+
+  expect(screen.getByTestId("config-form-modal")).toBeInTheDocument();
+  expect(screen.getByTestId("cfg-request-guard-enabled")).toHaveTextContent("true");
+  expect(screen.getByTestId("cfg-current-user-email")).toHaveTextContent("owner@nordik.test");
 });
 
   it("config-driven mode uses config columns, hides fallback source filter when disabled, and add-student uses config defaults", () => {
