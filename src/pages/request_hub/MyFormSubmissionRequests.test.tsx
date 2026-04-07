@@ -1,16 +1,10 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import MyFormSubmissionRequests from "./MyFormSubmissionRequests";
 
 const mockUseFetch = jest.fn();
-let lastGridProps: any = null;
-
-jest.mock("@mui/material", () => ({
-  __esModule: true,
-  Box: ({ children }: any) => <div>{children}</div>,
-}));
 
 jest.mock("../../hooks/useFetch", () => ({
   __esModule: true,
@@ -39,7 +33,11 @@ jest.mock("../../components/datatable/config-form-modal.tsx/ConfigFormModal", ()
       <div data-testid="cfg-file-id">{String(props.file?.id ?? "")}</div>
       <div data-testid="cfg-file-name">{String(props.file?.filename ?? "")}</div>
       <div data-testid="cfg-form-key">{String(props.formConfig?.key ?? "")}</div>
+      <div data-testid="cfg-fetch-submission-id">{String(props.fetchSubmissionId ?? "")}</div>
       <div data-testid="cfg-editable">{String(props.isEditable)}</div>
+      <div data-testid="cfg-show-upload-reviewer-comments">
+        {String(props.showUploadReviewerComments)}
+      </div>
       <div data-testid="cfg-addinfo-firstname">
         {String(props.addInfoConfig?.firstname ?? "")}
       </div>
@@ -53,65 +51,46 @@ jest.mock("../../components/datatable/config-form-modal.tsx/ConfigFormModal", ()
   ),
 }));
 
-jest.mock("../../components/tables/FormSubmissionGrid", () => ({
-  __esModule: true,
-  default: (props: any) => {
-    lastGridProps = props;
-
-    return (
-      <div data-testid="form-submission-grid">
-        <div data-testid="grid-title">{props.title}</div>
-        <div data-testid="grid-page">
-          {String(props.currentPage)}/{String(props.totalPages)}
-        </div>
-        <div data-testid="grid-rows">{String(props.rows?.length ?? 0)}</div>
-        <div data-testid="grid-action-label">{props.actionLabel}</div>
-        <div data-testid="grid-show-created-by">
-          {String(props.showCreatedByColumn)}
-        </div>
-
-        <button type="button" onClick={props.onPrev}>
-          Grid Prev
-        </button>
-        <button type="button" onClick={props.onNext}>
-          Grid Next
-        </button>
-        <button
-          type="button"
-          onClick={() => props.rows?.[0] && props.onOpenDetails(props.rows[0])}
-        >
-          Open First Details
-        </button>
-      </div>
-    );
-  },
-}));
-
 describe("MyFormSubmissionRequests", () => {
   let hookState: any;
 
-  const searchItems = [
-    {
-      id: 1,
-      file_id: 501,
-      row_id: 9001,
-      file_name: "z file.csv",
-      form_key: "boarding_form",
-      form_label: "Boarding Form",
-      first_name: "Athul",
-      last_name: "Narayanan",
-      created_by: "creator@example.com",
-      edited_by: "editor@example.com",
-      reviewed_by: "reviewer@example.com",
-      status: "pending",
-      created_at: "2026-03-12T10:00:00Z",
-      updated_at: "2026-03-12T12:00:00Z",
-    },
-  ];
+  const pendingItem = {
+    id: 1,
+    file_id: 501,
+    row_id: 9001,
+    file_name: "boarding-form.csv",
+    form_key: "boarding_form",
+    form_label: "Boarding Form",
+    first_name: "Athul",
+    last_name: "Narayanan",
+    created_by: "creator@example.com",
+    edited_by: "editor@example.com",
+    reviewed_by: "reviewer@example.com",
+    status: "pending",
+    created_at: "2026-03-12T10:00:00Z",
+    updated_at: "2026-03-12T12:00:00Z",
+  };
+
+  const needsMoreInfoItem = {
+    ...pendingItem,
+    id: 2,
+    row_id: 9002,
+    file_id: 502,
+    file_name: "needs-more-info.csv",
+    status: "needs more information",
+  };
+
+  const approvedItem = {
+    ...pendingItem,
+    id: 3,
+    row_id: 9003,
+    file_id: 503,
+    file_name: "approved-form.csv",
+    status: "approved",
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    lastGridProps = null;
 
     hookState = {
       search: {
@@ -134,119 +113,96 @@ describe("MyFormSubmissionRequests", () => {
     });
   });
 
-  it("fetches my requests on mount and shows loader from search loading", async () => {
-    hookState.search.loading = true;
+  const getSearchInput = () => within(screen.getByTestId("search-input")).getByRole("textbox");
+
+  it("fetches once on mount and groups rows into the two local sections", async () => {
+    hookState.search.data = {
+      page: 1,
+      page_size: 1000,
+      total_items: 3,
+      total_pages: 1,
+      items: [pendingItem, needsMoreInfoItem, approvedItem],
+    };
 
     render(<MyFormSubmissionRequests />);
-
-    expect(screen.getByTestId("loader")).toHaveTextContent("true");
 
     await waitFor(() => {
       expect(hookState.search.fetchData).toHaveBeenCalledWith({
         page: 1,
-        page_size: 20,
+        page_size: 1000,
       });
     });
+
+    expect(screen.getByTestId("loader")).toHaveTextContent("false");
+    expect(screen.getByTestId("tab-pending")).toHaveTextContent(
+      "Pending / Need More Information (2)"
+    );
+    expect(screen.getByTestId("tab-approved")).toHaveTextContent("Approved / Rejected (1)");
+
+    expect(screen.getByTestId("submission-row-9001")).toBeInTheDocument();
+    expect(screen.getByTestId("submission-row-9002")).toBeInTheDocument();
+    expect(screen.queryByTestId("submission-row-9003")).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-chip-9001")).toHaveTextContent("Pending review");
+    expect(screen.getByTestId("status-chip-9002")).toHaveTextContent("Needs more information");
+
+    fireEvent.click(screen.getByTestId("tab-approved"));
+
+    expect(screen.getByTestId("submission-row-9003")).toBeInTheDocument();
+    expect(screen.queryByTestId("submission-row-9001")).not.toBeInTheDocument();
   });
 
-  it("shows loader when config loading is true", () => {
-    hookState.config.loading = true;
-
-    render(<MyFormSubmissionRequests />);
-
-    expect(screen.getByTestId("loader")).toHaveTextContent("true");
-  });
-
-  it("renders grid data from search response", async () => {
+  it("filters the active section and refreshes from the empty state", async () => {
     hookState.search.data = {
-      page: 2,
-      page_size: 20,
-      total_items: 1,
-      total_pages: 5,
-      items: searchItems,
+      page: 1,
+      page_size: 1000,
+      total_items: 2,
+      total_pages: 1,
+      items: [pendingItem, needsMoreInfoItem],
     };
 
     render(<MyFormSubmissionRequests />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("grid-title")).toHaveTextContent(
-        "My Form Submission Requests"
-      );
+      expect(screen.getByTestId("submission-row-9001")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("grid-page")).toHaveTextContent("2/5");
-    expect(screen.getByTestId("grid-rows")).toHaveTextContent("1");
-    expect(screen.getByTestId("grid-action-label")).toHaveTextContent("Open Form");
-    expect(screen.getByTestId("grid-show-created-by")).toHaveTextContent("false");
-  });
+    fireEvent.change(getSearchInput(), { target: { value: "9002" } });
 
-  it("uses fallback values when search response fields are missing", async () => {
-    hookState.search.data = {
-      items: [],
-    };
+    expect(screen.queryByTestId("submission-row-9001")).not.toBeInTheDocument();
+    expect(screen.getByTestId("submission-row-9002")).toBeInTheDocument();
 
-    render(<MyFormSubmissionRequests />);
+    fireEvent.change(getSearchInput(), { target: { value: "missing-value" } });
 
-    await waitFor(() => {
-      expect(screen.getByTestId("grid-page")).toHaveTextContent("1/1");
-    });
-
-    expect(screen.getByTestId("grid-rows")).toHaveTextContent("0");
-  });
-
-  it("uses grid prev and next callbacks to fetch adjacent pages", async () => {
-    hookState.search.data = {
-      page: 2,
-      page_size: 20,
-      total_items: 1,
-      total_pages: 3,
-      items: searchItems,
-    };
-
-    render(<MyFormSubmissionRequests />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("grid-page")).toHaveTextContent("2/3");
-    });
+    expect(screen.getByText("No pending or needs more information requests.")).toBeInTheDocument();
 
     hookState.search.fetchData.mockClear();
+    fireEvent.click(screen.getByTestId("refresh-btn"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Grid Prev" }));
-    fireEvent.click(screen.getByRole("button", { name: "Grid Next" }));
-
-    expect(hookState.search.fetchData).toHaveBeenNthCalledWith(1, {
+    expect(hookState.search.fetchData).toHaveBeenCalledWith({
       page: 1,
-      page_size: 20,
-    });
-    expect(hookState.search.fetchData).toHaveBeenNthCalledWith(2, {
-      page: 3,
-      page_size: 20,
+      page_size: 1000,
     });
   });
 
-  it("opens modal when config contains a matching form config", async () => {
+  it("opens pending and needs more information rows in editable mode", async () => {
     hookState.search.data = {
       page: 1,
-      page_size: 20,
-      total_items: 1,
+      page_size: 1000,
+      total_items: 2,
       total_pages: 1,
-      items: searchItems,
+      items: [pendingItem, needsMoreInfoItem],
     };
 
     const view = render(<MyFormSubmissionRequests />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Open First Details" })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Open First Details" }));
+    fireEvent.click(screen.getByTestId("details-btn-9002"));
 
     await waitFor(() => {
       expect(hookState.config.fetchData).toHaveBeenCalledTimes(1);
     });
 
     expect(mockUseFetch).toHaveBeenCalledWith(
-      "/api/config?file_name=z%20file.csv",
+      "/api/config?file_name=needs-more-info.csv",
       "GET",
       false
     );
@@ -275,29 +231,32 @@ describe("MyFormSubmissionRequests", () => {
     });
 
     expect(screen.getByTestId("cfg-open")).toHaveTextContent("true");
-    expect(screen.getByTestId("cfg-row-id")).toHaveTextContent("9001");
+    expect(screen.getByTestId("cfg-row-id")).toHaveTextContent("9002");
     expect(screen.getByTestId("cfg-row-firstname")).toHaveTextContent("Athul");
     expect(screen.getByTestId("cfg-row-lastname")).toHaveTextContent("Narayanan");
-    expect(screen.getByTestId("cfg-file-id")).toHaveTextContent("501");
-    expect(screen.getByTestId("cfg-file-name")).toHaveTextContent("z file.csv");
+    expect(screen.getByTestId("cfg-file-id")).toHaveTextContent("502");
+    expect(screen.getByTestId("cfg-file-name")).toHaveTextContent("needs-more-info.csv");
     expect(screen.getByTestId("cfg-form-key")).toHaveTextContent("boarding_form");
+    expect(screen.getByTestId("cfg-fetch-submission-id")).toHaveTextContent("2");
     expect(screen.getByTestId("cfg-editable")).toHaveTextContent("true");
+    expect(screen.getByTestId("cfg-show-upload-reviewer-comments")).toHaveTextContent("true");
     expect(screen.getByTestId("cfg-addinfo-firstname")).toHaveTextContent("first_name");
     expect(screen.getByTestId("cfg-addinfo-lastname")).toHaveTextContent("last_name");
   });
 
-  it("closes the modal, clears active state, and refetches the current page", async () => {
+  it("opens approved rows in readonly mode and refetches after closing", async () => {
     hookState.search.data = {
-      page: 4,
-      page_size: 20,
+      page: 1,
+      page_size: 1000,
       total_items: 1,
-      total_pages: 4,
-      items: searchItems,
+      total_pages: 1,
+      items: [approvedItem],
     };
 
     const view = render(<MyFormSubmissionRequests />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Open First Details" }));
+    fireEvent.click(screen.getByTestId("tab-approved"));
+    fireEvent.click(screen.getByTestId("details-btn-9003"));
 
     await waitFor(() => {
       expect(hookState.config.fetchData).toHaveBeenCalledTimes(1);
@@ -323,34 +282,35 @@ describe("MyFormSubmissionRequests", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("config-form-modal")).toBeInTheDocument();
+      expect(screen.getByTestId("cfg-editable")).toHaveTextContent("false");
     });
 
-    hookState.search.fetchData.mockClear();
+    expect(screen.getByTestId("cfg-fetch-submission-id")).toHaveTextContent("3");
 
+    hookState.search.fetchData.mockClear();
     fireEvent.click(screen.getByRole("button", { name: "Close Modal" }));
 
     expect(screen.queryByTestId("config-form-modal")).not.toBeInTheDocument();
     expect(hookState.search.fetchData).toHaveBeenCalledWith({
-      page: 4,
-      page_size: 20,
+      page: 1,
+      page_size: 1000,
     });
   });
 
-  it("logs an error and does not open modal when matching form config is missing", async () => {
+  it("logs an error and does not open the modal when the matching form config is missing", async () => {
     const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
     hookState.search.data = {
       page: 1,
-      page_size: 20,
+      page_size: 1000,
       total_items: 1,
       total_pages: 1,
-      items: searchItems,
+      items: [pendingItem],
     };
 
     const view = render(<MyFormSubmissionRequests />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Open First Details" }));
+    fireEvent.click(screen.getByTestId("details-btn-9001"));
 
     await waitFor(() => {
       expect(hookState.config.fetchData).toHaveBeenCalledTimes(1);
@@ -385,12 +345,5 @@ describe("MyFormSubmissionRequests", () => {
     expect(screen.queryByTestId("config-form-modal")).not.toBeInTheDocument();
 
     errorSpy.mockRestore();
-  });
-
-  it("does not fetch config when there is no pending details row", () => {
-    render(<MyFormSubmissionRequests />);
-
-    expect(hookState.config.fetchData).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("config-form-modal")).not.toBeInTheDocument();
   });
 });

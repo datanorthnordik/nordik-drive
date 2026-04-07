@@ -70,6 +70,7 @@ interface RequestDoc {
   reviewed_at?: string;
   document_category?: string;
   status: ReviewStatus;
+  reviewer_comment?: string;
 }
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
@@ -103,6 +104,7 @@ const stageBg = color_text_primary;
 
 const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, request, onClose }) => {
   const requestId = request?.request_id;
+  const requestReviewerComment = String(request?.reviewer_comment || "").trim();
 
   const [photos, setPhotos] = useState<RequestPhoto[]>([]);
   const [docs, setDocs] = useState<RequestDoc[]>([]);
@@ -258,6 +260,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         mime_type: d.mime_type,
         document_category: d.document_category,
         status: request?.status,
+        reviewer_comment: d.reviewer_comment,
       })),
     [docs, request?.status]
   );
@@ -396,6 +399,8 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             }}
             // optional: keep your "UPPERCASE" style like old UI
             statusLabel={(st) => st.toUpperCase()}
+            viewReviewerComment={true}
+            disableReviewerCommentField={true}
           />
 
           {/* Documents */}
@@ -422,6 +427,40 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             viewReviewerComment={true}
           />
 
+          {requestReviewerComment ? (
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.5,
+                borderRadius: 2,
+                border: `1px solid ${color_border}`,
+                backgroundColor: color_white,
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  color: color_text_primary,
+                  fontSize: "0.95rem",
+                  mb: 1,
+                }}
+              >
+                Review Comment
+              </Typography>
+
+              <Typography
+                sx={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  color: color_text_secondary,
+                  fontWeight: 700,
+                  lineHeight: 1.5,
+                }}
+              >
+                {requestReviewerComment}
+              </Typography>
+            </Box>
+          ) : null}
 
         </DialogContent>
       </Dialog>

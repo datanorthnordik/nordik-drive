@@ -114,6 +114,7 @@ export type ExistingPhotoItem = {
   file_size_bytes?: number;
   file_url?: string;
   file_comment?: string;
+  original_file_comment?: string;
 };
 
 export type LookupItem = {
@@ -178,6 +179,9 @@ export type PhotoGridProps = {
   showReviewerCommentField?: boolean;
   reviewerCommentLabel?: string;
   onReviewerCommentChange?: (id: number, value: string) => void | undefined;
+  showUploaderCommentField?: boolean;
+  uploaderCommentLabel?: string;
+  onUploaderCommentChange?: (id: number, value: string) => void | undefined;
 };
 
 export type DocumentGridProps = {

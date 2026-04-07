@@ -213,6 +213,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
   };
 
   const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
+  const currentUserEmail = useSelector((state: any) => state.auth?.user?.email ?? null);
 
   const [formOpen, setFormOpen] = useState(false);
   const [formRow, setFormRow] = useState<any>(null);
@@ -1199,6 +1200,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
             addInfoConfig={configJson?.addInfo}
             fetchPath="/form/answers"
             savePath="/form/answers"
+            requestGuardEnabled={true}
+            currentUserEmail={currentUserEmail}
           />
         )}
 

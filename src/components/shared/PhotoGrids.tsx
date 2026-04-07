@@ -61,6 +61,10 @@ export function PhotoGrid({
   showReviewerCommentField = false,
   reviewerCommentLabel = "Review Comment",
   onReviewerCommentChange,
+  showUploaderCommentField = false,
+  uploaderCommentLabel = "Uploader Comment",
+  onUploaderCommentChange,
+  disableReviewerCommentField = false,
   viewReviewerComment = false,
 }: PhotoGridProps) {
   const labelOf = (st: "approved" | "rejected" | "pending") => {
@@ -324,9 +328,23 @@ export function PhotoGrid({
                       </Typography>
                     </Box>
 
-                    {renderCommentCard("Uploader Comment", uploaderComment, "No uploader comment")}
+                    {showUploaderCommentField ? (
+                      <Box onClick={(e) => e.stopPropagation()}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={uploaderCommentLabel}
+                          value={uploaderComment}
+                          onChange={(e) => onUploaderCommentChange?.(photo.id, e.target.value)}
+                          multiline
+                          minRows={2}
+                        />
+                      </Box>
+                    ) : (
+                      renderCommentCard("Uploader Comment", uploaderComment, "No uploader comment")
+                    )}
 
-                    {showReviewerCommentField && (
+                    {showReviewerCommentField && !disableReviewerCommentField && (
                       <Box onClick={(e) => e.stopPropagation()}>
                         <TextField
                           fullWidth
@@ -340,7 +358,8 @@ export function PhotoGrid({
                       </Box>
                     )}
 
-                    {renderCommentCard("Reviewer Comment", reviewerComment, "")}
+                    {(viewReviewerComment || (showReviewerCommentField && disableReviewerCommentField)) &&
+                      renderCommentCard(reviewerCommentLabel, reviewerComment, "No review comment")}
 
                     {(showApproveReject || showDownload || !!onDownloadSingle) && (
                       <Box

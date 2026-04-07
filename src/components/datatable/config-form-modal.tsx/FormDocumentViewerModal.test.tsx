@@ -32,6 +32,8 @@ jest.mock("@mui/material", () => {
         children
       ),
     CircularProgress: () => React.createElement("div", { "data-testid": "spinner" }),
+    Chip: ({ label }: { label?: React.ReactNode }) =>
+      React.createElement("div", null, label),
     Dialog: ({
       open,
       children,
@@ -374,5 +376,38 @@ describe("FormDocumentViewerModal", () => {
     await waitFor(() => {
       expect(screen.getByText("application/pdf • 1/2")).toBeInTheDocument();
     });
+  });
+  it("shows reviewer comment as readonly text when viewReviewerComment is enabled", async () => {
+    mockedUseFetch.mockReturnValue({
+      data: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
+      fetchData: mockFetchFileBlob,
+      loading: false,
+      error: null,
+    });
+
+    render(
+      <FormDocumentViewerModal
+        {...makeProps({
+          docs: [
+            makeDoc({
+              id: 15,
+              file_name: "reviewed.pdf",
+              mime_type: "application/pdf",
+              reviewer_comment: "Reviewed and accepted",
+              status: "approved",
+            }),
+          ],
+          viewReviewerComment: true,
+          showReviewerCommentField: false,
+        })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Review")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Reviewed and accepted")).toBeInTheDocument();
+    expect(screen.getByText("Approved")).toBeInTheDocument();
   });
 });

@@ -155,6 +155,20 @@ describe("MyRequestDetailsModal (unit tests)", () => {
     expect(screen.getByText(/Uploaded Documents/i)).toBeInTheDocument();
   });
 
+  test("renders request-level reviewer comment as readonly text", () => {
+    render(
+      <MyRequestDetailsModal
+        open={true}
+        request={baseRequest({ reviewer_comment: "Common review note from reviewer." })}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Review Comment")).toBeInTheDocument();
+    expect(screen.getByText("Common review note from reviewer.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Review Comment")).not.toBeInTheDocument();
+  });
+
   test("Close button calls onClose", () => {
     const onClose = jest.fn();
 
@@ -253,5 +267,74 @@ describe("MyRequestDetailsModal (unit tests)", () => {
     );
     expect(screen.getByTestId("document-viewer")).toHaveAttribute("data-startindex", "1");
     expect(screen.getByTestId("document-viewer")).toHaveAttribute("data-count", "2");
+  });
+
+  test("renders readonly reviewer comments for uploaded photos and documents", async () => {
+    photosData = {
+      photos: [
+        {
+          id: 11,
+          file_name: "p1.jpg",
+          photo_comment: "Uploader note",
+          reviewer_comment: "Reviewer note for photo",
+        },
+      ],
+    };
+    docsData = {
+      docs: [
+        {
+          id: 101,
+          file_name: "birth.pdf",
+          size_bytes: 1024,
+          mime_type: "application/pdf",
+          document_category: "birth_certificate",
+          reviewer_comment: "Reviewer note for document",
+        },
+      ],
+    };
+    setupUseFetchMock();
+
+    render(<MyRequestDetailsModal open={true} request={baseRequest()} onClose={jest.fn()} />);
+
+    await waitFor(() => expect(screen.getByText("Reviewer note for photo")).toBeInTheDocument());
+    expect(screen.getByText("Reviewer note for document")).toBeInTheDocument();
+    expect(screen.getByText("Uploader note")).toBeInTheDocument();
+  });
+
+  test("renders request reviewer comment separately from upload reviewer comments", async () => {
+    photosData = {
+      photos: [
+        {
+          id: 11,
+          file_name: "p1.jpg",
+          reviewer_comment: "Photo reviewer note",
+        },
+      ],
+    };
+    docsData = {
+      docs: [
+        {
+          id: 101,
+          file_name: "birth.pdf",
+          size_bytes: 1024,
+          mime_type: "application/pdf",
+          document_category: "birth_certificate",
+          reviewer_comment: "Document reviewer note",
+        },
+      ],
+    };
+    setupUseFetchMock();
+
+    render(
+      <MyRequestDetailsModal
+        open={true}
+        request={baseRequest({ reviewer_comment: "Common request review note" })}
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("Photo reviewer note")).toBeInTheDocument());
+    expect(screen.getByText("Document reviewer note")).toBeInTheDocument();
+    expect(screen.getByText("Common request review note")).toBeInTheDocument();
   });
 });

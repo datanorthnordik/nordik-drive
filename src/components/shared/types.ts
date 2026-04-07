@@ -64,6 +64,9 @@ export type PhotoGridProps = {
   showReviewerCommentField?: boolean;
   reviewerCommentLabel?: string;
   onReviewerCommentChange?: (id: number, value: string) => void;
+  showUploaderCommentField?: boolean;
+  uploaderCommentLabel?: string;
+  onUploaderCommentChange?: (id: number, value: string) => void;
 
   // styling
   cardBorderColor?: string; // default: color_secondary
