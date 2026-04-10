@@ -14,11 +14,8 @@ import PauseIcon from "@mui/icons-material/Pause";
 
 import { marked } from "marked";
 import { decode } from "he";
-import { motion } from "framer-motion";
-
 
 import Loader from "./Loader";
-
 import {
   color_primary,
   color_secondary,
@@ -32,6 +29,8 @@ import {
   color_text_light,
 } from "../constants/colors";
 import toast from "react-hot-toast";
+
+export { default as NIAChatTrigger } from "./NIAChatTrigger";
 
 
 type Message = {
@@ -793,60 +792,5 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
         </div>
       )}
     </>
-  );
-}
-
-export function NIAChatTrigger({ setOpen }: { setOpen: (v: boolean) => void }) {
-  return (
-    <motion.button
-      onClick={() => setOpen(true)}
-      initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      whileHover={{ scale: 1.08 }}
-      whileTap={{ scale: 0.95 }}
-      className="fixed bottom-6 right-6 flex items-center gap-3 px-5 h-16 rounded-full shadow-lg z-50 text-white font-semibold"
-      style={{
-        background: `linear-gradient(135deg, ${color_secondary}, ${color_secondary_dark})`,
-        border: "none",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        padding: "10px 15px",
-        borderRadius: "20px",
-        justifyContent: "center",
-        alignItems: "center",
-        color: "white",
-      }}
-    >
-      <motion.div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: "radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 70%)",
-        }}
-        animate={{ opacity: [0.2, 0.7, 0.2] }}
-        transition={{ duration: 2.5, repeat: Infinity }}
-      />
-      <motion.div
-        animate={{
-          scale: [1, 1.4, 1],
-          rotate: [0, 10, -10, 0],
-          filter: [
-            "drop-shadow(0 0 4px rgba(255,255,255,0.6))",
-            "drop-shadow(0 0 12px rgba(255,255,255,0.9))",
-            "drop-shadow(0 0 6px rgba(255,255,255,0.7))",
-          ],
-        }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="relative z-10"
-      >
-        <Bot size={32} className="text-white" />
-      </motion.div>
-      <span style={{ color: "white", fontWeight: 700 }}>NIA AI</span>
-      <motion.div
-        className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-white"
-        animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.7, 1] }}
-        transition={{ duration: 1.2, repeat: Infinity }}
-      />
-    </motion.button>
   );
 }

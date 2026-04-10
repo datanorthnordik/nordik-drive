@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import TopControlsBar from "./TopControlBar";
@@ -7,8 +7,9 @@ import * as XLSX from "xlsx";
 import { useDispatch } from "react-redux";
 import { clearSelectedFile } from "../../store/auth/fileSlice";
 
-jest.mock("../NIAChat", () => ({
-  NIAChatTrigger: ({ setOpen }: { setOpen: (v: boolean) => void }) => (
+jest.mock("../NIAChatTrigger", () => ({
+  __esModule: true,
+  default: ({ setOpen }: { setOpen: (v: boolean) => void }) => (
     <button onClick={() => setOpen(true)}>NIA Trigger</button>
   ),
 }));
@@ -268,7 +269,7 @@ describe("TopControlsBar", () => {
     expect(onZoomChange).toHaveBeenCalledWith(12);
   });
 
-  it("downloads filtered data when filtered rows differ from total rows", () => {
+  it("downloads filtered data when filtered rows differ from total rows", async () => {
     const gridApi = createGridApi({
       allNodes: [{ data: { id: 1 } }, { data: { id: 2 } }, { data: { id: 3 } }],
       filteredNodes: [{ data: { id: 2 } }],
@@ -278,16 +279,19 @@ describe("TopControlsBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
 
+    await waitFor(() => {
+      expect(mockedJsonToSheet).toHaveBeenCalledWith([{ id: 2 }]);
+    });
+
     const worksheet = mockedJsonToSheet.mock.results[0]?.value;
     const workbook = mockedBookNew.mock.results[0]?.value;
 
-    expect(mockedJsonToSheet).toHaveBeenCalledWith([{ id: 2 }]);
     expect(mockedBookNew).toHaveBeenCalledTimes(1);
     expect(XLSX.utils.book_append_sheet).toHaveBeenCalledWith(workbook, worksheet, "Data");
     expect(XLSX.writeFile).toHaveBeenCalledWith(workbook, "filtered_data.xlsx");
   });
 
-  it("downloads all data when no filter is applied", () => {
+  it("downloads all data when no filter is applied", async () => {
     const nodes = [{ data: { id: 1 } }, { data: { id: 2 } }];
     const gridApi = createGridApi({
       allNodes: nodes,
@@ -298,9 +302,12 @@ describe("TopControlsBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
 
+    await waitFor(() => {
+      expect(mockedJsonToSheet).toHaveBeenCalledWith([{ id: 1 }, { id: 2 }]);
+    });
+
     const workbook = mockedBookNew.mock.results[0]?.value;
 
-    expect(mockedJsonToSheet).toHaveBeenCalledWith([{ id: 1 }, { id: 2 }]);
     expect(XLSX.writeFile).toHaveBeenCalledWith(workbook, "all_data.xlsx");
   });
 

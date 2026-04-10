@@ -1,6 +1,8 @@
 'use client';
 
 import React, {
+  lazy,
+  Suspense,
   useMemo,
   useRef,
   useState,
@@ -9,8 +11,6 @@ import React, {
   useCallback,
 } from "react";
 import {
-  AllCommunityModule,
-  ModuleRegistry,
   GridReadyEvent,
   RowNode,
 } from "ag-grid-community";
@@ -29,7 +29,6 @@ import {
   color_black_light,
 } from "../../constants/colors";
 
-import NIAChat from "../NIAChat";
 import { MicIcon } from "lucide-react";
 import styled, { keyframes } from "styled-components";
 import { colorSources } from "../../constants/constants";
@@ -37,12 +36,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { setCommunities } from "../../store/auth/fileSlice";
 import { AppDispatch, RootState } from "../../store/store";
 
-import AddInfoForm from "./add-info-dialog/AddInfoForm";
 import SmartSearchSuggestions from "./SmartSearchSuggestions";
 
-import DocumentUrlViewerModal from "../photoview/URLDocumentViewer";
-import DocumentViewerModal from "../../pages/viewers/DocumentViewer";
-import PhotoViewerModal from "../../pages/viewers/PhotoViewer";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
 
@@ -62,12 +57,19 @@ import { useExternalGridFilters } from "../../hooks/useExternalGridFilters";
 import { headerDisplay, headerMinWidthPx, MAX_HEADER_CHARS } from "./HelperComponents";
 import { useDescribeEntry } from "../models/DescribeEntry";
 import { apiEnsure } from "../../store/api/apiSlice";
-import ConfigFormModal from "./config-form-modal.tsx/ConfigFormModal";
 import { FormCfg } from "./config-form-modal.tsx/shared";
+import { readOnlyAgGridModules, registerAgGridModules } from "../../lib/agGridModules";
 
 const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+const NIAChat = lazy(() => import("../NIAChat"));
+const AddInfoForm = lazy(() => import("./add-info-dialog/AddInfoForm"));
+const DocumentUrlViewerModal = lazy(() => import("../photoview/URLDocumentViewer"));
+const DocumentViewerModal = lazy(() => import("../../pages/viewers/DocumentViewer"));
+const PhotoViewerModal = lazy(() => import("../../pages/viewers/PhotoViewer"));
+const ConfigFormModal = lazy(() => import("./config-form-modal.tsx/ConfigFormModal"));
+
+registerAgGridModules(readOnlyAgGridModules);
 
 interface DataGridProps {
   rowData: any[];
@@ -1108,12 +1110,14 @@ export default function DataGrid({ rowData }: DataGridProps) {
               />
 
               {docUrlOpen && (
-                <DocumentUrlViewerModal
-                  open={docUrlOpen}
-                  url={docUrl}
-                  title={docUrlTitle}
-                  onClose={() => setDocUrlOpen(false)}
-                />
+                <Suspense fallback={null}>
+                  <DocumentUrlViewerModal
+                    open={docUrlOpen}
+                    url={docUrl}
+                    title={docUrlTitle}
+                    onClose={() => setDocUrlOpen(false)}
+                  />
+                </Suspense>
               )}
             </>
           )}
@@ -1132,7 +1136,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
                 overflow: "hidden",
               }}
             >
-              {/* EditableTable unchanged */}
             </div>
           )}
         </DataTableWrapper>
@@ -1150,59 +1153,71 @@ export default function DataGrid({ rowData }: DataGridProps) {
           <RecorderText>Listening...</RecorderText>
         </RecorderOverlay>
 
-        {niaOpen && <NIAChat setOpen={setNiaOpen} open={niaOpen} />}
+        {niaOpen && (
+          <Suspense fallback={null}>
+            <NIAChat setOpen={setNiaOpen} open={niaOpen} />
+          </Suspense>
+        )}
 
         {formOpen && (
-          <AddInfoForm
-            row={formRow}
-            // attach config to file for later child rewrite (doesn't break anything now)
-            file={{ ...(selectedFile || {}), config: configJson }}
-            onClose={() => setFormOpen(false)}
-          />
+          <Suspense fallback={null}>
+            <AddInfoForm
+              row={formRow}
+              // attach config to file for later child rewrite (doesn't break anything now)
+              file={{ ...(selectedFile || {}), config: configJson }}
+              onClose={() => setFormOpen(false)}
+            />
+          </Suspense>
         )}
 
         {photoModalOpen && (
-          <PhotoViewerModal
-            open={photoModalOpen}
-            onClose={() => setPhotoModalOpen(false)}
-            photos={photos}
-            startIndex={0}
-            mode="view"
-            showThumbnails={false}
-            showStatusPill={false}
-            only_approved={true}
-          />
+          <Suspense fallback={null}>
+            <PhotoViewerModal
+              open={photoModalOpen}
+              onClose={() => setPhotoModalOpen(false)}
+              photos={photos}
+              startIndex={0}
+              mode="view"
+              showThumbnails={false}
+              showStatusPill={false}
+              only_approved={true}
+            />
+          </Suspense>
         )}
 
         {docModalOpen && (
-          <DocumentViewerModal
-            open={docModalOpen}
-            onClose={() => setDocModalOpen(false)}
-            docs={docs}
-            startIndex={0}
-            mode="view"
-            apiBase={API_BASE}
-            blobEndpointPath="/file/doc"
-            only_approved={true}
-          />
+          <Suspense fallback={null}>
+            <DocumentViewerModal
+              open={docModalOpen}
+              onClose={() => setDocModalOpen(false)}
+              docs={docs}
+              startIndex={0}
+              mode="view"
+              apiBase={API_BASE}
+              blobEndpointPath="/file/doc"
+              only_approved={true}
+            />
+          </Suspense>
         )}
 
         {describeModal}
 
         {cfgFormOpen && activeFormCfg && (
-          <ConfigFormModal
-            open={cfgFormOpen}
-            onClose={() => setCfgFormOpen(false)}
-            row={activeFormRow}
-            file={selectedFile}
-            formConfig={activeFormCfg}
-            apiBase={API_BASE}
-            addInfoConfig={configJson?.addInfo}
-            fetchPath="/form/answers"
-            savePath="/form/answers"
-            requestGuardEnabled={true}
-            currentUserEmail={currentUserEmail}
-          />
+          <Suspense fallback={null}>
+            <ConfigFormModal
+              open={cfgFormOpen}
+              onClose={() => setCfgFormOpen(false)}
+              row={activeFormRow}
+              file={selectedFile}
+              formConfig={activeFormCfg}
+              apiBase={API_BASE}
+              addInfoConfig={configJson?.addInfo}
+              fetchPath="/form/answers"
+              savePath="/form/answers"
+              requestGuardEnabled={true}
+              currentUserEmail={currentUserEmail}
+            />
+          </Suspense>
         )}
 
         <DataGridStyles />

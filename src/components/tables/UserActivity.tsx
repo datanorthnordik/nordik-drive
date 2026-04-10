@@ -2,8 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AllCommunityModule,
-  ModuleRegistry,
   themeQuartz,
   colorSchemeLightWarm,
   GridReadyEvent,
@@ -54,8 +52,9 @@ import {
   color_text_light,
   color_background,
 } from "../../constants/colors";
+import { readOnlyAgGridModules, registerAgGridModules } from "../../lib/agGridModules";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+registerAgGridModules(readOnlyAgGridModules);
 const themeLightWarm = themeQuartz.withPart(colorSchemeLightWarm);
 
 type QuickDatePreset = "LAST_7" | "LAST_30" | "THIS_MONTH" | "LAST_MONTH" | "ALL" | "CUSTOM";

@@ -53,10 +53,27 @@ jest.mock("ag-grid-community", () => {
     const registerModules = jest.fn();
 
     return {
-        AllCommunityModule: { __name: "AllCommunityModule" },
+        CellStyleModule: { __name: "CellStyleModule" },
+        ClientSideRowModelApiModule: { __name: "ClientSideRowModelApiModule" },
+        ClientSideRowModelModule: { __name: "ClientSideRowModelModule" },
+        ColumnApiModule: { __name: "ColumnApiModule" },
+        ColumnAutoSizeModule: { __name: "ColumnAutoSizeModule" },
+        DateFilterModule: { __name: "DateFilterModule" },
+        EventApiModule: { __name: "EventApiModule" },
+        ExternalFilterModule: { __name: "ExternalFilterModule" },
         ModuleRegistry: {
             registerModules,
         },
+        NumberFilterModule: { __name: "NumberFilterModule" },
+        QuickFilterModule: { __name: "QuickFilterModule" },
+        RenderApiModule: { __name: "RenderApiModule" },
+        RowApiModule: { __name: "RowApiModule" },
+        RowSelectionModule: { __name: "RowSelectionModule" },
+        RowStyleModule: { __name: "RowStyleModule" },
+        ScrollApiModule: { __name: "ScrollApiModule" },
+        TextEditorModule: { __name: "TextEditorModule" },
+        TextFilterModule: { __name: "TextFilterModule" },
+        TooltipModule: { __name: "TooltipModule" },
     };
 });
 
@@ -614,14 +631,16 @@ describe("DataGrid", () => {
         expect(document.body.style.overflow).toBe("");
     });
 
-    it("fallback add-student opens AddInfoForm with a blank row shape", () => {
+    it("fallback add-student opens AddInfoForm with a blank row shape", async () => {
         mockFileState.selectedFile.community_filter = true;
 
         renderComponent();
 
         fireEvent.click(screen.getByText("add-student"));
 
-        expect(screen.getByTestId("add-info-form")).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId("add-info-form")).toBeInTheDocument();
+        });
 
         const row = JSON.parse(screen.getByTestId("add-info-row").textContent || "{}");
         expect(row.id).toBe("");
@@ -630,7 +649,7 @@ describe("DataGrid", () => {
         expect(row.Website).toBe("");
     });
 
-    it("Add Info cell renderer opens AddInfoForm with the clicked row", () => {
+    it("Add Info cell renderer opens AddInfoForm with the clicked row", async () => {
         mockFileState.selectedFile.community_filter = true;
 
         renderComponent();
@@ -639,7 +658,9 @@ describe("DataGrid", () => {
 
         fireEvent.click(cell.getByRole("button", { name: /add info/i }));
 
-        expect(screen.getByTestId("add-info-form")).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId("add-info-form")).toBeInTheDocument();
+        });
         expect(screen.getByTestId("add-info-row")).toHaveTextContent('"id":1');
         expect(screen.getByTestId("add-info-row")).toHaveTextContent('"Name":"Alice (SRC1)"');
     });
@@ -713,11 +734,13 @@ describe("DataGrid", () => {
         expect(screen.getByTestId("smart-query")).toHaveTextContent("picked value");
     });
 
-    it("opens NIA and recorder overlay, then clicking recorder button stops recording", () => {
+    it("opens NIA and recorder overlay, then clicking recorder button stops recording", async () => {
         renderComponent();
 
         fireEvent.click(screen.getByText("open-nia"));
-        expect(screen.getByTestId("nia-chat")).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId("nia-chat")).toBeInTheDocument();
+        });
 
         const listeningText = screen.getByText("Listening...");
         expect(listeningText).not.toBeVisible();
@@ -767,7 +790,9 @@ describe("DataGrid", () => {
         expect(mockNormalizeUrl).toHaveBeenCalledWith("https://site.test/file.pdf");
         expect(mockLinkLabel).toHaveBeenCalledWith("https://site.test/file.pdf");
 
-        expect(screen.getByTestId("doc-url-viewer")).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId("doc-url-viewer")).toBeInTheDocument();
+        });
         expect(screen.getByTestId("doc-url-viewer")).toHaveTextContent(
             "Label:https://site.test/file.pdf"
         );
@@ -876,7 +901,7 @@ describe("DataGrid", () => {
   expect(row["Required Field"]).toBe("");
 });
 
-    it("passes the request guard props only through the table-opened config form flow", () => {
+    it("passes the request guard props only through the table-opened config form flow", async () => {
   mockApiEntries = {
     "config_students.csv": {
       data: {
@@ -919,12 +944,14 @@ describe("DataGrid", () => {
   const ui = renderCell("__form__att", "", mockBaseRows[0]);
   fireEvent.click(ui.getByRole("button", { name: /add\/view/i }));
 
-  expect(screen.getByTestId("config-form-modal")).toBeInTheDocument();
+  await waitFor(() => {
+    expect(screen.getByTestId("config-form-modal")).toBeInTheDocument();
+  });
   expect(screen.getByTestId("cfg-request-guard-enabled")).toHaveTextContent("true");
   expect(screen.getByTestId("cfg-current-user-email")).toHaveTextContent("owner@nordik.test");
 });
 
-  it("config-driven mode uses config columns, hides fallback source filter when disabled, and add-student uses config defaults", () => {
+  it("config-driven mode uses config columns, hides fallback source filter when disabled, and add-student uses config defaults", async () => {
   mockApiEntries = {
     "config_students.csv": {
       data: {
@@ -990,6 +1017,9 @@ describe("DataGrid", () => {
 
   fireEvent.click(screen.getByText("add-student"));
 
+  await waitFor(() => {
+    expect(screen.getByTestId("add-info-form")).toBeInTheDocument();
+  });
   const row = JSON.parse(screen.getByTestId("add-info-row").textContent || "{}");
   expect(row.id).toBe("");
   expect(row.Name).toBe("");

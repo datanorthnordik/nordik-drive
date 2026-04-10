@@ -1,10 +1,6 @@
 "use client";
 
 import React, { useMemo } from "react";
-import {
-  AllCommunityModule,
-  ModuleRegistry,
-} from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
@@ -25,8 +21,9 @@ import {
   color_text_light,
   color_background,
 } from "../../constants/colors";
+import { readOnlyAgGridModules, registerAgGridModules } from "../../lib/agGridModules";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+registerAgGridModules(readOnlyAgGridModules);
 
 export type FormSubmissionRow = {
   id: number;
