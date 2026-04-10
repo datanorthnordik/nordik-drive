@@ -21,13 +21,15 @@ export const actions = [
 ]
 
 export const colorSources: Record<string, string> = {
-  "FURTHER INVESTIGATION REQUIRED": "#baba58",
-  "OFFICE OF THE REGISTRAR GENERAL": "#0070C0",
-  "LIBRARY AND ARCHIVES CANADA": "#00B0F0",
-  "CIRNAC SOURCE": "#7030A0",
   "NCTR SOURCE": "#FFC000",
-  "CORONER'S OFFICE SOURCE": "#FF9999",
-  "REPORT COMPLETE": "#00B050",
+  "Office of the Registrar General":"#0070C0",
+  "Manitoba Vital Stats":"#00B050",
+  "Library and Archives Canada":"#00B0F0",
+  "St. Margaret's Register & OLOL List":"#92D050",
+  "CIRNAC SOURCE":"#9F5FCF",
+  "CORONER'S OFFICE SOURCE":"#FF0000",
+  "STUDENTS REMOVED FROM NCTR":"#FFCCCC",
+  "FURTHER INVESTIGATION REQUIRED":"#FFFF99"
 };
 
 export const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";

@@ -3,7 +3,6 @@
 import React, { useMemo, useEffect, useState, useCallback } from "react";
 import { Box, Button, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import { ArrowLeft, ChevronUp, ChevronDown, Download, Mic, MicOff, Search } from "lucide-react";
-import * as XLSX from "xlsx";
 
 import {
   color_primary,
@@ -17,7 +16,7 @@ import {
   color_black_light,
 } from "../../constants/colors";
 
-import { NIAChatTrigger } from "../NIAChat";
+import NIAChatTrigger from "../NIAChatTrigger";
 import { clearSelectedFile } from "../../store/auth/fileSlice";
 import { useDispatch } from "react-redux";
 
@@ -134,8 +133,10 @@ export default function TopControlsBar({
     setIsRecording(false);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!gridApi) return;
+
+    const XLSX = await import("xlsx");
 
     let totalRows: any[] = [];
     let rowDataToExport: any[] = [];
@@ -499,7 +500,7 @@ export default function TopControlsBar({
 
       {/* Download */}
       <Button
-        onClick={handleDownload}
+        onClick={() => void handleDownload()}
         variant="contained"
         startIcon={<Download size={18} />}
         sx={{

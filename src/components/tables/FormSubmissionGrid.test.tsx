@@ -11,10 +11,27 @@ let capturedAgGridProps: any = null;
 
 jest.mock("ag-grid-community", () => ({
   __esModule: true,
-  AllCommunityModule: { name: "AllCommunityModule" },
+  CellStyleModule: { name: "CellStyleModule" },
+  ClientSideRowModelApiModule: { name: "ClientSideRowModelApiModule" },
+  ClientSideRowModelModule: { name: "ClientSideRowModelModule" },
+  ColumnApiModule: { name: "ColumnApiModule" },
+  ColumnAutoSizeModule: { name: "ColumnAutoSizeModule" },
+  DateFilterModule: { name: "DateFilterModule" },
+  EventApiModule: { name: "EventApiModule" },
+  ExternalFilterModule: { name: "ExternalFilterModule" },
   ModuleRegistry: {
     registerModules: jest.fn(),
   },
+  NumberFilterModule: { name: "NumberFilterModule" },
+  QuickFilterModule: { name: "QuickFilterModule" },
+  RenderApiModule: { name: "RenderApiModule" },
+  RowApiModule: { name: "RowApiModule" },
+  RowSelectionModule: { name: "RowSelectionModule" },
+  RowStyleModule: { name: "RowStyleModule" },
+  ScrollApiModule: { name: "ScrollApiModule" },
+  TextEditorModule: { name: "TextEditorModule" },
+  TextFilterModule: { name: "TextFilterModule" },
+  TooltipModule: { name: "TooltipModule" },
 }));
 
 jest.mock("ag-grid-react", () => ({

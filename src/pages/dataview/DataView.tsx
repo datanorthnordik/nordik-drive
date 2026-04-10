@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import DataGrid from "../../components/datatable/DataTable";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
@@ -13,7 +13,10 @@ export default function(){
         }
     }, [selectedFile])
 
-    const rowData = data ? (data as any).map((item:any)=> ({...item.row_data, "id": item.id})) : []
+    const rowData = useMemo(
+        () => (data ? (data as any).map((item:any)=> ({...item.row_data, "id": item.id})) : []),
+        [data]
+    )
     
     return (
         <React.Fragment >

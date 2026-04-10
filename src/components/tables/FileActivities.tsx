@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AllCommunityModule,
-  ModuleRegistry,
   themeQuartz,
   colorSchemeLightWarm,
 } from "ag-grid-community";
@@ -14,18 +12,12 @@ import { Box, Button } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import dayjs from "dayjs";
 
-import PhotoViewerModal, { ViewerPhoto } from "../../pages/viewers/PhotoViewer";
-import DocumentViewerModal from "../../pages/viewers/DocumentViewer";
-
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
-import DownloadUpdatesModal from "../models/DownloadUpdates";
-import DownloadMediaModal from "../models/DownloadMedias";
 
 import FileActivitiesTopBar from "./FileActivitiesTopBar";
 import FileActivitiesFilters from "./FileActivitiesFilters";
 import FileActivitiesSplitView from "./FileActivitiesSplitView";
-import RequestDetailsDialog from "./RequestDetailsDialog";
 
 import {
   Clause,
@@ -49,9 +41,16 @@ import {
   color_white_smoke,
 } from "../../constants/colors";
 import { guessMimeFromFilename } from "../../lib/fileUtil";
+import { readOnlyAgGridModules, registerAgGridModules } from "../../lib/agGridModules";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+registerAgGridModules(readOnlyAgGridModules);
 const themeLightWarm = themeQuartz.withPart(colorSchemeLightWarm);
+
+const PhotoViewerModal = lazy(() => import("../../pages/viewers/PhotoViewer"));
+const DocumentViewerModal = lazy(() => import("../../pages/viewers/DocumentViewer"));
+const DownloadUpdatesModal = lazy(() => import("../models/DownloadUpdates"));
+const DownloadMediaModal = lazy(() => import("../models/DownloadMedias"));
+const RequestDetailsDialog = lazy(() => import("./RequestDetailsDialog"));
 
 export default function FileActivities({
   onParentModeChange,
@@ -375,7 +374,7 @@ export default function FileActivities({
   }, [selectedRequest, userOptions]);
 
   // Viewer photos mapping
-  const viewerPhotos = useMemo<ViewerPhoto[]>(() => {
+  const viewerPhotos = useMemo<any[]>(() => {
     return (photos || []).map((p) => ({
       id: p.id,
       file_name: `photo_${p.id}.jpg`,
@@ -562,92 +561,108 @@ export default function FileActivities({
         />
       </Box>
 
-      <RequestDetailsDialog
-        open={detailsOpen}
-        onClose={() => {
-          setDetailsOpen(false);
-          setSelectedRequest(null);
-          setDetailsRows([]);
-          setPhotos([]);
-          setDocuments([]);
-          setViewerOpen(false);
-          setDocViewerOpen(false);
-          setDocViewerIndex(0);
-          clearDocPreview();
-        }}
-        apiBase={API_BASE}
-        selectedRequest={selectedRequest}
-        createdByName={createdByName}
-        detailsLoading={detailsLoading}
-        detailsRows={detailsRows}
-        photos={photos}
-        onOpenPhotoViewer={handleOpenPhotoViewer}
-        documents={documents}
-        onOpenDocViewer={handleOpenDocViewer}
-        detailsZipLoading={detailsZipLoading}
-        onDownloadAll={() => {
-          setRequestId(selectedRequest?.request_id ?? null);
-          setMediaDownloadOpen(true);
-        }}
-        onDownloadSingle={downloadMediaById}
-        primaryBtnSx={primaryBtnSx}
-        secondaryBtnSx={secondaryBtnSx}
-      />
+      {detailsOpen && (
+        <Suspense fallback={null}>
+          <RequestDetailsDialog
+            open={detailsOpen}
+            onClose={() => {
+              setDetailsOpen(false);
+              setSelectedRequest(null);
+              setDetailsRows([]);
+              setPhotos([]);
+              setDocuments([]);
+              setViewerOpen(false);
+              setDocViewerOpen(false);
+              setDocViewerIndex(0);
+              clearDocPreview();
+            }}
+            apiBase={API_BASE}
+            selectedRequest={selectedRequest}
+            createdByName={createdByName}
+            detailsLoading={detailsLoading}
+            detailsRows={detailsRows}
+            photos={photos}
+            onOpenPhotoViewer={handleOpenPhotoViewer}
+            documents={documents}
+            onOpenDocViewer={handleOpenDocViewer}
+            detailsZipLoading={detailsZipLoading}
+            onDownloadAll={() => {
+              setRequestId(selectedRequest?.request_id ?? null);
+              setMediaDownloadOpen(true);
+            }}
+            onDownloadSingle={downloadMediaById}
+            primaryBtnSx={primaryBtnSx}
+            secondaryBtnSx={secondaryBtnSx}
+          />
+        </Suspense>
+      )}
 
       {/* Fullscreen photo viewer */}
-      <PhotoViewerModal
-        open={viewerOpen}
-        onClose={() => setViewerOpen(false)}
-        photos={viewerPhotos}
-        startIndex={startIndex}
-        mode="view"
-        showThumbnails={true}
-        showStatusPill={true}
-        only_approved={false}
-      />
+      {viewerOpen && (
+        <Suspense fallback={null}>
+          <PhotoViewerModal
+            open={viewerOpen}
+            onClose={() => setViewerOpen(false)}
+            photos={viewerPhotos}
+            startIndex={startIndex}
+            mode="view"
+            showThumbnails={true}
+            showStatusPill={true}
+            only_approved={false}
+          />
+        </Suspense>
+      )}
 
       {/* Fullscreen document viewer */}
-      <DocumentViewerModal
-        open={docViewerOpen}
-        onClose={() => setDocViewerOpen(false)}
-        docs={(documents || []).map((d) => ({
-          id: d.id,
-          file_name: d.filename,
-          mime_type: d.mime_type || guessMimeFromFilename(d.filename),
-          status: (d.status ?? null) as any,
-        }))}
-        startIndex={docViewerIndex}
-        mode="view"
-        apiBase={API_BASE}
-        blobEndpointPath="/file/doc"
-        showApproveReject={false}
-        showPrevNext={true}
-        showBottomBar={true}
-        showBottomOpenButton={true}
-        bottomOpenLabel="View"
-        tipText="If preview doesn’t load (some types can’t embed), use “Open” or “Download”."
-      />
+      {docViewerOpen && (
+        <Suspense fallback={null}>
+          <DocumentViewerModal
+            open={docViewerOpen}
+            onClose={() => setDocViewerOpen(false)}
+            docs={(documents || []).map((d) => ({
+              id: d.id,
+              file_name: d.filename,
+              mime_type: d.mime_type || guessMimeFromFilename(d.filename),
+              status: (d.status ?? null) as any,
+            }))}
+            startIndex={docViewerIndex}
+            mode="view"
+            apiBase={API_BASE}
+            blobEndpointPath="/file/doc"
+            showApproveReject={false}
+            showPrevNext={true}
+            showBottomBar={true}
+            showBottomOpenButton={true}
+            bottomOpenLabel="View"
+            tipText={"If preview doesn't load (some types can't embed), use \"Open\" or \"Download\"."}
+          />
+        </Suspense>
+      )}
 
       {downloadOpen && (
-        <DownloadUpdatesModal
-          open={downloadOpen}
-          onClose={() => setDownloadOpen(false)}
-          apiBase={API_BASE}
-          mode={mode}
-          clauses={clauses}
-          dangerBtnSx={primaryBtnSx}
-        />
+        <Suspense fallback={null}>
+          <DownloadUpdatesModal
+            open={downloadOpen}
+            onClose={() => setDownloadOpen(false)}
+            apiBase={API_BASE}
+            mode={mode}
+            clauses={clauses}
+            dangerBtnSx={primaryBtnSx}
+          />
+        </Suspense>
       )}
 
       {mediaDownloadOpen && (
-        <DownloadMediaModal
-          open={mediaDownloadOpen}
-          onClose={() => setMediaDownloadOpen(false)}
-          apiBase={API_BASE}
-          clauses={requestId ? [] : clauses}
-          dangerBtnSx={primaryBtnSx}
-          requestId={requestId}
-        />
+        <Suspense fallback={null}>
+          <DownloadMediaModal
+            open={mediaDownloadOpen}
+            onClose={() => setMediaDownloadOpen(false)}
+            apiBase={API_BASE}
+            clauses={requestId ? [] : clauses}
+            dangerBtnSx={primaryBtnSx}
+            requestId={requestId}
+          />
+        </Suspense>
       )}
     </>
   );
