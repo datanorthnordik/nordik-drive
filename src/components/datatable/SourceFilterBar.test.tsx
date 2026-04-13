@@ -46,6 +46,23 @@ describe("SourceFilterBar", () => {
     expect(screen.getByRole("button", { name: "SourceB" })).toBeInTheDocument();
   });
 
+  it("keeps filters on a single horizontal scrolling row", () => {
+    render(
+      <SourceFilterBar
+        availableSources={sources}
+        sourceFilter={null}
+        setSourceFilter={mockSetSourceFilter}
+      />
+    );
+
+    const scrollRail = screen.getByTestId("source-filter-scroll");
+
+    expect(scrollRail).toHaveStyle("overflow-x: auto");
+    expect(scrollRail).toHaveStyle("overflow-y: hidden");
+    expect(scrollRail).toHaveStyle("flex-wrap: nowrap");
+    expect(scrollRail).toHaveStyle("white-space: nowrap");
+  });
+
   it("calls setSourceFilter(null) when All button is clicked", () => {
     render(
       <SourceFilterBar

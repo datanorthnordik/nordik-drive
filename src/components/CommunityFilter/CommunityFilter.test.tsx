@@ -82,7 +82,7 @@ describe("CommunityFilter", () => {
 
     expect(screen.getByLabelText("Community filter panel")).toBeInTheDocument();
     expect(screen.getByLabelText("Search communities")).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Community list" })).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Community list" })).toBeInTheDocument();
 
     // options visible
     expect(getOption("Batchewana")).toBeInTheDocument();

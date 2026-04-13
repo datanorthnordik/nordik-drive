@@ -1,15 +1,16 @@
 import styled from "styled-components"
+import { AUTH_CONTAINER_STYLES } from "./constants";
 
 export const AuthContainer = styled.div`
-    min-height: 100vh;
+    min-height: ${AUTH_CONTAINER_STYLES.minHeight};
     overflow-y: auto;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background: ${AUTH_CONTAINER_STYLES.gradientBackground};
 
-    @media (max-width: 768px) {
+    @media (max-width: ${AUTH_CONTAINER_STYLES.mobileBreakpoint}) {
         align-items: flex-start;
-        padding-top: 40px;
+        padding-top: ${AUTH_CONTAINER_STYLES.mobilePaddingTop};
     }
 `;
