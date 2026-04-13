@@ -36,7 +36,8 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
 import { FileButton } from "../buttons/Button";
-import { actions } from "../../constants/constants";
+import { apiUrl } from "../../config/api";
+import { ACTIVITY_ACTION_OPTIONS } from "../../domain/activity/actionOptions";
 import { parsePgTextArray } from "../activity/activityutils";
 import ActivityVisualization from "../activity/ActivityVisualization";
 
@@ -128,24 +129,24 @@ export default function UserActivity({
 
   // APIs
   const { loading, fetchData, data: logsResp } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/logs",
+    apiUrl("logs"),
     "POST"
   );
 
   const { fetchData: fetchUsers, data: usersResp, loading: usersLoading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/user",
+    apiUrl("user"),
     "GET",
     false
   );
 
   const { fetchData: fetchCommunities, data: communitiesResp, loading: communitiesLoading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
+    apiUrl("communities"),
     "GET",
     false
   );
 
   const { fetchData: fetchFiles, data: filesResp, loading: filesLoading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
+    apiUrl("file"),
     "GET",
     false
   );
@@ -536,7 +537,7 @@ export default function UserActivity({
                 <InputLabel>Action</InputLabel>
                 <Select label="Action" value={action} onChange={(e) => setAction(String(e.target.value))}>
                   <MenuItem value="">All actions</MenuItem>
-                  {actions.map((a: any) => (
+                  {ACTIVITY_ACTION_OPTIONS.map((a) => (
                     <MenuItem key={a.value} value={a.value}>
                       {a.name}
                     </MenuItem>

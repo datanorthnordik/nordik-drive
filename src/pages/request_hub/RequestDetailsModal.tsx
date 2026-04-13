@@ -25,7 +25,10 @@ import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
 import useFetch from "../../hooks/useFetch";
 import toast from "react-hot-toast";
+import { API_ORIGIN } from "../../config/api";
+import { getDocumentCategoryLabel } from "../../domain/documents/categories";
 
+// @ts-ignore
 import "react-image-gallery/styles/css/image-gallery.css";
 
 import {
@@ -86,10 +89,8 @@ type PhotoReviewInput = {
   reviewer_comment: string;
 };
 
-const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
-
 // For images shown in card grid + ImageGallery
-const getBinaryUrl = (id: number) => `${API_BASE}/api/file/photo/${id}`;
+const getBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/photo/${id}`;
 
 const formatBytes = (bytes?: number) => {
   if (!bytes || bytes <= 0) return "0 B";
@@ -101,13 +102,7 @@ const formatBytes = (bytes?: number) => {
 };
 
 const categoryLabel = (cat?: string) => {
-  if (!cat) return "Unknown";
-  const map: Record<string, string> = {
-    birth_certificate: "Birth Certificate",
-    death_certificate: "Death Certificate",
-    other_document: "Other Document",
-  };
-  return map[cat] || cat;
+  return getDocumentCategoryLabel(cat);
 };
 
 const normalizeInitialReviewStatus = (value: any): ReviewStatus => {
@@ -202,25 +197,25 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   // APIs
   // ---------------------------------------
   const { data: reviewRequestResponse, fetchData: reviewRequest, loading: requestLoading } = useFetch(
-    `${API_BASE}/api/file/approve/request`,
+    `${API_ORIGIN}/api/file/approve/request`,
     "PUT",
     false
   );
 
   const { fetchData: submitReview, loading: mediaReviewLoading } = useFetch(
-    `${API_BASE}/api/file/photos/review`,
+    `${API_ORIGIN}/api/file/photos/review`,
     "POST",
     false
   );
 
   const { data: photoData, fetchData: loadPhotos } = useFetch(
-    `${API_BASE}/api/file/edit/photos/${request?.request_id}`,
+    `${API_ORIGIN}/api/file/edit/photos/${request?.request_id}`,
     "GET",
     false
   );
 
   const { data: docsData, fetchData: loadDocs } = useFetch(
-    `${API_BASE}/api/file/edit/docs/${request?.request_id}`,
+    `${API_ORIGIN}/api/file/edit/docs/${request?.request_id}`,
     "GET",
     false
   );
@@ -231,7 +226,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     fetchData: fetchFileBlob,
     loading: fileBlobLoading,
     error: fileBlobError,
-  } = useFetch<any>(`${API_BASE}/api/file/doc`, "GET", false);
+  } = useFetch<any>(`${API_ORIGIN}/api/file/doc`, "GET", false);
 
   const handleOpenViewer = (idx: number) => {
     setStartIndex(idx);
@@ -915,7 +910,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         docs={docs}
         startIndex={docViewerIndex}
         mode="review"
-        apiBase={API_BASE}
+        apiBase={API_ORIGIN}
         blobEndpointPath="/api/file/doc"
         showApproveReject={true}
         onApprove={handleApproveDocById}

@@ -12,9 +12,9 @@ import PasswordModal from "./PasswordModal";
  */
 
 // constants
-jest.mock("../../constants/messages", () => ({
+jest.mock("./passwordMessages", () => ({
   __esModule: true,
-  password_validation_success: "Password validated successfully",
+  PASSWORD_VALIDATION_SUCCESS_MESSAGE: "Password validated successfully",
 }));
 
 // colors (component imports these)

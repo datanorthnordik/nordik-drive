@@ -3,9 +3,10 @@ import DataGrid from "../../components/datatable/DataTable";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
 import { useSelector } from "react-redux";
+import { apiUrl } from "../../config/api";
 
 export default function(){
-    const {loading, error, fetchData, data} = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file/data", "GET", false)
+    const {loading, error, fetchData, data} = useFetch(apiUrl("file/data"), "GET", false)
     const {selectedFile} = useSelector((state:any)=> state.file)
     useEffect(()=>{
         if(selectedFile){

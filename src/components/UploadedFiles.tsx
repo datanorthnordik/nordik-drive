@@ -1,8 +1,3 @@
-// ==============================
-// UploadedFiles.tsx (FULL CODE)
-// - Same logic, redesigned to match portal UX
-// - No logic removed: modals, delete/restore/replace/history/access, refetch, search, highlight.
-// ==============================
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Table,
@@ -39,6 +34,7 @@ import ReplaceFileModal from "./models/ReplaceFileModal";
 import ConfirmModal from "./models/ConfirmModal";
 import Loader from "./Loader";
 import toast from "react-hot-toast";
+import { apiUrl } from "../config/api";
 
 interface UploadedFilesProps {
   newFile: string;
@@ -49,19 +45,19 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const { data: deletedFile, fetchData: deleteFile, loading: dloading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
+    apiUrl("file"),
     "DELETE",
     false
   );
 
   const { data: newFiles, fetchData: getFile, loading: galoading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
+    apiUrl("file"),
     "GET",
     false
   );
 
   const { data: updatedFiles, fetchData: resetFile, loading: ploading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/reset",
+    apiUrl("file/reset"),
     "PUT",
     false
   );

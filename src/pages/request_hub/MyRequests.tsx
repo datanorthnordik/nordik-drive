@@ -26,6 +26,7 @@ import {
   color_white,
   color_warning,
 } from "../../constants/colors";
+import { API_ORIGIN } from "../../config/api";
 
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
@@ -34,7 +35,7 @@ import { useSelector } from "react-redux";
 
 type TabKey = "pending" | "approved";
 
-const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
+const API_BASE = API_ORIGIN;
 
 const getFilename = (req: any) => String(req?.details?.[0]?.filename || "—");
 const getChangeCount = (req: any) => (Array.isArray(req?.details) ? req.details.length : 0);

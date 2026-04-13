@@ -12,6 +12,7 @@ import Loader from "../../components/Loader";
 import FileUploader from "../../components/FileUploader";
 import UploadedFiles from "../../components/UploadedFiles";
 import { color_primary, header_height, header_mobile_height } from "../../constants/colors";
+import { apiUrl } from "../../config/api";
 
 //  Keep your wrapper if you already use it elsewhere; otherwise remove
 import { AdminPanelWrapper } from "../../components/Wrappers";
@@ -22,7 +23,7 @@ const AdminPanel = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   const { loading, data: files } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
+    apiUrl("file"),
     "GET",
     true
   );

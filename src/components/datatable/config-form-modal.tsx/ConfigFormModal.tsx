@@ -16,7 +16,7 @@ import useFetch from "../../../hooks/useFetch";
 import {
   FORM_SUBMISSION_GUARD_CHECKING_MESSAGE,
   FORM_SUBMISSION_GUARD_LOOKUP_ERROR_MESSAGE,
-} from "../../../constants/constants";
+} from "../../../domain/forms/guardMessages";
 
 import { AdditionalDocItem } from "../../datatable/add-info-dialog/types";
 import { PhotoItem } from "../../datatable/add-info-dialog/PhotoUploadCard";

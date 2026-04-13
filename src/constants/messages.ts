@@ -1,2 +1,4 @@
-export const signup_success = "Your account has been created successfully. Please log in to continue."
-export const password_validation_success = "Password accepted. You may now view the confidential file."
+// Intentionally left empty.
+// Feature copy now lives beside the feature that owns it.
+
+export {};

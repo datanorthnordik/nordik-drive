@@ -1,9 +1,11 @@
+import type { DocumentCategory } from "../../../domain/documents/categories";
+
 export const EXCLUDED_FIELDS = ["Lat", "Lng", "id", "Mapping Location", "Photos", "Documents"] as const;
 
 export type FieldType = "text" | "textarea" | "date" | "multi" | "community_multi";
 
 export type DocumentType = "photos" | "document";
-export type DocumentCategory = "birth_certificate" | "death_certificate" | "other_document";
+export type { DocumentCategory } from "../../../domain/documents/categories";
 
 export type AdditionalDocItem = {
   id: string;

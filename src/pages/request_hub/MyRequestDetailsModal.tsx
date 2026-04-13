@@ -21,6 +21,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 
 import useFetch from "../../hooks/useFetch";
+import { API_ORIGIN } from "../../config/api";
 
 import "react-image-gallery/styles/css/image-gallery.css";
 
@@ -73,8 +74,7 @@ interface RequestDoc {
   reviewer_comment?: string;
 }
 
-const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app";
-const getBinaryUrl = (id: number) => `${API_BASE}/api/file/photo/${id}`;
+const getBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/photo/${id}`;
 
 function guessMimeFromFilename(name?: string) {
   if (!name) return "";
@@ -125,13 +125,13 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
   const [lastBlobUrl, setLastBlobUrl] = useState<string>("");
 
   const { data: photoData, fetchData: loadPhotos, loading: photosLoading } = useFetch(
-    `${API_BASE}/api/file/edit/photos/${requestId}`,
+    `${API_ORIGIN}/api/file/edit/photos/${requestId}`,
     "GET",
     false
   );
 
   const { data: docsData, fetchData: loadDocs, loading: docsLoading } = useFetch(
-    `${API_BASE}/api/file/edit/docs/${requestId}`,
+    `${API_ORIGIN}/api/file/edit/docs/${requestId}`,
     "GET",
     false
   );
@@ -141,7 +141,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     fetchData: fetchFileBlob,
     loading: fileBlobLoading,
     error: fileBlobError,
-  } = useFetch<any>(`${API_BASE}/api/file/doc`, "GET", false);
+  } = useFetch<any>(`${API_ORIGIN}/api/file/doc`, "GET", false);
 
   const currentDoc: RequestDoc | undefined = docs[docViewerIndex];
   const currentDocMime = currentDoc?.mime_type || guessMimeFromFilename(currentDoc?.file_name) || "";
@@ -482,7 +482,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         docs={docs}
         startIndex={docViewerIndex}
         mode="view"
-        apiBase={API_BASE}
+        apiBase={API_ORIGIN}
         blobEndpointPath="/api/file/doc"
         showApproveReject={false}
         bottomOpenLabel="View"

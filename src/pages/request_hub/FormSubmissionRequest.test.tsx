@@ -35,12 +35,12 @@ jest.mock("../../components/Loader", () => ({
   default: ({ loading }: any) => <div data-testid="loader">{String(loading)}</div>,
 }));
 
-jest.mock("../../constants/constants", () => ({
+jest.mock("../../config/api", () => ({
   __esModule: true,
   API_BASE: "/api",
 }));
 
-jest.mock("../../constants/statuses", () => ({
+jest.mock("../../domain/forms/statusOptions", () => ({
   __esModule: true,
   FORM_SUBMISSION_STATUS_OPTIONS: [
     { value: "pending", label: "Pending", reviewed_needed: true },

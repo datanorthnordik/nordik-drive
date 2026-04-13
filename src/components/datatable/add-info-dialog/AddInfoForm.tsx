@@ -55,7 +55,7 @@ import {
 
 import { AppDispatch, RootState } from "../../../store/store";
 import { apiEnsure } from "../../../store/api/apiSlice";
-import { API_BASE } from "../../../constants/constants";
+import { API_BASE } from "../../../config/api";
 
 interface AddInfoFormProps {
   row: Record<string, any>;

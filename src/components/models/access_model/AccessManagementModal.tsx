@@ -7,6 +7,7 @@ import ConfirmationModal from "./../ConfirmModal";
 import Loader from "../../Loader";
 
 import { color_white } from "../../../constants/colors";
+import { apiUrl } from "../../../config/api";
 
 import AccessModalHeader from "./AccessModalHeader";
 import AssignAccessSection from "./AssignAccessSection";
@@ -27,7 +28,7 @@ const AccessModal: React.FC<AccessModalProps> = ({
   const [selectedId, seteSelectedId] = useState<number | null>(null);
 
   const { loading: uloading, data: user, fetchData } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/user",
+    apiUrl("user"),
     "GET"
   );
 
@@ -37,12 +38,12 @@ const AccessModal: React.FC<AccessModalProps> = ({
     fetchData: assignAccess,
     error: aerror,
   } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/access",
+    apiUrl("file/access"),
     "POST"
   );
 
   const { loading: galoading, data: accesses, fetchData: getAccess } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/access",
+    apiUrl("file/access"),
     "GET"
   );
 
@@ -52,7 +53,7 @@ const AccessModal: React.FC<AccessModalProps> = ({
     fetchData: deleteAccess,
     error: derror,
   } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/access",
+    apiUrl("file/access"),
     "DELETE"
   );
 

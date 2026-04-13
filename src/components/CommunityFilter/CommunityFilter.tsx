@@ -2,13 +2,21 @@ import React, { useMemo, useState, useRef, useCallback, useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux";
 import { setSelectedCommunities } from "../../store/auth/fileSlice";
 import {
-  color_secondary,
   color_text_primary,
   color_border,
   color_background,
 } from "../../constants/colors";
-
-const ACCENT = color_secondary;
+import {
+  COMMUNITY_FILTER_ACCENT,
+  COMMUNITY_FILTER_COLORS,
+  COMMUNITY_FILTER_LAYOUT,
+} from "./constants";
+import {
+  COMMUNITY_FILTER_MESSAGES,
+  getSelectVisibleAriaLabel,
+  getSelectVisibleLabel,
+  getSelectedCountAriaLabel,
+} from "./messages";
 
 type CommunityFilterProps = {
   onClose?: () => void;
@@ -70,7 +78,7 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
 
   return (
     <div
-      aria-label="Community filter panel"
+      aria-label={COMMUNITY_FILTER_MESSAGES.panelAriaLabel}
       style={{
         height: "100%",
         minHeight: 0,
@@ -78,7 +86,7 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
         flexDirection: "column",
         boxSizing: "border-box",
         background: color_background,
-        borderRadius: 12,
+        borderRadius: COMMUNITY_FILTER_LAYOUT.panelBorderRadius,
         border: `1px solid ${color_border}`,
         overflow: "hidden",
         color: color_text_primary,
@@ -89,32 +97,44 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
         style={{
           position: "sticky",
           top: 0,
-          zIndex: 10,
+          zIndex: COMMUNITY_FILTER_LAYOUT.headerZIndex,
           background: color_background,
           borderBottom: `1px solid ${color_border}`,
           padding: "8px 10px",
         }}
       >
         {/* title row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, flex: 1 }}>
-            Community Filter
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: COMMUNITY_FILTER_LAYOUT.sectionGap,
+          }}
+        >
+          <div
+            style={{
+              fontSize: COMMUNITY_FILTER_LAYOUT.titleFontSize,
+              fontWeight: COMMUNITY_FILTER_LAYOUT.titleFontWeight,
+              flex: 1,
+            }}
+          >
+            {COMMUNITY_FILTER_MESSAGES.title}
           </div>
 
           {showClose && onClose && (
             <button
-              aria-label="Close filter"
+              aria-label={COMMUNITY_FILTER_MESSAGES.closeLabel}
               onClick={onClose}
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
+                width: COMMUNITY_FILTER_LAYOUT.closeButtonSize,
+                height: COMMUNITY_FILTER_LAYOUT.closeButtonSize,
+                borderRadius: COMMUNITY_FILTER_LAYOUT.closeButtonRadius,
                 border: `1px solid ${color_border}`,
-                background: "#fff",
+                background: COMMUNITY_FILTER_COLORS.surface,
                 cursor: "pointer",
-                fontSize: 18,
+                fontSize: COMMUNITY_FILTER_LAYOUT.closeButtonFontSize,
                 lineHeight: "18px",
-                color: "#111",
+                color: COMMUNITY_FILTER_COLORS.closeButtonText,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -128,20 +148,20 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
         {/* search */}
         <div style={{ marginTop: 8 }}>
           <input
-            aria-label="Search communities"
+            aria-label={COMMUNITY_FILTER_MESSAGES.searchAriaLabel}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search…"
             style={{
               width: "100%",
-              height: 36,
+              height: COMMUNITY_FILTER_LAYOUT.searchInputHeight,
               padding: "0 10px",
-              borderRadius: 10,
+              borderRadius: COMMUNITY_FILTER_LAYOUT.actionButtonBorderRadius,
               border: `1px solid ${color_border}`,
-              fontSize: 15,
+              fontSize: COMMUNITY_FILTER_LAYOUT.searchInputFontSize,
               outline: "none",
               boxSizing: "border-box",
-              background: "#fff",
+              background: COMMUNITY_FILTER_COLORS.surface,
             }}
           />
         </div>
@@ -151,7 +171,7 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: COMMUNITY_FILTER_LAYOUT.sectionGap,
             marginTop: 8,
           }}
         >
@@ -159,53 +179,58 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
             type="button"
             onClick={selectAllVisible}
             style={{
-              height: 34,
+              height: COMMUNITY_FILTER_LAYOUT.actionButtonHeight,
               padding: "0 10px",
-              borderRadius: 10,
-              background: ACCENT,
-              color: "#fff",
+              borderRadius: COMMUNITY_FILTER_LAYOUT.actionButtonBorderRadius,
+              background: COMMUNITY_FILTER_ACCENT,
+              color: COMMUNITY_FILTER_COLORS.surface,
               border: "none",
               cursor: "pointer",
-              fontSize: 14,
+              fontSize: COMMUNITY_FILTER_LAYOUT.actionButtonFontSize,
               fontWeight: 800,
               whiteSpace: "nowrap",
             }}
-            aria-label={`Select visible communities (${filtered.length})`}
+            aria-label={getSelectVisibleAriaLabel(filtered.length)}
           >
-            Select ({filtered.length})
+            {getSelectVisibleLabel(filtered.length)}
           </button>
 
           <button
             type="button"
             onClick={clearSelection}
             style={{
-              height: 34,
+              height: COMMUNITY_FILTER_LAYOUT.actionButtonHeight,
               padding: "0 10px",
-              borderRadius: 10,
-              background: "#fff",
-              color: ACCENT,
-              border: `1px solid ${ACCENT}`,
+              borderRadius: COMMUNITY_FILTER_LAYOUT.actionButtonBorderRadius,
+              background: COMMUNITY_FILTER_COLORS.surface,
+              color: COMMUNITY_FILTER_ACCENT,
+              border: `1px solid ${COMMUNITY_FILTER_ACCENT}`,
               cursor: "pointer",
-              fontSize: 14,
+              fontSize: COMMUNITY_FILTER_LAYOUT.actionButtonFontSize,
               fontWeight: 900,
               whiteSpace: "nowrap",
             }}
-            aria-label="Clear selected communities"
+            aria-label={COMMUNITY_FILTER_MESSAGES.clearAriaLabel}
           >
-            Clear
+            {COMMUNITY_FILTER_MESSAGES.clearLabel}
           </button>
 
           <div
             style={{
               marginLeft: "auto",
-              fontSize: 14,
-              fontWeight: 800,
+              fontSize: COMMUNITY_FILTER_LAYOUT.countFontSize,
+              fontWeight: COMMUNITY_FILTER_LAYOUT.countFontWeight,
               whiteSpace: "nowrap",
             }}
-            aria-label={`Selected count ${selected.length}`}
+            aria-label={getSelectedCountAriaLabel(selected.length)}
           >
-            Selected:{" "}
-            <span style={{ color: ACCENT, fontWeight: 1000 }}>
+            {COMMUNITY_FILTER_MESSAGES.selectedLabel}{" "}
+            <span
+              style={{
+                color: COMMUNITY_FILTER_ACCENT,
+                fontWeight: COMMUNITY_FILTER_LAYOUT.selectedCountFontWeight,
+              }}
+            >
               {selected.length}
             </span>
           </div>
@@ -214,19 +239,26 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
 
       {/* List area */}
       <div
-        role="list"
-        aria-label="Community list"
+        role="listbox"
+        aria-label={COMMUNITY_FILTER_MESSAGES.listboxAriaLabel}
+        aria-multiselectable="true"
         style={{
           flex: 1,
           minHeight: 0,
           overflow: "auto",
-          background: "#fff",
-          padding: 8,
+          background: COMMUNITY_FILTER_COLORS.surface,
+          padding: COMMUNITY_FILTER_LAYOUT.listPadding,
         }}
       >
         {filtered.length === 0 ? (
-          <div style={{ color: "#666", padding: 10, fontSize: 15 }}>
-            No communities found.
+          <div
+            style={{
+              color: COMMUNITY_FILTER_COLORS.emptyStateText,
+              padding: 10,
+              fontSize: COMMUNITY_FILTER_LAYOUT.listItemFontSize,
+            }}
+          >
+            {COMMUNITY_FILTER_MESSAGES.emptyState}
           </div>
         ) : (
           filtered.map((c) => {
@@ -245,15 +277,18 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: COMMUNITY_FILTER_LAYOUT.listItemGap,
                   padding: "8px 10px",
                   marginBottom: 6,
                   cursor: "pointer",
-                  borderRadius: 10,
-                  border: `1px solid ${checked ? ACCENT : color_border}`,
-                  background: checked ? "#f3f8ff" : "#fff",
+                  borderRadius: COMMUNITY_FILTER_LAYOUT.listItemBorderRadius,
+                  border: `1px solid ${checked ? COMMUNITY_FILTER_ACCENT : color_border}`,
+                  background: checked
+                    ? COMMUNITY_FILTER_COLORS.selectedItemBackground
+                    : COMMUNITY_FILTER_COLORS.surface,
                 }}
                 aria-checked={checked}
+                aria-selected={checked}
                 role="option"
                 title={c}
               >
@@ -263,11 +298,11 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
                   onChange={() => toggle(c)}
                   aria-checked={checked}
                   style={{
-                    transform: "scale(1.1)",
-                    width: 16,
-                    height: 16,
+                    transform: `scale(${COMMUNITY_FILTER_LAYOUT.checkboxScale})`,
+                    width: COMMUNITY_FILTER_LAYOUT.checkboxSize,
+                    height: COMMUNITY_FILTER_LAYOUT.checkboxSize,
                     margin: 0,
-                    accentColor: ACCENT,
+                    accentColor: COMMUNITY_FILTER_ACCENT,
                     flexShrink: 0,
                   } as React.CSSProperties}
                 />
@@ -275,10 +310,14 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
                 <span
                   style={{
                     userSelect: "none",
-                    fontSize: 15,
+                    fontSize: COMMUNITY_FILTER_LAYOUT.listItemFontSize,
                     lineHeight: 1.2,
-                    color: checked ? "#0d47a1" : color_text_primary,
-                    fontWeight: checked ? 850 : 650,
+                    color: checked
+                      ? COMMUNITY_FILTER_COLORS.selectedItemText
+                      : color_text_primary,
+                    fontWeight: checked
+                      ? COMMUNITY_FILTER_LAYOUT.listItemCheckedFontWeight
+                      : COMMUNITY_FILTER_LAYOUT.listItemFontWeight,
                     wordBreak: "break-word",
                   }}
                 >

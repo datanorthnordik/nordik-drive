@@ -12,7 +12,8 @@ import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
 import { AuthContainer } from "../../components/containers/Containers";
 import toast from "react-hot-toast";
-import { signup_success } from "../../constants/messages";
+import { apiUrl } from "../../config/api";
+import { SIGNUP_SUCCESS_MESSAGE } from "./messages";
 
 import {
   color_secondary,
@@ -81,7 +82,7 @@ function Signup() {
   });
 
   const { data, loading, error, fetchData } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/signup",
+    apiUrl("user/signup"),
     "POST",
     false
   );
@@ -92,14 +93,14 @@ function Signup() {
     dispatch(
       apiEnsure({
         key: "communities",
-        url: "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
+        url: apiUrl("communities"),
         method: "GET",
       })
     );
   }, [dispatch]);
 
   const { fetchData: addCommunity } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
+    apiUrl("communities"),
     "POST",
     false
   );
@@ -134,7 +135,7 @@ function Signup() {
       dispatch(
       apiEnsure({
         key: "communities",
-        url: "https://nordikdriveapi-724838782318.us-west1.run.app/api/communities",
+        url: apiUrl("communities"),
         method: "GET",
         force: true
       })
@@ -146,7 +147,7 @@ function Signup() {
 
   useEffect(() => {
     if (data) {
-      toast.success(signup_success);
+      toast.success(SIGNUP_SUCCESS_MESSAGE);
       navigate("/");
     }
   }, [data]);

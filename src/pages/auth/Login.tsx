@@ -14,6 +14,7 @@ import { AppDispatch } from "../../store/store";
 import { setAuth } from "../../store/auth/authSlics";
 import { AuthContainer } from "../../components/containers/Containers";
 import { CheckBoxWrapper } from "../../components/TextGroup";
+import { apiUrl } from "../../config/api";
 import toast from "react-hot-toast";
 import PasswordResetModal from "../../components/PasswordReset";
 
@@ -70,7 +71,7 @@ function Login() {
   const navigate = useNavigate();
 
   const { data, loading, error, fetchData } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/login",
+    apiUrl("user/login"),
     "POST",
     false
   );

@@ -16,6 +16,7 @@ import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
 import toast from "react-hot-toast";
 import { color_background, color_secondary } from "../../constants/colors";
+import { apiUrl } from "../../config/api";
 
 interface ReplaceFileModalProps {
   open: boolean;
@@ -80,7 +81,7 @@ const IconCircle = styled("div")({
 
 const ReplaceFileModal: React.FC<ReplaceFileModalProps> = ({ open, onClose, file, refresh }) => {
   const { loading, fetchData, data, error } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/replace",
+    apiUrl("file/replace"),
     "POST"
   );
 

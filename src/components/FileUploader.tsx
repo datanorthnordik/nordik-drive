@@ -14,6 +14,7 @@ import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { color_primary, color_secondary } from "../constants/colors";
+import { apiUrl } from "../config/api";
 import useFetch from "../hooks/useFetch";
 import Loader from "./Loader";
 import { InsertDriveFile, CloudUpload } from "@mui/icons-material";
@@ -138,7 +139,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
   });
 
   const { loading, error, fetchData, data } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/upload",
+    apiUrl("file/upload"),
     "POST",
     false
   );

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import axios, { AxiosRequestConfig, ResponseType } from "axios";
 import { useSelector } from "react-redux";
-import { API_BASE } from "../constants/constants";
+import { API_BASE, API_REFRESH_URL } from "../config/api";
 
 type FetchMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -89,7 +89,7 @@ const useFetch = <T,>(url: string, method: FetchMethod, autoFetch: boolean = fal
         if (err.response?.status === 401 && !skipRefresh) {
           try {
             await axios.post(
-              "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/refresh",
+              API_REFRESH_URL,
               {},
               { withCredentials: true }
             );
@@ -133,8 +133,7 @@ export async function apiRequest<T = any>(
     refreshUrl?: string; // defaults to your backend refresh endpoint
   }
 ): Promise<T> {
-  const refreshUrl =
-    opts?.refreshUrl || "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/refresh";
+  const refreshUrl = opts?.refreshUrl || API_REFRESH_URL;
 
   const doFetch = async (accessToken?: string) => {
     const res = await fetch(url, {
@@ -230,7 +229,7 @@ export const fetchLookupJSON =
     } catch (err: any) {
       if (String(err?.message || "").includes("401")) {
         await fetch(
-          "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/refresh",
+          API_REFRESH_URL,
           {
             method: "POST",
             credentials: "include",

@@ -13,6 +13,7 @@ import * as yup from "yup";
 import axios from "axios";
 import toast from "react-hot-toast";
 import useFetch from "../hooks/useFetch";
+import { apiUrl } from "../config/api";
 
 //  Single schema that adapts by step
 const schema = yup.object({
@@ -45,8 +46,8 @@ const PasswordResetModal: React.FC<Props> = ({ open, onClose }) => {
   const [step, setStep] = useState<"email" | "reset">("email");
   const [email, setEmail] = useState("");
 
-  const { fetchData, loading, error: otpError, data: otpSend } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/send-otp", "POST", false);
-  const { fetchData: verifyOtp, loading: verifyLoading, error: otpVerifyError, data: otpVerify } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/reset-password", "POST", false);
+  const { fetchData, loading, error: otpError, data: otpSend } = useFetch(apiUrl("user/send-otp"), "POST", false);
+  const { fetchData: verifyOtp, loading: verifyLoading, error: otpVerifyError, data: otpVerify } = useFetch(apiUrl("user/reset-password"), "POST", false);
 
   const {
     handleSubmit,

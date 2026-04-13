@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../../store/store";
 import { clearAuth, setChecked } from "../../store/auth/authSlics";
 import { color_secondary } from "../../constants/colors";
+import { apiUrl } from "../../config/api";
 
 const initialSession: Session = {
   user: { name: "", email: "", image: "" },
@@ -14,7 +15,7 @@ const initialSession: Session = {
 export default function Logout() {
   const { user } = useSelector((state: any) => state.auth);
   const [session, setSession] = useState<Session | null>(initialSession);
-  const { data, loading, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/logout", "POST", false);
+  const { data, loading, fetchData } = useFetch(apiUrl("user/logout"), "POST", false);
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {

@@ -1,3 +1,5 @@
+import { getDocumentCategoryLabel } from "../../domain/documents/categories";
+
 export type FileReviewStatus = "approved" | "rejected" | "pending" | null;
 
 export const normalizeStatus = (s?: FileReviewStatus): "approved" | "rejected" | "pending" => {
@@ -15,13 +17,7 @@ export const formatBytes = (bytes?: number) => {
 };
 
 export const categoryLabel = (cat?: string) => {
-  if (!cat) return "Unknown";
-  const map: Record<string, string> = {
-    birth_certificate: "Birth Certificate",
-    death_certificate: "Death Certificate",
-    other_document: "Other Document",
-  };
-  return map[cat] || cat;
+  return getDocumentCategoryLabel(cat);
 };
 
 export type PhotoGridItem = {

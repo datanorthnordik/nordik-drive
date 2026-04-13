@@ -10,7 +10,7 @@ import { useMediaQuery } from "@mui/material";
 import * as utils from "./utils";
 import { MAX_ADDITIONAL_DOCS } from "./constants";
 
-jest.mock("../../../constants/constants", () => ({
+jest.mock("../../../config/api", () => ({
     API_BASE: "http://api.test",
 }));
 
