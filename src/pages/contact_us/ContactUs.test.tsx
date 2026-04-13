@@ -12,9 +12,9 @@ jest.mock("../../components/Links", () => ({
   ),
 }));
 
-jest.mock("../../constants/constants", () => ({
+jest.mock("./contactInfo", () => ({
   __esModule: true,
-  contact: {
+  CONTACT_INFO: {
     address: "123 Example Address",
     street: "Example Street",
     telephone: "+1 111-222-3333",

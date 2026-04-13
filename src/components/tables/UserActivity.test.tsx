@@ -93,9 +93,9 @@ jest.mock("../activity/activityutils", () => ({
 /**
  * Mock actions list.
  */
-jest.mock("../../constants/constants", () => ({
+jest.mock("../../domain/activity/actionOptions", () => ({
   __esModule: true,
-  actions: [
+  ACTIVITY_ACTION_OPTIONS: [
     { value: "LOGIN", name: "Login" },
     { value: "DOWNLOAD", name: "Download" },
   ],

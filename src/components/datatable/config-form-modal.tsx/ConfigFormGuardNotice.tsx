@@ -8,7 +8,7 @@ import {
   FORM_SUBMISSION_GUARD_READONLY_BADGE,
   FORM_SUBMISSION_GUARD_READONLY_HINT,
   FORM_SUBMISSION_GUARD_READONLY_TITLE,
-} from "../../../constants/constants";
+} from "../../../domain/forms/guardMessages";
 import {
   color_border,
   color_secondary,

@@ -31,6 +31,7 @@ import ImageGallery from "react-image-gallery";
 import "react-image-gallery/styles/css/image-gallery.css";
 
 import useFetch from "../../hooks/useFetch";
+import { API_BASE } from "../../config/api";
 
 import {
     color_primary,
@@ -86,11 +87,6 @@ interface PhotoViewerModalProps {
 
     only_approved?: boolean;
 }
-
-const API_BASE =
-    (process.env.NEXT_PUBLIC_API_BASE as string | undefined) ||
-    (process.env.REACT_APP_API_BASE as string | undefined) ||
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api";
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 

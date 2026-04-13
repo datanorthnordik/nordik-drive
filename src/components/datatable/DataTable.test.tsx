@@ -89,8 +89,8 @@ jest.mock("react-redux", () => ({
     useSelector: jest.fn(),
 }));
 
-jest.mock("../../constants/constants", () => ({
-    colorSources: {
+jest.mock("./sourceColors", () => ({
+    SOURCE_COLORS: {
         SRC1: "#123456",
         SRC2: "#654321",
     },

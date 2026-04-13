@@ -15,7 +15,9 @@ import {
   RowNode,
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
+// @ts-ignore
 import "ag-grid-community/styles/ag-grid.css";
+// @ts-ignore
 import "ag-grid-community/styles/ag-theme-quartz.css";
 
 import { DataTableWrapper, GridWrapper } from "../Wrappers";
@@ -28,10 +30,11 @@ import {
   color_black,
   color_black_light,
 } from "../../constants/colors";
+import { API_BASE } from "../../config/api";
 
 import { MicIcon } from "lucide-react";
 import styled, { keyframes } from "styled-components";
-import { colorSources } from "../../constants/constants";
+import { SOURCE_COLORS } from "./sourceColors";
 import { useDispatch, useSelector } from "react-redux";
 import { setCommunities } from "../../store/auth/fileSlice";
 import { AppDispatch, RootState } from "../../store/store";
@@ -59,8 +62,6 @@ import { useDescribeEntry } from "../models/DescribeEntry";
 import { apiEnsure } from "../../store/api/apiSlice";
 import { FormCfg } from "./config-form-modal.tsx/shared";
 import { readOnlyAgGridModules, registerAgGridModules } from "../../lib/agGridModules";
-
-const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
 
 const NIAChat = lazy(() => import("../NIAChat"));
 const AddInfoForm = lazy(() => import("./add-info-dialog/AddInfoForm"));
@@ -506,8 +507,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
         const match = value.match(/^([\s\S]*?)\s*(\(([^)]*)\))?$/);
         const bracketText = (match?.[3] || "").trim();
 
-        const bgColor = bracketText ? colorSources[bracketText] || "transparent" : "transparent";
-        const isColored = bracketText && colorSources[bracketText];
+        const bgColor = bracketText ? SOURCE_COLORS[bracketText] || "transparent" : "transparent";
+        const isColored = bracketText && SOURCE_COLORS[bracketText];
 
         return (
           <div
@@ -850,7 +851,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
           const match = val.match(/\(([^)]*)\)/);
           if (match?.[1]) {
             const src = match[1].trim();
-            if (colorSources[src]) found.add(src);
+            if (SOURCE_COLORS[src]) found.add(src);
           }
         }
       });

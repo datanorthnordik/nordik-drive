@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch, RootState } from "../../store/store";
 import { setSelectedFile } from "../../store/auth/fileSlice";
+import { apiUrl } from "../../config/api";
 
 import {
   color_primary,
@@ -71,7 +72,7 @@ const FileList = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const { loading, fetchData, data: files } = useFetch<{ files: FileType[] }>(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file",
+    apiUrl("file"),
     "GET",
     false
   );

@@ -16,7 +16,7 @@ import TuneIcon from "@mui/icons-material/Tune";
 
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
-import { API_BASE } from "../../constants/constants";
+import { API_BASE } from "../../config/api";
 import {
   color_secondary,
   color_secondary_dark,
@@ -31,7 +31,7 @@ import {
 import ConfigFormModal from "../datatable/config-form-modal.tsx/ConfigFormModal";
 import { FormCfg } from "../datatable/config-form-modal.tsx/shared";
 import FormSubmissionGrid, { FormSubmissionRow } from "./FormSubmissionGrid";
-import { FORM_SUBMISSION_STATUS_OPTIONS } from "../../constants/statuses";
+import { FORM_SUBMISSION_STATUS_OPTIONS } from "../../domain/forms/statusOptions";
 
 type FileWithUser = {
   id: number;

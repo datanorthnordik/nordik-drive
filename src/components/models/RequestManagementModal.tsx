@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import useFetch from '../../hooks/useFetch';
 import Loader from '../../components/Loader';
 import { CloseButton } from '../buttons/Button';
+import { apiUrl } from '../../config/api';
 
 const schema = yup.object().shape({
     files: yup.array().min(1, "Please select at least one file"),
@@ -31,9 +32,9 @@ function RequestManagementModal(props: RequestManagementModalProps) {
 
     const { selectedRequest, onClose, onProcess } = props
 
-    const { data: roles, loading, error, fetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/role", "GET", false)
-    const { data: files, loading: cloading, error: cerror, fetchData: cFetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/file", "GET", true)
-    const { data: updateRequest, loading: uloading, fetchData: ufetchData } = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/requests/update", "PUT", false)
+    const { data: roles, loading, error, fetchData } = useFetch(apiUrl("role"), "GET", false)
+    const { data: files, loading: cloading, error: cerror, fetchData: cFetchData } = useFetch(apiUrl("file"), "GET", true)
+    const { data: updateRequest, loading: uloading, fetchData: ufetchData } = useFetch(apiUrl("requests/update"), "PUT", false)
 
     const navigate = useNavigate()
 

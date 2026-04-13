@@ -30,10 +30,11 @@ import {
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
 import RequestDetailsModal from "./RequestDetailsModal";
+import { apiUrl } from "../../config/api";
 
 const PendingRequests: React.FC = () => {
   const { data, fetchData, loading } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/edit/request",
+    apiUrl("file/edit/request"),
     "GET",
     false
   );

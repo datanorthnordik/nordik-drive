@@ -17,7 +17,7 @@ jest.mock("../../components/Loader", () => ({
   default: ({ loading }: any) => <div data-testid="loader">{String(loading)}</div>,
 }));
 
-jest.mock("../../constants/constants", () => ({
+jest.mock("../../config/api", () => ({
   __esModule: true,
   API_BASE: "/api",
 }));

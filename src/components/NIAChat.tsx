@@ -28,6 +28,7 @@ import {
   color_black_light,
   color_text_light,
 } from "../constants/colors";
+import { apiUrl } from "../config/api";
 import toast from "react-hot-toast";
 
 export { default as NIAChatTrigger } from "./NIAChatTrigger";
@@ -137,7 +138,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
   // Chat endpoint (existing)
   const { loading, fetchData, data, error } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat",
+    apiUrl("chat"),
     "POST"
   );
 
@@ -148,7 +149,7 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     error: ttsError,
     fetchData: fetchTTS,
   } = useFetch<ArrayBuffer>(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/chat/tts",
+    apiUrl("chat/tts"),
     "POST"
   );
 

@@ -15,8 +15,9 @@ import { useEffect, useMemo, useState } from "react";
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
 import toast from "react-hot-toast";
-import { password_validation_success } from "../../constants/messages";
+import { apiUrl } from "../../config/api";
 import { color_secondary, color_secondary_dark, color_white } from "../../constants/colors";
+import { PASSWORD_VALIDATION_SUCCESS_MESSAGE } from "./passwordMessages";
 
 interface PasswordModalProps {
   open: boolean;
@@ -30,7 +31,7 @@ const PasswordModal = (props: PasswordModalProps) => {
   const [passwordInput, setPasswordInput] = useState("");
 
   const { loading, error, fetchData, data } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/verify-password",
+    apiUrl("user/verify-password"),
     "POST"
   );
 
@@ -54,7 +55,7 @@ const PasswordModal = (props: PasswordModalProps) => {
     if (data || error) {
       try {
         if (data && !error) {
-          toast.success(password_validation_success);
+          toast.success(PASSWORD_VALIDATION_SUCCESS_MESSAGE);
           setPasswordError("");
           closePasswordModal(true);
           setPasswordInput("");

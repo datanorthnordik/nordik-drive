@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { colorSources } from "../../constants/constants";
+import { SOURCE_COLORS } from "./sourceColors";
 import {
   color_black,
   color_light_gray,
@@ -129,7 +129,7 @@ export default function SourceFilterBar({
                     sourceFilter === key
                       ? "3px solid #000"
                       : "1px solid #ccc",
-                  background: colorSources[key],
+                  background: SOURCE_COLORS[key],
                   color: color_white,
                   cursor: "pointer",
                   fontWeight: 600,

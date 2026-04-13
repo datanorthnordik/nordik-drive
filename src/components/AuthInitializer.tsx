@@ -3,10 +3,11 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { setAuth, clearAuth, setChecked } from "../store/auth/authSlics";
 import useFetch from "../hooks/useFetch";
+import { apiUrl } from "../config/api";
 
 const AuthInitializer = () => {
   const dispatch = useDispatch();
-  const {fetchData, data, error} = useFetch("https://nordikdriveapi-724838782318.us-west1.run.app/api/user/me", "GET")
+  const {fetchData, data, error} = useFetch(apiUrl("user/me"), "GET")
 
   useEffect(() => {
     fetchData()

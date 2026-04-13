@@ -18,7 +18,7 @@ import SearchIcon from "@mui/icons-material/Search";
 
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
-import { API_BASE } from "../../constants/constants";
+import { API_BASE } from "../../config/api";
 import {
   color_secondary,
   color_secondary_dark,

@@ -3,8 +3,16 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
+jest.mock("./sourceColors", () => ({
+  __esModule: true,
+  SOURCE_COLORS: {
+    SourceA: "#123456",
+    SourceB: "#654321",
+  },
+}));
+
 import SourceFilterBar from "./SourceFilterBar";
-import { colorSources } from "../../constants/constants";
+import { SOURCE_COLORS } from "./sourceColors";
 import {
   color_black,
   color_light_gray,
@@ -138,7 +146,7 @@ describe("SourceFilterBar", () => {
 
     expect(sourceAButton).toHaveStyle("border: 3px solid #000");
     expect(sourceAButton).toHaveStyle("box-shadow: 0 0 6px rgba(0,0,0,0.4)");
-    expect(sourceAButton).toHaveStyle(`background: ${colorSources["SourceA"]}`);
+    expect(sourceAButton).toHaveStyle(`background: ${SOURCE_COLORS["SourceA"]}`);
     expect(sourceAButton).toHaveStyle(`color: ${color_white}`);
   });
 
@@ -155,7 +163,7 @@ describe("SourceFilterBar", () => {
 
     expect(sourceBButton).toHaveStyle("border: 1px solid #ccc");
     expect(sourceBButton).toHaveStyle("box-shadow: none");
-    expect(sourceBButton).toHaveStyle(`background: ${colorSources["SourceB"]}`);
+    expect(sourceBButton).toHaveStyle(`background: ${SOURCE_COLORS["SourceB"]}`);
     expect(sourceBButton).toHaveStyle(`color: ${color_white}`);
   });
 });

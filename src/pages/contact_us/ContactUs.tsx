@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Email, Phone, LocationOn, Business } from "@mui/icons-material";
 import { WebLink } from "../../components/Links";
-import { contact } from "../../constants/constants";
+import { CONTACT_INFO } from "./contactInfo";
 import {
   color_white,
   color_light_gray,
@@ -184,10 +184,10 @@ const ContactUs = () => {
                       Community support team
                     </Typography>
                     <Typography sx={{ fontSize: 12.8, fontWeight: 700, color: color_text_secondary }}>
-                      {contact.address}
+                      {CONTACT_INFO.address}
                     </Typography>
                     <Typography sx={{ fontSize: 12.8, fontWeight: 700, color: color_text_secondary }}>
-                      {contact.street}
+                      {CONTACT_INFO.street}
                     </Typography>
                     <Typography sx={{ fontSize: 12.8, fontWeight: 700, color: color_text_secondary }}>
                       Sault Ste. Marie P6A 2G4
@@ -210,7 +210,7 @@ const ContactUs = () => {
                     <Phone sx={{ color: color_secondary_dark, fontSize: 18 }} />
                   </Box>
                   <Typography sx={{ fontSize: 13.2, fontWeight: 900, color: color_black_light }}>
-                    T: {contact.telephone}
+                    T: {CONTACT_INFO.telephone}
                   </Typography>
                 </Box>
 
@@ -244,9 +244,9 @@ const ContactUs = () => {
                         cursor: "pointer",
                         "&:hover": { color: color_secondary },
                       }}
-                      onClick={() => window.open(`mailto:${contact.email}`)}
+                      onClick={() => window.open(`mailto:${CONTACT_INFO.email}`)}
                     >
-                      {contact.email}
+                      {CONTACT_INFO.email}
                     </Box>
                   </Typography>
                 </Box>

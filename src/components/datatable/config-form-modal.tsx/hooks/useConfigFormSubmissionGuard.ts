@@ -7,7 +7,7 @@ import useFetch from "../../../../hooks/useFetch";
 import {
   buildApprovedFormSubmissionGuardMessage,
   buildOtherUserFormSubmissionGuardMessage,
-} from "../../../../constants/constants";
+} from "../../../../domain/forms/guardMessages";
 
 export type GuardAccessMode = "checking" | "load-existing" | "create-new" | "blocked";
 

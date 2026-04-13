@@ -40,6 +40,7 @@ import {
   color_white,
   color_white_smoke,
 } from "../../constants/colors";
+import { API_BASE } from "../../config/api";
 import { guessMimeFromFilename } from "../../lib/fileUtil";
 import { readOnlyAgGridModules, registerAgGridModules } from "../../lib/agGridModules";
 
@@ -57,8 +58,6 @@ export default function FileActivities({
 }: {
   onParentModeChange?: (mode: any) => void;
 }) {
-  const API_BASE = "https://nordikdriveapi-724838782318.us-west1.run.app/api";
-
   const [mode, setMode] = useState<Mode>("CHANGES");
 
   // results

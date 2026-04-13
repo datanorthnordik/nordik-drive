@@ -7,7 +7,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 
 import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
-import { API_BASE } from "../../constants/constants";
+import { API_BASE } from "../../config/api";
 import {
   color_secondary,
   color_secondary_dark,
@@ -19,7 +19,7 @@ import {
   color_background,
 } from "../../constants/colors";
 
-import { FORM_SUBMISSION_STATUS_OPTIONS } from "../../constants/statuses";
+import { FORM_SUBMISSION_STATUS_OPTIONS } from "../../domain/forms/statusOptions";
 
 import ConfigFormModal from "../../components/datatable/config-form-modal.tsx/ConfigFormModal";
 import { FormCfg } from "../../components/datatable/config-form-modal.tsx/shared";

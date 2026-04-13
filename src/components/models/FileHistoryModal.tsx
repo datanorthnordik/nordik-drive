@@ -29,6 +29,7 @@ import {
   color_text_primary,
   color_white,
 } from "../../constants/colors";
+import { apiUrl } from "../../config/api";
 
 interface FileVersion {
   id: number;
@@ -54,7 +55,7 @@ const FileVersionHistoryModal: React.FC<FileVersionHistoryModalProps> = ({
   file,
 }) => {
   const { loading: gloading, data, fetchData } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/history",
+    apiUrl("file/history"),
     "GET",
     false
   );
@@ -65,7 +66,7 @@ const FileVersionHistoryModal: React.FC<FileVersionHistoryModalProps> = ({
     fetchData: revertFile,
     error: rerror,
   } = useFetch(
-    "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/revert",
+    apiUrl("file/revert"),
     "POST",
     false
   );
