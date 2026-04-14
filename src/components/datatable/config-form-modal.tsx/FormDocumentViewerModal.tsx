@@ -18,6 +18,9 @@ import DownloadIcon from "@mui/icons-material/Download";
 import CloseIcon from "@mui/icons-material/Close";
 
 import useFetch from "../../../hooks/useFetch";
+import { type ReviewStatusValue } from "../../../constants/statuses";
+import { getViewerStatusLabel } from "../../../pages/viewers/messages";
+import { getViewerStatusChipSx } from "../../../pages/viewers/styles";
 
 import {
   color_primary,
@@ -30,11 +33,9 @@ import {
   color_text_primary,
   color_text_secondary,
   color_text_light,
-  color_success,
-  color_error,
 } from "../../../constants/colors";
 
-export type ViewerStatus = "approved" | "rejected" | "pending" | null | undefined;
+export type ViewerStatus = ReviewStatusValue | null | undefined;
 
 export interface FormViewerDoc {
   id: number;
@@ -151,36 +152,9 @@ const readBlobAsText = (blob: Blob) =>
     reader.readAsText(blob);
   });
 
-const statusChipSx = (st?: ViewerStatus) => {
-  if (st === "approved") {
-    return {
-      color: color_success,
-      backgroundColor: "rgba(39, 174, 96, 0.12)",
-      border: "1px solid rgba(39, 174, 96, 0.25)",
-      fontWeight: 900,
-    };
-  }
-  if (st === "rejected") {
-    return {
-      color: color_error,
-      backgroundColor: "rgba(231, 76, 60, 0.12)",
-      border: "1px solid rgba(231, 76, 60, 0.25)",
-      fontWeight: 900,
-    };
-  }
-  return {
-    color: color_text_secondary,
-    backgroundColor: "rgba(107, 114, 128, 0.12)",
-    border: "1px solid rgba(107, 114, 128, 0.25)",
-    fontWeight: 900,
-  };
-};
+const statusChipSx = (st?: ViewerStatus) => getViewerStatusChipSx(st);
 
-const labelFromStatus = (st?: ViewerStatus) => {
-  if (st === "approved") return "Approved";
-  if (st === "rejected") return "Rejected";
-  return "Pending";
-};
+const labelFromStatus = (st?: ViewerStatus) => getViewerStatusLabel(st);
 
 export default function FormDocumentViewerModal({
   open,

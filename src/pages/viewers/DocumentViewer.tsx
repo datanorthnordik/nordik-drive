@@ -19,6 +19,34 @@ import CloseIcon from "@mui/icons-material/Close";
 import FolderZipIcon from "@mui/icons-material/FolderZip";
 
 import useFetch from "../../hooks/useFetch";
+import { type ReviewStatusValue } from "../../constants/statuses";
+import {
+  DOCUMENT_DEFAULT_TIP_TEXT,
+  DOCUMENT_FALLBACK_TITLE,
+  DOCUMENT_LOAD_ERROR_TITLE,
+  DOCUMENT_LOADING_TEXT,
+  DOCUMENT_NOT_LOADED_TEXT,
+  DOCUMENT_PREVIEW_ACTION_HELPER,
+  DOCUMENT_PREVIEW_NOT_AVAILABLE,
+  DOCUMENT_UNSUPPORTED_PREVIEW_HELPER,
+  DOCUMENT_UNSUPPORTED_PREVIEW_PREFIX,
+  DOCUMENT_UNSUPPORTED_PREVIEW_SUFFIX,
+  getViewerRequestSummary,
+  getViewerStatusLabel,
+  VIEWER_APPROVE_LABEL,
+  VIEWER_CLOSE_LABEL,
+  VIEWER_DOWNLOAD_ALL_LABEL,
+  VIEWER_DOWNLOAD_LABEL,
+  VIEWER_OPEN_LABEL,
+  VIEWER_REJECT_LABEL,
+  VIEWER_REVIEW_COMMENT_LABEL,
+  VIEWER_REVIEW_TITLE,
+} from "./messages";
+import {
+  getViewerStatusChipSx,
+  VIEWER_SECTION_TITLE_SX,
+  VIEWER_TITLE_SX,
+} from "./styles";
 
 import {
   color_primary,
@@ -29,13 +57,10 @@ import {
   color_white,
   color_background,
   color_text_primary,
-  color_text_secondary,
   color_text_light,
-  color_success,
-  color_error,
 } from "../../constants/colors";
 
-export type ReviewStatus = "approved" | "rejected" | "pending" | null;
+export type ReviewStatus = ReviewStatusValue | null;
 
 export interface ViewerDoc {
   id: number;
@@ -145,37 +170,6 @@ const readBlobAsText = (blob: Blob) =>
     reader.readAsText(blob);
   });
 
-const labelFromStatus = (st?: ReviewStatus) => {
-  if (st === "approved") return "Approved";
-  if (st === "rejected") return "Rejected";
-  return "Pending";
-};
-
-const statusChipSx = (st?: ReviewStatus) => {
-  if (st === "approved") {
-    return {
-      color: color_success,
-      backgroundColor: "rgba(39, 174, 96, 0.12)",
-      border: "1px solid rgba(39, 174, 96, 0.25)",
-      fontWeight: 900,
-    };
-  }
-  if (st === "rejected") {
-    return {
-      color: color_error,
-      backgroundColor: "rgba(231, 76, 60, 0.12)",
-      border: "1px solid rgba(231, 76, 60, 0.25)",
-      fontWeight: 900,
-    };
-  }
-  return {
-    color: color_text_secondary,
-    backgroundColor: "rgba(107, 114, 128, 0.12)",
-    border: "1px solid rgba(107, 114, 128, 0.25)",
-    fontWeight: 900,
-  };
-};
-
 export type DocumentViewerMode = "view" | "review";
 
 export interface DocumentViewerModalProps {
@@ -240,7 +234,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   onReviewerCommentChange,
 
   onIndexChange,
-  tipText = "If preview doesn’t load (some types can’t embed), use “Open”.",
+  tipText = DOCUMENT_DEFAULT_TIP_TEXT,
 
   onOpenOverride,
   onDownloadOverride,
@@ -509,8 +503,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             sx={{
-              fontWeight: 900,
-              color: color_text_primary,
+              ...VIEWER_TITLE_SX,
               fontSize: 16,
               lineHeight: 1.2,
               overflow: "hidden",
@@ -521,17 +514,15 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             title={currentDoc?.file_name}
             data-testid="viewer-filename"
           >
-            {currentDoc?.file_name || "Document"}
+            {currentDoc?.file_name || DOCUMENT_FALLBACK_TITLE}
           </Typography>
 
           <Typography variant="caption" data-testid="viewer-meta">
             {(currentDocMime || currentDoc?.mime_type || "unknown") + " "}
             • ID: {currentDoc?.id} • {index + 1}/{docs.length}
             {inferredRequestIds.length === 1
-              ? ` • Request #${inferredRequestIds[0]}`
-              : inferredRequestIds.length > 1
-                ? ` • ${inferredRequestIds.length} Requests`
-                : ""}
+              ? ` | ${getViewerRequestSummary(inferredRequestIds)}`
+              : ""}
           </Typography>
         </Box>
 
@@ -559,7 +550,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 },
               }}
             >
-              Open
+              {VIEWER_OPEN_LABEL}
             </Button>
           )}
 
@@ -580,7 +571,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 "&.Mui-disabled": { opacity: 0.6, background: color_secondary },
               }}
             >
-              Download
+              {VIEWER_DOWNLOAD_LABEL}
             </Button>
           )}
 
@@ -600,7 +591,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               "&:hover": { borderWidth: 2, backgroundColor: color_background },
             }}
           >
-            Close
+            {VIEWER_CLOSE_LABEL}
           </Button>
         </Box>
       </Box>
@@ -655,7 +646,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }} data-testid="viewer-loading">
                 <CircularProgress size={24} />
                 <Typography sx={{ fontWeight: 700, color: color_text_primary }}>
-                  Loading document...
+                  {DOCUMENT_LOADING_TEXT}
                 </Typography>
               </Box>
             )}
@@ -663,7 +654,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             {!fileBlobLoading && fileBlobError && (
               <Box sx={{ p: 3 }} data-testid="viewer-error">
                 <Typography sx={{ fontWeight: 900, mb: 1, color: color_text_primary }}>
-                  Failed to load document
+                  {DOCUMENT_LOAD_ERROR_TITLE}
                 </Typography>
                 <Typography sx={{ color: color_text_light }}>{String(fileBlobError)}</Typography>
               </Box>
@@ -727,11 +718,12 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                     data-testid="viewer-unsupported-preview"
                   >
                     <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
-                      Preview not supported for{" "}
-                      {isDocxMime(currentDocMime) ? "DOC/DOCX" : "Excel"} in browser.
+                      {DOCUMENT_UNSUPPORTED_PREVIEW_PREFIX}{" "}
+                      {isDocxMime(currentDocMime) ? "DOC/DOCX" : "Excel"}{" "}
+                      {DOCUMENT_UNSUPPORTED_PREVIEW_SUFFIX}
                     </Typography>
                     <Typography sx={{ color: color_text_light, mb: 2 }}>
-                      Use “Open” to download/open it with your system app.
+                      {DOCUMENT_UNSUPPORTED_PREVIEW_HELPER}
                     </Typography>
 
                     <Button
@@ -745,7 +737,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                         "&:hover": { background: color_secondary_dark },
                       }}
                     >
-                      Open
+                      {VIEWER_OPEN_LABEL}
                     </Button>
                   </Box>
                 )}
@@ -791,10 +783,10 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                       data-testid="viewer-unknown-preview"
                     >
                       <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
-                        Preview not available for this file type.
+                        {DOCUMENT_PREVIEW_NOT_AVAILABLE}
                       </Typography>
                       <Typography sx={{ color: color_text_light, mb: 2 }}>
-                        Use “Open” or “Download”.
+                        {DOCUMENT_PREVIEW_ACTION_HELPER}
                       </Typography>
 
                       <Button
@@ -808,7 +800,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                           "&:hover": { background: color_secondary_dark },
                         }}
                       >
-                        Open
+                        {VIEWER_OPEN_LABEL}
                       </Button>
                     </Box>
                   )}
@@ -827,7 +819,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 data-testid="viewer-not-loaded"
               >
                 <Typography sx={{ color: color_text_light, fontWeight: 700 }}>
-                  Document not loaded yet.
+                  {DOCUMENT_NOT_LOADED_TEXT}
                 </Typography>
               </Box>
             )}
@@ -848,20 +840,20 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                 overflowY: "auto",
               }}
             >
-              <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
-                Review
+              <Typography sx={VIEWER_SECTION_TITLE_SX}>
+                {VIEWER_REVIEW_TITLE}
               </Typography>
 
               <Chip
                 size="small"
-                label={labelFromStatus(currentDoc.status)}
-                sx={{ alignSelf: "flex-start", ...statusChipSx(currentDoc.status) }}
+                label={getViewerStatusLabel(currentDoc.status)}
+                sx={{ alignSelf: "flex-start", ...getViewerStatusChipSx(currentDoc.status) }}
               />
 
               <TextField
                 fullWidth
                 size="small"
-                label="Review Comment"
+                label={VIEWER_REVIEW_COMMENT_LABEL}
                 value={String(currentDoc.reviewer_comment || "")}
                 onChange={(e) => onReviewerCommentChange?.(currentDoc, e.target.value)}
                 multiline
@@ -917,7 +909,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   sx={approveBtnSx}
                   data-testid="review-approve"
                 >
-                  Approve
+                  {VIEWER_APPROVE_LABEL}
                 </Button>
 
                 <Button
@@ -927,7 +919,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   sx={rejectBtnSx}
                   data-testid="review-reject"
                 >
-                  Reject
+                  {VIEWER_REJECT_LABEL}
                 </Button>
               </>
             )}
@@ -971,7 +963,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               sx={approveBtnSx}
               data-testid="download-all"
             >
-              Download All
+              {VIEWER_DOWNLOAD_ALL_LABEL}
             </Button>
           </Box>
         )}

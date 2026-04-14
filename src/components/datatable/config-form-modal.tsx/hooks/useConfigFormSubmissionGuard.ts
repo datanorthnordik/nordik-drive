@@ -4,10 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import useFetch from "../../../../hooks/useFetch";
+import { REVIEW_STATUS_VALUES } from "../../../../constants/statuses";
 import {
   buildApprovedFormSubmissionGuardMessage,
   buildOtherUserFormSubmissionGuardMessage,
 } from "../../../../domain/forms/guardMessages";
+import {
+  SUBMISSION_GUARD_KINDS,
+} from "../guardConstants";
 
 export type GuardAccessMode = "checking" | "load-existing" | "create-new" | "blocked";
 
@@ -32,11 +36,16 @@ export type SubmissionSearchResp = {
 };
 
 export type SubmissionGuardState =
-  | { kind: "none"; message: "" }
-  | { kind: "approved" | "other-user-active"; message: string };
+  | { kind: typeof SUBMISSION_GUARD_KINDS.NONE; message: "" }
+  | {
+      kind:
+        | typeof SUBMISSION_GUARD_KINDS.APPROVED
+        | typeof SUBMISSION_GUARD_KINDS.OTHER_USER_ACTIVE;
+      message: string;
+    };
 
 const EMPTY_SUBMISSION_GUARD: SubmissionGuardState = {
-  kind: "none",
+  kind: SUBMISSION_GUARD_KINDS.NONE,
   message: "",
 };
 
@@ -208,7 +217,7 @@ export default function useConfigFormSubmissionGuard({
       const blockedMessage = buildOtherUserFormSubmissionGuardMessage(formName);
 
       setSubmissionGuard({
-        kind: "other-user-active",
+        kind: SUBMISSION_GUARD_KINDS.OTHER_USER_ACTIVE,
         message: blockedMessage,
       });
       setGuardAccessMode("blocked");
@@ -222,9 +231,12 @@ export default function useConfigFormSubmissionGuard({
       return;
     }
 
-    if (normalizeSubmissionStatus(activeSubmission?.status) === "approved") {
+    if (
+      normalizeSubmissionStatus(activeSubmission?.status) ===
+      REVIEW_STATUS_VALUES.APPROVED
+    ) {
       setSubmissionGuard({
-        kind: "approved",
+        kind: SUBMISSION_GUARD_KINDS.APPROVED,
         message: buildApprovedFormSubmissionGuardMessage(guardedFormLabel, subjectDisplayName),
       });
       setGuardAccessMode("load-existing");

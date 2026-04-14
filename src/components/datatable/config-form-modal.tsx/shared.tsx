@@ -1,6 +1,7 @@
 'use client';
 
 import React from "react";
+import { type ReviewStatusValue } from "../../../constants/statuses";
 import {
   color_border,
   color_confidential_card_bg,
@@ -123,7 +124,7 @@ export type LookupItem = {
   [key: string]: any;
 };
 
-export type ReviewableStatus = "approved" | "rejected" | "pending";
+export type ReviewableStatus = ReviewStatusValue;
 
 export type PhotoGridItem = {
   id: number;

@@ -8,6 +8,7 @@ import useFetch from '../../hooks/useFetch';
 import Loader from '../../components/Loader';
 import { CloseButton } from '../buttons/Button';
 import { apiUrl } from '../../config/api';
+import { REVIEW_STATUS_VALUES } from '../../constants/statuses';
 
 const schema = yup.object().shape({
     files: yup.array().min(1, "Please select at least one file"),
@@ -53,7 +54,7 @@ function RequestManagementModal(props: RequestManagementModalProps) {
                 filename: file.filename,
                 community_name: selectedRequest.community_name,
                 user_id: selectedRequest.user_id,
-                status: "approved",
+                status: REVIEW_STATUS_VALUES.APPROVED,
                 role: data.role
             })
         })

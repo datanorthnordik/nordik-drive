@@ -16,20 +16,29 @@ import {
   color_border,
   color_light_gray,
   color_secondary,
-  color_secondary_dark,
-  color_text_primary,
   color_white,
   color_white_smoke,
 } from "../../../constants/colors";
 
-import {
-  ACCEPT_DOCS,
-  MAX_ADDITIONAL_DOCS,
-  MAX_ADDITIONAL_DOCS_TOTAL_MB,
-  MAX_COMBINED_UPLOAD_MB,
-} from "./constants";
+import { ACCEPT_DOCS } from "./constants";
 
 import { AdditionalDocItem } from "./types";
+import {
+  ADDITIONAL_DOCS_CATEGORY_LABEL,
+  ADDITIONAL_DOCS_CATEGORY_PLACEHOLDER,
+  ADDITIONAL_DOCS_FALLBACK_TITLE,
+  ADDITIONAL_DOCS_REMOVE_LABEL,
+  ADDITIONAL_DOCS_UPLOAD_LABEL,
+  getAdditionalDocsSummaryText,
+  getPhotoCombinedUploadText,
+} from "./messages";
+import {
+  ADD_INFO_CARD_DESCRIPTION_SX,
+  ADD_INFO_CARD_SX,
+  ADD_INFO_CARD_TITLE_SX,
+  ADD_INFO_CONSENT_TEXT_SX,
+  ADD_INFO_PRIMARY_ACTION_BUTTON_SX,
+} from "./styles";
 
 type DocumentTypeOpt = { value: string; label: string };
 
@@ -69,7 +78,7 @@ export default function AdditionalDocsCard({
   setArchiveConsent,
   config,
 }: Props) {
-  const title = String(config?.display_name || config?.name || "Additional Documents");
+  const title = String(config?.display_name || config?.name || ADDITIONAL_DOCS_FALLBACK_TITLE);
   const description = String(config?.description || "");
   const consentText = String(config?.consent || "").trim();
 
@@ -89,33 +98,30 @@ export default function AdditionalDocsCard({
   const hasPresetCategories = documentTypes.length > 0;
 
   return (
-    <Box
-      sx={{
-        border: `1px solid ${color_border}`,
-        background: color_white,
-        borderRadius: "12px",
-        p: 2,
-      }}
-    >
-      <Box sx={{ fontWeight: 900, fontSize: "1.1rem", color: color_text_primary, mb: 1 }}>
+    <Box sx={ADD_INFO_CARD_SX}>
+      <Box sx={ADD_INFO_CARD_TITLE_SX}>
         {title}
       </Box>
 
-      <Box sx={{ color: color_text_primary, opacity: 0.85, fontSize: "0.95rem", mb: 1.5 }}>
+      <Box sx={ADD_INFO_CARD_DESCRIPTION_SX}>
         {description}
         {(showDocsCount || showTotalUpload) && (
           <>
             <br />
             {showDocsCount && (
               <>
-                <b>Docs:</b> {additionalDocs.length}/{MAX_ADDITIONAL_DOCS} • {totalAdditionalDocsMB.toFixed(2)} MB /{" "}
-                {MAX_ADDITIONAL_DOCS_TOTAL_MB} MB
+                <b>Docs:</b>{" "}
+                {getAdditionalDocsSummaryText(additionalDocs.length, totalAdditionalDocsMB).replace("Docs: ", "")}
                 <br />
               </>
             )}
             {showTotalUpload && (
               <>
-                <b>Total upload (photos + docs):</b> {totalCombinedMB.toFixed(2)} MB / {MAX_COMBINED_UPLOAD_MB} MB
+                <b>Total upload (photos + docs):</b>{" "}
+                {getPhotoCombinedUploadText(totalCombinedMB).replace(
+                  "Total upload (photos + docs): ",
+                  ""
+                )}
               </>
             )}
           </>
@@ -125,17 +131,9 @@ export default function AdditionalDocsCard({
       <Button
         variant="contained"
         component="label"
-        sx={{
-          background: color_secondary,
-          fontWeight: 900,
-          textTransform: "none",
-          borderRadius: "10px",
-          px: 2,
-          py: 1.1,
-          "&:hover": { background: color_secondary_dark },
-        }}
+        sx={ADD_INFO_PRIMARY_ACTION_BUTTON_SX}
       >
-        Upload Documents
+        {ADDITIONAL_DOCS_UPLOAD_LABEL}
         <input type="file" hidden multiple accept={ACCEPT_DOCS} onChange={onUpload} />
       </Button>
 
@@ -171,9 +169,9 @@ export default function AdditionalDocsCard({
                   size="small"
                   sx={{ minWidth: 240, background: color_white_smoke, borderRadius: "10px" }}
                 >
-                  <InputLabel shrink>Document Category</InputLabel>
+                  <InputLabel shrink>{ADDITIONAL_DOCS_CATEGORY_LABEL}</InputLabel>
                   <Select
-                    label="Document Category"
+                    label={ADDITIONAL_DOCS_CATEGORY_LABEL}
                     value={d.document_category || ""}
                     onChange={(e) => onUpdateCategory(d.id, String(e.target.value))}
                     sx={{ fontWeight: 900 }}
@@ -188,10 +186,10 @@ export default function AdditionalDocsCard({
               ) : (
                 <TextField
                   size="small"
-                  label="Document Category"
+                  label={ADDITIONAL_DOCS_CATEGORY_LABEL}
                   value={d.document_category || ""}
                   onChange={(e) => onUpdateCategory(d.id, e.target.value)}
-                  placeholder="Type document category"
+                  placeholder={ADDITIONAL_DOCS_CATEGORY_PLACEHOLDER}
                   InputLabelProps={{ shrink: true }}
                   sx={{
                     minWidth: 240,
@@ -218,7 +216,7 @@ export default function AdditionalDocsCard({
                   color: color_secondary,
                 }}
               >
-                Remove
+                {ADDITIONAL_DOCS_REMOVE_LABEL}
               </Button>
             </Box>
           ))}
@@ -233,7 +231,7 @@ export default function AdditionalDocsCard({
             onChange={(e) => setArchiveConsent(e.target.checked)}
             style={{ transform: "scale(1.4)", marginTop: 4 }}
           />
-          <Box sx={{ color: color_text_primary, fontSize: "0.98rem", fontWeight: 800 }}>
+          <Box sx={ADD_INFO_CONSENT_TEXT_SX}>
             {consentText}
           </Box>
         </Box>

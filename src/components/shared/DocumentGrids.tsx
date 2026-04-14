@@ -15,6 +15,11 @@ import {
   color_success,
   color_primary,
 } from "../../constants/colors";
+import {
+  REVIEW_STATUS_VALUES,
+  getReviewStatusUppercaseLabel,
+  type ReviewStatusValue,
+} from "../../constants/statuses";
 
 import { DocumentGridProps, categoryLabel, formatBytes, normalizeStatus } from "./types";
 
@@ -59,11 +64,11 @@ export function DocumentGrid({
   showStatusChip = true,
   viewReviewerComment = false,
 }: DocumentGridProps) {
-  const labelOf = (st: "approved" | "rejected" | "pending") =>
-    statusLabel ? statusLabel(st) : st.toUpperCase();
+  const labelOf = (st: ReviewStatusValue) =>
+    statusLabel ? statusLabel(st) : getReviewStatusUppercaseLabel(st);
 
-  const defaultDocStatusChipSx = (st: "approved" | "rejected" | "pending") => {
-    if (st === "approved") {
+  const defaultDocStatusChipSx = (st: ReviewStatusValue) => {
+    if (st === REVIEW_STATUS_VALUES.APPROVED) {
       return {
         height: 30,
         fontSize: "0.85rem",
@@ -74,7 +79,7 @@ export function DocumentGrid({
         border: "1px solid rgba(39, 174, 96, 0.25)",
       };
     }
-    if (st === "rejected") {
+    if (st === REVIEW_STATUS_VALUES.REJECTED) {
       return {
         height: 30,
         fontSize: "0.85rem",
@@ -96,7 +101,7 @@ export function DocumentGrid({
     };
   };
 
-  const chipSx = (st: "approved" | "rejected" | "pending") =>
+  const chipSx = (st: ReviewStatusValue) =>
     statusChipSx ? statusChipSx(st) : defaultDocStatusChipSx(st);
 
   const defaultViewBtnSx = {

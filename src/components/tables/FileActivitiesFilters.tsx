@@ -47,6 +47,7 @@ import {
   color_white,
   color_white_smoke,
 } from "../../constants/colors";
+import { REVIEW_STATUS_FILTER_OPTIONS } from "../../constants/statuses";
 
 type Props = {
   clauses: Clause[];
@@ -142,11 +143,7 @@ export default function FileActivitiesFilters({
   }, [builderOp, selectedField]);
 
   const statusOptions: SelectOption[] = useMemo(
-    () => [
-      { value: "pending", label: "pending" },
-      { value: "approved", label: "approved" },
-      { value: "rejected", label: "rejected" },
-    ],
+    () => REVIEW_STATUS_FILTER_OPTIONS.map((option) => ({ ...option })),
     []
   );
 

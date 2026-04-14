@@ -3,8 +3,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ColDef } from "ag-grid-community";
 import useFetch from "../../hooks/useFetch";
+import { useViewerLoader } from "../../hooks/useViewerLoader";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import PauseIcon from "@mui/icons-material/Pause";
+import DocumentViewerModal, { type ViewerDoc } from "../../pages/viewers/DocumentViewer";
 
 import {
     color_secondary,
@@ -16,6 +18,27 @@ import {
 } from "../../constants/colors";
 
 import { headerDisplay } from "../../components/datatable/HelperComponents";
+import {
+    DESCRIBE_COLUMN_HEADER,
+    DESCRIBE_DEFAULT_PERSON_LABEL,
+    DESCRIBE_DIALOG_AUDIO_LOADING_LABEL,
+    DESCRIBE_DIALOG_AUDIO_TIP,
+    DESCRIBE_DIALOG_CLOSE_LABEL,
+    DESCRIBE_DIALOG_EMPTY_TEXT,
+    DESCRIBE_DIALOG_FALLBACK_TITLE,
+    DESCRIBE_DIALOG_GENERATE_FIRST_TITLE,
+    DESCRIBE_DIALOG_LOADING_TEXT,
+    DESCRIBE_DIALOG_PAUSE_LABEL,
+    DESCRIBE_DIALOG_PAUSE_TITLE,
+    DESCRIBE_DIALOG_PLAY_LABEL,
+    DESCRIBE_DIALOG_PLAY_TITLE,
+    DESCRIBE_DOCUMENTS_BUTTON_LABEL,
+    DESCRIBE_DOCUMENTS_LOADING_LABEL,
+    DESCRIBE_DOCUMENTS_SECTION_NOTE,
+    DESCRIBE_DOCUMENTS_SECTION_TEXT,
+    DESCRIBE_DOCUMENTS_SECTION_TITLE,
+    DESCRIBE_ERROR_TEXT,
+} from "./describeEntryMessages";
 
 function detectAudioMime(buf: ArrayBuffer): string {
     const u = new Uint8Array(buf);
@@ -35,7 +58,7 @@ function detectAudioMime(buf: ArrayBuffer): string {
 function TinySpinner() {
     return (
         <div
-            aria-label="Generating audio"
+            aria-label={DESCRIBE_DIALOG_AUDIO_LOADING_LABEL}
             style={{
                 width: 18,
                 height: 18,
@@ -68,7 +91,7 @@ const DescribeRenderer = React.memo((props: any) => {
                 props.context.describeRow?.(props.data);
             }}
         >
-            Describe
+            {DESCRIBE_COLUMN_HEADER}
         </button>
     );
 });
@@ -90,6 +113,9 @@ function DescribeDialog({
     onPlay,
     onStop,
     disableAudio,
+    onOpenDocuments,
+    documentsLoading,
+    disableDocuments,
 }: {
     open: boolean;
     title: string;
@@ -102,6 +128,9 @@ function DescribeDialog({
     onPlay: () => void;
     onStop: () => void;
     disableAudio: boolean;
+    onOpenDocuments: () => void;
+    documentsLoading: boolean;
+    disableDocuments: boolean;
 }) {
     if (!open) return null;
 
@@ -122,17 +151,22 @@ function DescribeDialog({
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 16,
+                    overflowY: "auto",
                 }}
             >
                 <div
                     onClick={(e) => e.stopPropagation()}
                     style={{
                         width: "min(760px, 100%)",
+                        maxHeight: "calc(100vh - 32px)",
                         background: color_white,
                         borderRadius: 14,
                         boxShadow: "0 12px 38px rgba(0,0,0,0.25)",
                         border: `1px solid ${color_border}`,
                         overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        margin: "auto",
                     }}
                 >
                     {/* Header */}
@@ -150,7 +184,7 @@ function DescribeDialog({
                     >
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                             <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.2 }}>
-                                {title || "Description"}
+                                {title || DESCRIBE_DIALOG_FALLBACK_TITLE}
                             </div>
                         </div>
 
@@ -175,8 +209,18 @@ function DescribeDialog({
                                     justifyContent: "center",
                                     opacity: disableAudio ? 0.6 : 1,
                                 }}
-                                aria-label={isPlaying ? "Pause audio" : "Play audio"}
-                                title={disableAudio ? "Generate text first" : isPlaying ? "Pause" : "Play"}
+                                aria-label={
+                                    isPlaying
+                                        ? DESCRIBE_DIALOG_PAUSE_LABEL
+                                        : DESCRIBE_DIALOG_PLAY_LABEL
+                                }
+                                title={
+                                    disableAudio
+                                        ? DESCRIBE_DIALOG_GENERATE_FIRST_TITLE
+                                        : isPlaying
+                                            ? DESCRIBE_DIALOG_PAUSE_TITLE
+                                            : DESCRIBE_DIALOG_PLAY_TITLE
+                                }
                             >
                                 {ttsLoading ? <TinySpinner /> : isPlaying ? <PauseIcon /> : <VolumeUpIcon />}
                             </button>
@@ -195,7 +239,7 @@ function DescribeDialog({
                                     fontWeight: 900,
                                     color: color_black,
                                 }}
-                                aria-label="Close"
+                                aria-label={DESCRIBE_DIALOG_CLOSE_LABEL}
                             >
                                 ✕
                             </button>
@@ -203,7 +247,14 @@ function DescribeDialog({
                     </div>
 
                     {/* Body */}
-                    <div style={{ padding: 16 }}>
+                    <div
+                        style={{
+                            padding: 16,
+                            overflowY: "auto",
+                            flex: 1,
+                            minHeight: 0,
+                        }}
+                    >
                         <div
                             style={{
                                 whiteSpace: "pre-wrap",
@@ -218,7 +269,9 @@ function DescribeDialog({
                                 minHeight: 140,
                             }}
                         >
-                            {loadingDescribe ? "Generating..." : (text || "No text")}
+                            {loadingDescribe
+                                ? DESCRIBE_DIALOG_LOADING_TEXT
+                                : (text || DESCRIBE_DIALOG_EMPTY_TEXT)}
                         </div>
 
                         <div
@@ -230,7 +283,76 @@ function DescribeDialog({
                                 fontWeight: 700,
                             }}
                         >
-                            Tip: Use the speaker button to listen to this narrative.
+                            {DESCRIBE_DIALOG_AUDIO_TIP}
+                        </div>
+
+                        <div
+                            style={{
+                                marginTop: 16,
+                                padding: 14,
+                                borderRadius: 12,
+                                border: `1px solid ${color_border}`,
+                                background: "#f7fafc",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 15,
+                                    fontWeight: 900,
+                                    color: color_black,
+                                }}
+                            >
+                                {DESCRIBE_DOCUMENTS_SECTION_TITLE}
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 14,
+                                    lineHeight: 1.55,
+                                    color: color_black_light,
+                                    fontWeight: 650,
+                                }}
+                            >
+                                {DESCRIBE_DOCUMENTS_SECTION_TEXT}
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    lineHeight: 1.45,
+                                    color: color_black_light,
+                                    opacity: 0.85,
+                                    fontWeight: 600,
+                                }}
+                            >
+                                {DESCRIBE_DOCUMENTS_SECTION_NOTE}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={onOpenDocuments}
+                                disabled={disableDocuments}
+                                style={{
+                                    padding: "8px 14px",
+                                    background: color_secondary,
+                                    color: color_white,
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    cursor: disableDocuments ? "not-allowed" : "pointer",
+                                    minWidth: 220,
+                                    fontSize: "14px",
+                                    fontWeight: 700,
+                                    opacity: disableDocuments ? 0.6 : 1,
+                                    alignSelf: "flex-start",
+                                }}
+                            >
+                                {documentsLoading
+                                    ? DESCRIBE_DOCUMENTS_LOADING_LABEL
+                                    : DESCRIBE_DOCUMENTS_BUTTON_LABEL}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -244,10 +366,21 @@ export function useDescribeEntry(apiBase: string) {
     const [open, setOpen] = useState(false);
     const [title, setTitle] = useState("");
     const [text, setText] = useState("");
+    const [activeRowId, setActiveRowId] = useState<number | null>(null);
     const [pendingRowId, setPendingRowId] = useState<number | null>(null);
+    const [pendingDocRowId, setPendingDocRowId] = useState<number | null>(null);
+    const [docs, setDocs] = useState<ViewerDoc[]>([]);
+    const [docModalOpen, setDocModalOpen] = useState(false);
 
     // describe endpoint
     const { data, fetchData, loading, error } = useFetch(`${apiBase}/chat/describe`, "GET", false);
+
+    const {
+        data: docsData,
+        fetchData: loadDocs,
+        loading: docsLoading,
+        error: docsError,
+    } = useFetch(`${apiBase}/file/docs`, "GET", false);
 
     // TTS endpoint (binary)
     const {
@@ -296,16 +429,21 @@ export function useDescribeEntry(apiBase: string) {
         setTtsUrl(null);
 
         setOpen(false);
+        setTitle("");
         setText("");
+        setActiveRowId(null);
         setPendingRowId(null);
+        setPendingDocRowId(null);
+        setDocs([]);
+        setDocModalOpen(false);
         ttsRequestedRef.current = false;
     }, [cleanupUrl, stopTTS]);
 
     const openDescribe = useCallback(
         async (row: any) => {
-            const rowId = row?.id;
+            const rowId = Number(row?.id);
             if (!rowId) return;
-            if (pendingRowId) return;
+            if (pendingRowId !== null) return;
 
             // reset per-open
             stopTTS();
@@ -322,24 +460,35 @@ export function useDescribeEntry(apiBase: string) {
                 row?.name ||
                 row?.["Full Name"] ||
                 row?.["First Names"] ||
-                "Individual";
+                DESCRIBE_DEFAULT_PERSON_LABEL;
 
             setTitle(String(name));
             setText("");
             setOpen(true);
-
+            setActiveRowId(rowId);
             setPendingRowId(rowId);
             await fetchData(undefined, undefined, false, { path: rowId });
         },
         [fetchData, pendingRowId, stopTTS, cleanupUrl]
     );
 
+    const openAssociatedDocuments = useCallback(async () => {
+        if (!activeRowId) return;
+        if (pendingDocRowId !== null) return;
+
+        setPendingDocRowId(activeRowId);
+        setDocs([]);
+        setDocModalOpen(false);
+
+        await loadDocs(undefined, undefined, false, { path: activeRowId });
+    }, [activeRowId, loadDocs, pendingDocRowId]);
+
     // apply describe results
     useEffect(() => {
         if (pendingRowId === null) return;
 
         if (error) {
-            setText("Something went wrong while generating the description.");
+            setText(DESCRIBE_ERROR_TEXT);
             setPendingRowId(null);
             return;
         }
@@ -349,6 +498,19 @@ export function useDescribeEntry(apiBase: string) {
             setPendingRowId(null);
         }
     }, [data, loading, error, pendingRowId]);
+
+    useViewerLoader<ViewerDoc>({
+        loading: docsLoading,
+        error: docsError,
+        data: docsData,
+        pendingRowId: pendingDocRowId,
+        setPendingRowId: setPendingDocRowId,
+        setItems: setDocs,
+        setModalOpen: setDocModalOpen,
+        pickList: (nextData: any) =>
+            Array.isArray(nextData) ? nextData : (nextData as any)?.docs ?? [],
+        onError: (nextError: any) => console.error("Failed to fetch documents:", nextError),
+    });
 
     // play cached URL (toggle)
     const playUrl = useCallback(
@@ -485,11 +647,12 @@ export function useDescribeEntry(apiBase: string) {
     }, []);
 
     const describeInFlight = pendingRowId !== null && loading;
+    const describeDocumentsInFlight = pendingDocRowId !== null && docsLoading;
 
     const describeColDef: ColDef = useMemo(
         () => ({
-            headerName: headerDisplay("Describe", 25),
-            headerTooltip: "Describe",
+            headerName: headerDisplay(DESCRIBE_COLUMN_HEADER, 25),
+            headerTooltip: DESCRIBE_COLUMN_HEADER,
             field: "__describe",
             pinned: "left",
             width: 140,
@@ -515,18 +678,34 @@ export function useDescribeEntry(apiBase: string) {
     );
 
     const describeModal = (
-        <DescribeDialog
-            open={open}
-            title={title}
-            text={text}
-            loadingDescribe={describeInFlight}
-            onClose={close}
-            ttsLoading={ttsReqLoading}
-            isPlaying={ttsPlaying}
-            onPlay={onPlay}
-            onStop={stopTTS}
-            disableAudio={!text || describeInFlight}
-        />
+        <>
+            <DescribeDialog
+                open={open && !docModalOpen}
+                title={title}
+                text={text}
+                loadingDescribe={describeInFlight}
+                onClose={close}
+                ttsLoading={ttsReqLoading}
+                isPlaying={ttsPlaying}
+                onPlay={onPlay}
+                onStop={stopTTS}
+                disableAudio={!text || describeInFlight}
+                onOpenDocuments={() => void openAssociatedDocuments()}
+                documentsLoading={describeDocumentsInFlight}
+                disableDocuments={!activeRowId || describeDocumentsInFlight}
+            />
+
+            <DocumentViewerModal
+                open={docModalOpen}
+                onClose={() => setDocModalOpen(false)}
+                docs={docs}
+                startIndex={0}
+                mode="view"
+                apiBase={apiBase}
+                blobEndpointPath="/file/doc"
+                only_approved={true}
+            />
+        </>
     );
 
     return {
@@ -534,5 +713,6 @@ export function useDescribeEntry(apiBase: string) {
         describeContext,
         describeModal,
         describeInFlight,
+        describeDocumentsInFlight,
     };
 }

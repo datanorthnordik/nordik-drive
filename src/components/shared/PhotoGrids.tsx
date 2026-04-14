@@ -25,6 +25,11 @@ import {
   color_success,
   color_primary,
 } from "../../constants/colors";
+import {
+  REVIEW_STATUS_VALUES,
+  getReviewStatusLabel,
+  type ReviewStatusValue,
+} from "../../constants/statuses";
 
 import { PhotoGridProps, normalizeStatus } from "./types";
 
@@ -67,19 +72,11 @@ export function PhotoGrid({
   disableReviewerCommentField = false,
   viewReviewerComment = false,
 }: PhotoGridProps) {
-  const labelOf = (st: "approved" | "rejected" | "pending") => {
-    return  statusLabel
-      ? statusLabel(st)
-      : st === "approved"
-        ? "Approved"
-        : st === "rejected"
-          ? "Rejected"
-          : "Pending";
-  }
-   
+  const labelOf = (st: ReviewStatusValue) =>
+    statusLabel ? statusLabel(st) : getReviewStatusLabel(st);
 
-  const defaultPhotoChipSx = (st: "approved" | "rejected" | "pending") => {
-    if (st === "approved") {
+  const defaultPhotoChipSx = (st: ReviewStatusValue) => {
+    if (st === REVIEW_STATUS_VALUES.APPROVED) {
       return {
         height: 26,
         fontSize: "0.78rem",
@@ -90,7 +87,7 @@ export function PhotoGrid({
         border: "1px solid rgba(39, 174, 96, 0.25)",
       };
     }
-    if (st === "rejected") {
+    if (st === REVIEW_STATUS_VALUES.REJECTED) {
       return {
         height: 26,
         fontSize: "0.78rem",
@@ -112,7 +109,7 @@ export function PhotoGrid({
     };
   };
 
-  const chipSx = (st: "approved" | "rejected" | "pending") =>
+  const chipSx = (st: ReviewStatusValue) =>
     statusChipSx ? statusChipSx(st) : defaultPhotoChipSx(st);
 
   const defaultApproveBtnSx = {

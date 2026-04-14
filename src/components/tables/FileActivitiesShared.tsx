@@ -3,6 +3,11 @@ import React from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import HourglassTopIcon from "@mui/icons-material/HourglassTop";
+import {
+  REVIEW_STATUS_VALUES,
+  getReviewStatusUppercaseLabel,
+  type ReviewDecisionStatus,
+} from "../../constants/statuses";
 
 export type Mode = "CHANGES";
 
@@ -42,7 +47,7 @@ export type Clause = {
 
 export type SelectOption = { value: string; label: string };
 
-export type PhotoStatus = "approved" | "rejected" | null;
+export type PhotoStatus = ReviewDecisionStatus | null;
 
 export type RequestPhoto = {
   id: number;
@@ -152,9 +157,9 @@ export function mergeSelectedIntoOptions(options: SelectOption[], selected: stri
 }
 
 export function photoStatusMeta(status?: PhotoStatus) {
-  if (status === "approved") {
+  if (status === REVIEW_STATUS_VALUES.APPROVED) {
     return {
-      label: "APPROVED",
+      label: getReviewStatusUppercaseLabel(REVIEW_STATUS_VALUES.APPROVED),
       helper: "This item is accepted",
       chipColor: "success" as const,
       icon: <CheckCircleIcon sx={{ fontSize: 18 }} />,
@@ -164,9 +169,9 @@ export function photoStatusMeta(status?: PhotoStatus) {
       tint: "linear-gradient(180deg, rgba(22,163,74,0.08), rgba(22,163,74,0.18))",
     };
   }
-  if (status === "rejected") {
+  if (status === REVIEW_STATUS_VALUES.REJECTED) {
     return {
-      label: "REJECTED",
+      label: getReviewStatusUppercaseLabel(REVIEW_STATUS_VALUES.REJECTED),
       helper: "This item is not accepted",
       chipColor: "error" as const,
       icon: <CancelIcon sx={{ fontSize: 18 }} />,
@@ -177,7 +182,7 @@ export function photoStatusMeta(status?: PhotoStatus) {
     };
   }
   return {
-    label: "PENDING",
+    label: getReviewStatusUppercaseLabel(REVIEW_STATUS_VALUES.PENDING),
     helper: "Waiting for review",
     chipColor: "warning" as const,
     icon: <HourglassTopIcon sx={{ fontSize: 18 }} />,

@@ -15,7 +15,6 @@ import {
   TextField,
   Typography,
   Box,
-  CircularProgress,
   Divider,
   TableContainer,
   Paper,
@@ -27,6 +26,21 @@ import useFetch from "../../hooks/useFetch";
 import toast from "react-hot-toast";
 import { API_ORIGIN } from "../../config/api";
 import { getDocumentCategoryLabel } from "../../domain/documents/categories";
+import {
+  getReviewEditRequestTitle,
+  REQUEST_DETAILS_NO_DOCUMENTS_TEXT,
+  REQUEST_DETAILS_NO_PHOTOS_TEXT,
+  REQUEST_DETAILS_REVIEW_COMMENT_HELPER,
+  REQUEST_DETAILS_REVIEW_COMMENT_LABEL,
+  REQUEST_DETAILS_REVIEW_SUBTITLE,
+  REQUEST_DETAILS_UPLOADED_DOCUMENTS_TITLE,
+  REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE,
+} from "./messages";
+import {
+  REQUEST_DETAILS_SECTION_TITLE_SX,
+  REQUEST_DETAILS_SUBTITLE_SX,
+  REQUEST_DETAILS_TITLE_SX,
+} from "./styles";
 
 // @ts-ignore
 import "react-image-gallery/styles/css/image-gallery.css";
@@ -42,10 +56,13 @@ import {
   color_text_primary,
   color_text_secondary,
   color_text_light,
-  color_success,
-  color_error,
   color_warning,
 } from "../../constants/colors";
+import {
+  REVIEW_STATUS_VALUES,
+  isReviewDecisionStatus,
+  type ReviewDecisionStatus,
+} from "../../constants/statuses";
 import PhotoViewerModal from "../viewers/PhotoViewer";
 import DocumentViewerModal from "../viewers/DocumentViewer";
 import { PhotoGrid } from "../../components/shared/PhotoGrids";
@@ -58,7 +75,7 @@ interface ApproveRequestModalProps {
   onApproved?: () => void;
 }
 
-type ReviewStatus = "approved" | "rejected" | null;
+type ReviewStatus = ReviewDecisionStatus | null;
 
 interface RequestPhoto {
   id: number;
@@ -85,7 +102,7 @@ interface RequestDoc {
 
 type PhotoReviewInput = {
   photo_id: number;
-  status: "approved" | "rejected";
+  status: ReviewDecisionStatus;
   reviewer_comment: string;
 };
 
@@ -107,8 +124,7 @@ const categoryLabel = (cat?: string) => {
 
 const normalizeInitialReviewStatus = (value: any): ReviewStatus => {
   const v = String(value || "").trim().toLowerCase();
-  if (v === "approved") return "approved";
-  if (v === "rejected") return "rejected";
+  if (isReviewDecisionStatus(v)) return v;
   return null;
 };
 
@@ -173,7 +189,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
   // request-level review
   const [requestReviewComment, setRequestReviewComment] = useState("");
-  const [pendingRequestAction, setPendingRequestAction] = useState<"approved" | "rejected" | null>(null);
+  const [pendingRequestAction, setPendingRequestAction] = useState<ReviewDecisionStatus | null>(
+    null
+  );
 
   // Photo viewer
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -235,25 +253,41 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
   const handleApprovePhotoById = (id: number) => {
     setPhotos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "approved" } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: REVIEW_STATUS_VALUES.APPROVED }
+          : p
+      )
     );
   };
 
   const handleRejectPhotoById = (id: number) => {
     setPhotos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "rejected" } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: REVIEW_STATUS_VALUES.REJECTED }
+          : p
+      )
     );
   };
 
   const handleApproveDocById = (id: number) => {
     setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d))
+      prev.map((d) =>
+        d.id === id
+          ? { ...d, status: REVIEW_STATUS_VALUES.APPROVED }
+          : d
+      )
     );
   };
 
   const handleRejectDocById = (id: number) => {
     setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d))
+      prev.map((d) =>
+        d.id === id
+          ? { ...d, status: REVIEW_STATUS_VALUES.REJECTED }
+          : d
+      )
     );
   };
 
@@ -325,7 +359,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
     handledApproveRef.current = true;
     toast.success(
-      pendingRequestAction === "rejected"
+      pendingRequestAction === REVIEW_STATUS_VALUES.REJECTED
         ? "Request rejected successfully."
         : "Request approved successfully."
     );
@@ -452,7 +486,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   // ---------------------------------------
   // Request review submission
   // ---------------------------------------
-  const validateBeforeSubmit = (requestStatus: "approved" | "rejected") => {
+  const validateBeforeSubmit = (requestStatus: ReviewDecisionStatus) => {
     const hasPendingPhoto = photos.some((p) => p.status === null);
     const hasPendingDoc = docs.some((d) => d.status === null);
 
@@ -462,7 +496,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     }
 
     const rejectedPhotoWithoutComment = photos.find(
-      (p) => p.status === "rejected" && !String(p.reviewer_comment || "").trim()
+      (p) =>
+        p.status === REVIEW_STATUS_VALUES.REJECTED &&
+        !String(p.reviewer_comment || "").trim()
     );
     if (rejectedPhotoWithoutComment) {
       toast.error("Review comment is required for rejected photos.");
@@ -470,14 +506,19 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     }
 
     const rejectedDocWithoutComment = docs.find(
-      (d) => d.status === "rejected" && !String(d.reviewer_comment || "").trim()
+      (d) =>
+        d.status === REVIEW_STATUS_VALUES.REJECTED &&
+        !String(d.reviewer_comment || "").trim()
     );
     if (rejectedDocWithoutComment) {
       toast.error("Review comment is required for rejected documents.");
       return false;
     }
 
-    if (requestStatus === "rejected" && !requestReviewComment.trim()) {
+    if (
+      requestStatus === REVIEW_STATUS_VALUES.REJECTED &&
+      !requestReviewComment.trim()
+    ) {
       toast.error("Review comment is required when rejecting the request.");
       return false;
     }
@@ -485,7 +526,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     return true;
   };
 
-  const handleSubmitRequestReview = async (requestStatus: "approved" | "rejected") => {
+  const handleSubmitRequestReview = async (requestStatus: ReviewDecisionStatus) => {
     if (submitLockRef.current) return;
     submitLockRef.current = true;
 
@@ -493,10 +534,14 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
       if (!validateBeforeSubmit(requestStatus)) return;
 
       const reviews: PhotoReviewInput[] = [...photos, ...docs]
-        .filter((x: any) => x.status === "approved" || x.status === "rejected")
+        .filter(
+          (x: any) =>
+            x.status === REVIEW_STATUS_VALUES.APPROVED ||
+            x.status === REVIEW_STATUS_VALUES.REJECTED
+        )
         .map((x: any) => ({
           photo_id: x.id,
-          status: x.status as "approved" | "rejected",
+          status: x.status as ReviewDecisionStatus,
           reviewer_comment: String(x.reviewer_comment || "").trim(),
         }));
 
@@ -616,11 +661,11 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         }}
       >
         <DialogTitle sx={{ p: 2 }}>
-          <Typography sx={{ fontWeight: 900, color: color_text_primary, fontSize: "1.05rem" }}>
-            Review Edit Request #{request.request_id}
+          <Typography sx={REQUEST_DETAILS_TITLE_SX}>
+            {getReviewEditRequestTitle(request.request_id)}
           </Typography>
-          <Typography sx={{ mt: 0.5, color: color_text_light, fontSize: "0.8rem", fontWeight: 700 }}>
-            Review the changes and uploaded files before approving or rejecting.
+          <Typography sx={REQUEST_DETAILS_SUBTITLE_SX}>
+            {REQUEST_DETAILS_REVIEW_SUBTITLE}
           </Typography>
         </DialogTitle>
 
@@ -753,9 +798,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
           {/* PHOTOS SECTION */}
           <PhotoGrid
-            title="Uploaded Photos"
+            title={REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE}
             loading={false}
-            emptyText="No photos submitted."
+            emptyText={REQUEST_DETAILS_NO_PHOTOS_TEXT}
             photos={photoGridItems}
             getPhotoUrl={(id) => getBinaryUrl(id)}
             onOpenViewer={(idx) => handleOpenViewer(idx)}
@@ -774,15 +819,15 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             approveBtnSx={approveBtnSx}
             rejectBtnSx={rejectBtnSx}
             showReviewerCommentField={true}
-            reviewerCommentLabel="Review Comment"
+            reviewerCommentLabel={REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
             onReviewerCommentChange={(id, value) => setPhotoReviewCommentById(Number(id), value)}
           />
 
           {/* DOCUMENTS SECTION */}
           <DocumentGrid
-            title="Uploaded Documents"
+            title={REQUEST_DETAILS_UPLOADED_DOCUMENTS_TITLE}
             loading={false}
-            emptyText="No documents submitted."
+            emptyText={REQUEST_DETAILS_NO_DOCUMENTS_TEXT}
             documents={docGridItems}
             onOpenViewer={(idx) => handleOpenDocViewer(idx)}
             showCategoryChip={true}
@@ -796,7 +841,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             approveBtnSx={approveBtnSx}
             rejectBtnSx={rejectBtnSx}
             showReviewerCommentField={true}
-            reviewerCommentLabel="Review Comment"
+            reviewerCommentLabel={REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
             onReviewerCommentChange={(id, value) => setDocReviewCommentById(Number(id), value)}
             cardBorderColor={color_secondary}
             containerSx={{
@@ -817,21 +862,14 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
               mt: 2,
             }}
           >
-            <Typography
-              sx={{
-                fontWeight: 900,
-                color: color_text_primary,
-                fontSize: "0.95rem",
-                mb: 1,
-              }}
-            >
-              Review Comment
+            <Typography sx={REQUEST_DETAILS_SECTION_TITLE_SX}>
+              {REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
             </Typography>
 
             <TextField
               fullWidth
               size="small"
-              label="Review Comment"
+              label={REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
               value={requestReviewComment}
               onChange={(e) => setRequestReviewComment(e.target.value)}
               multiline
@@ -846,7 +884,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                   "&.Mui-focused fieldset": { borderColor: color_secondary },
                 },
               }}
-              helperText="Required when the request is rejected."
+              helperText={REQUEST_DETAILS_REVIEW_COMMENT_HELPER}
             />
           </Box>
         </DialogContent>
@@ -867,7 +905,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           <Button
             data-testid="reject-request-btn"
             variant="contained"
-            onClick={() => void handleSubmitRequestReview("rejected")}
+            onClick={() =>
+              void handleSubmitRequestReview(REVIEW_STATUS_VALUES.REJECTED)
+            }
             disabled={requestLoading || mediaReviewLoading}
             sx={rejectBtnSx}
           >
@@ -877,7 +917,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           <Button
             data-testid="approve-all-btn"
             variant="contained"
-            onClick={() => void handleSubmitRequestReview("approved")}
+            onClick={() =>
+              void handleSubmitRequestReview(REVIEW_STATUS_VALUES.APPROVED)
+            }
             disabled={requestLoading || mediaReviewLoading}
             sx={approveBtnSx}
           >

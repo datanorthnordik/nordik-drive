@@ -26,6 +26,14 @@ import {
   color_white,
   color_warning,
 } from "../../constants/colors";
+import {
+  APPROVED_REJECTED_STATUS_CSV,
+  PENDING_REVIEW_STATUS_LABEL,
+  PENDING_STATUS_CSV,
+  REVIEW_STATUS_VALUES,
+  UNKNOWN_STATUS_LABEL,
+  getReviewStatusLabel,
+} from "../../constants/statuses";
 import { API_ORIGIN } from "../../config/api";
 
 import useFetch from "../../hooks/useFetch";
@@ -33,7 +41,9 @@ import Loader from "../../components/Loader";
 import MyRequestDetailsModal from "./MyRequestDetailsModal";
 import { useSelector } from "react-redux";
 
-type TabKey = "pending" | "approved";
+type TabKey =
+  | typeof REVIEW_STATUS_VALUES.PENDING
+  | typeof REVIEW_STATUS_VALUES.APPROVED;
 
 const API_BASE = API_ORIGIN;
 
@@ -48,9 +58,9 @@ const formatWhen = (iso?: string) => {
 const statusChipSx = (status?: string) => {
   const s = String(status || "").toLowerCase();
 
-  if (s.includes("approved")) {
+  if (s.includes(REVIEW_STATUS_VALUES.APPROVED)) {
     return {
-      label: "Approved",
+      label: getReviewStatusLabel(REVIEW_STATUS_VALUES.APPROVED),
       sx: {
         backgroundColor: "rgba(39, 174, 96, 0.12)",
         border: "1px solid rgba(39, 174, 96, 0.25)",
@@ -58,9 +68,9 @@ const statusChipSx = (status?: string) => {
       },
     };
   }
-  if (s.includes("pending")) {
+  if (s.includes(REVIEW_STATUS_VALUES.PENDING)) {
     return {
-      label: "Pending review",
+      label: PENDING_REVIEW_STATUS_LABEL,
       sx: {
         backgroundColor: "rgba(243, 156, 18, 0.14)",
         border: "1px solid rgba(243, 156, 18, 0.25)",
@@ -68,9 +78,9 @@ const statusChipSx = (status?: string) => {
       },
     };
   }
-  if (s.includes("reject")) {
+  if (s.includes(REVIEW_STATUS_VALUES.REJECTED)) {
     return {
-      label: "Rejected",
+      label: getReviewStatusLabel(REVIEW_STATUS_VALUES.REJECTED),
       sx: {
         backgroundColor: "rgba(107, 114, 128, 0.12)",
         border: "1px solid rgba(107, 114, 128, 0.25)",
@@ -79,7 +89,7 @@ const statusChipSx = (status?: string) => {
     };
   }
   return {
-    label: "Unknown",
+    label: UNKNOWN_STATUS_LABEL,
     sx: {
       backgroundColor: "rgba(107, 114, 128, 0.12)",
       border: "1px solid rgba(107, 114, 128, 0.25)",
@@ -96,19 +106,19 @@ const buildRequestsUrl = (statusCsv: string, id?: string) => {
 };
 
 const MyRequests: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>("pending");
+  const [tab, setTab] = useState<TabKey>(REVIEW_STATUS_VALUES.PENDING);
   const [searchText, setSearchText] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
   const user = useSelector((state: any) => state.auth.user);
 
   const pendingUrl = useMemo(
-    () => buildRequestsUrl("pending", user?.id || undefined),
+    () => buildRequestsUrl(PENDING_STATUS_CSV, user?.id || undefined),
     [user?.id]
   );
 
   const approvedRejectedUrl = useMemo(
-    () => buildRequestsUrl("approved,rejected", user?.id || undefined),
+    () => buildRequestsUrl(APPROVED_REJECTED_STATUS_CSV, user?.id || undefined),
     [user?.id]
   );
 
@@ -139,7 +149,8 @@ const MyRequests: React.FC = () => {
 
   const pending: any[] = (pendingData as any)?.requests || [];
   const approvedRejected: any[] = (approvedRejectedData as any)?.requests || [];
-  const activeList = tab === "pending" ? pending : approvedRejected;
+  const activeList =
+    tab === REVIEW_STATUS_VALUES.PENDING ? pending : approvedRejected;
 
   const filtered = useMemo(() => {
     const s = searchText.toLowerCase().trim();
@@ -260,7 +271,10 @@ const MyRequests: React.FC = () => {
               },
               "& .Mui-selected": {
                 color: color_white,
-                backgroundColor: tab === "pending" ? color_warning : color_secondary,
+                backgroundColor:
+                  tab === REVIEW_STATUS_VALUES.PENDING
+                    ? color_warning
+                    : color_secondary,
                 border: "none",
               },
               "& .MuiTabs-indicator": { display: "none" },
@@ -268,12 +282,12 @@ const MyRequests: React.FC = () => {
           >
             <Tab
               data-testid="tab-pending"
-              value="pending"
+              value={REVIEW_STATUS_VALUES.PENDING}
               label={`Pending (${pending.length})`}
             />
             <Tab
               data-testid="tab-approved"
-              value="approved"
+              value={REVIEW_STATUS_VALUES.APPROVED}
               label={`Approved/Rejected (${approvedRejected.length})`}
             />
           </Tabs>
@@ -301,7 +315,9 @@ const MyRequests: React.FC = () => {
               }}
             >
               <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
-                {tab === "pending" ? "No pending requests." : "No approved/rejected requests."}
+                {tab === REVIEW_STATUS_VALUES.PENDING
+                  ? "No pending requests."
+                  : "No approved/rejected requests."}
               </Typography>
               <Typography
                 sx={{

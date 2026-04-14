@@ -28,12 +28,35 @@ import {
   color_background,
   color_blue_lightest,
   color_blue_light,
-  color_black_light,
   color_focus_ring,
   shadow_auth_button,
 } from "../../../constants/colors";
 import { ReviewItem, AdditionalDocItem } from "./types";
 import { DOCUMENT_CATEGORY_OPTIONS } from "./constants";
+import {
+  getReviewDialogArchiveConsentLabel,
+  getReviewDialogDocsChipLabel,
+  getReviewDialogPhotoConsentLabel,
+  getReviewDialogPhotosChipLabel,
+  REVIEW_DIALOG_ATTACHMENTS_SUBTITLE,
+  REVIEW_DIALOG_ATTACHMENTS_TITLE,
+  REVIEW_DIALOG_BACK_LABEL,
+  REVIEW_DIALOG_CHANGES_SUBTITLE,
+  REVIEW_DIALOG_CHANGES_TITLE,
+  REVIEW_DIALOG_CLOSE_LABEL,
+  REVIEW_DIALOG_CONSENT_SUBTITLE,
+  REVIEW_DIALOG_CONSENT_TITLE,
+  REVIEW_DIALOG_EMPTY_CHANGES_TEXT,
+  REVIEW_DIALOG_NEW_VALUE_LABEL,
+  REVIEW_DIALOG_OLD_VALUE_LABEL,
+  REVIEW_DIALOG_SUBTITLE,
+  REVIEW_DIALOG_TOTAL_UPLOAD_LABEL,
+} from "./messages";
+import {
+  ADD_INFO_REVIEW_DIALOG_TITLE_SX,
+  ADD_INFO_REVIEW_SECTION_SUBTITLE_SX,
+  ADD_INFO_REVIEW_SECTION_TITLE_SX,
+} from "./styles";
 
 type Props = {
   open: boolean;
@@ -82,24 +105,13 @@ export default function ReviewDialog({
   }) => (
     <Box sx={{ mb: 1 }}>
       <Typography
-        sx={{
-          fontWeight: 900,
-          fontSize: 13,
-          color: color_text_primary,
-          lineHeight: 1.2,
-        }}
+        sx={ADD_INFO_REVIEW_SECTION_TITLE_SX}
       >
         {title}
       </Typography>
       {subtitle && (
         <Typography
-          sx={{
-            mt: 0.35,
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: color_text_light,
-            lineHeight: 1.35,
-          }}
+          sx={ADD_INFO_REVIEW_SECTION_SUBTITLE_SX}
         >
           {subtitle}
         </Typography>
@@ -171,12 +183,7 @@ export default function ReviewDialog({
 
             <Box sx={{ minWidth: 0 }}>
               <Typography
-                sx={{
-                  fontWeight: 900,
-                  fontSize: 16,
-                  color: color_black_light,
-                  lineHeight: 1.2,
-                }}
+                sx={ADD_INFO_REVIEW_DIALOG_TITLE_SX}
               >
                 {title}
               </Typography>
@@ -189,7 +196,7 @@ export default function ReviewDialog({
                   lineHeight: 1.35,
                 }}
               >
-                Please review all updates carefully before submitting.
+                {REVIEW_DIALOG_SUBTITLE}
               </Typography>
             </Box>
           </Box>
@@ -216,7 +223,7 @@ export default function ReviewDialog({
               },
             }}
           >
-            Close
+            {REVIEW_DIALOG_CLOSE_LABEL}
           </Button>
         </Box>
       </DialogTitle>
@@ -231,8 +238,8 @@ export default function ReviewDialog({
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Panel>
             <SectionTitle
-              title="Review changes"
-              subtitle="Compare the previous value with the new value for each updated field."
+              title={REVIEW_DIALOG_CHANGES_TITLE}
+              subtitle={REVIEW_DIALOG_CHANGES_SUBTITLE}
             />
 
             {items.length === 0 ? (
@@ -251,7 +258,7 @@ export default function ReviewDialog({
                     color: color_text_secondary,
                   }}
                 >
-                  No field changes to review.
+                  {REVIEW_DIALOG_EMPTY_CHANGES_TEXT}
                 </Typography>
               </Box>
             ) : (
@@ -300,7 +307,7 @@ export default function ReviewDialog({
                             mb: 0.4,
                           }}
                         >
-                          Old
+                          {REVIEW_DIALOG_OLD_VALUE_LABEL}
                         </Typography>
                         <Typography
                           sx={{
@@ -331,7 +338,7 @@ export default function ReviewDialog({
                             mb: 0.4,
                           }}
                         >
-                          New
+                          {REVIEW_DIALOG_NEW_VALUE_LABEL}
                         </Typography>
                         <Typography
                           sx={{
@@ -355,14 +362,14 @@ export default function ReviewDialog({
           {hasMedia && (
             <Panel>
               <SectionTitle
-                title="Attachments"
-                subtitle="These files will be included with your submission."
+                title={REVIEW_DIALOG_ATTACHMENTS_TITLE}
+                subtitle={REVIEW_DIALOG_ATTACHMENTS_SUBTITLE}
               />
 
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: docs.length > 0 ? 1.25 : 0 }}>
                 {photosCount > 0 && (
                   <Chip
-                    label={`Photos: ${photosCount} selected`}
+                    label={getReviewDialogPhotosChipLabel(photosCount)}
                     size="small"
                     sx={{
                       fontWeight: 900,
@@ -376,7 +383,7 @@ export default function ReviewDialog({
 
                 {docs.length > 0 && (
                   <Chip
-                    label={`Additional Documents: ${docs.length} selected`}
+                    label={getReviewDialogDocsChipLabel(docs.length)}
                     size="small"
                     sx={{
                       fontWeight: 900,
@@ -437,13 +444,13 @@ export default function ReviewDialog({
 
           <Panel>
             <SectionTitle
-              title="Consent & upload summary"
-              subtitle="Final confirmation details before submission."
+              title={REVIEW_DIALOG_CONSENT_TITLE}
+              subtitle={REVIEW_DIALOG_CONSENT_SUBTITLE}
             />
 
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               <Chip
-                label={`Photo consent: ${consent ? "Yes" : "No"}`}
+                label={getReviewDialogPhotoConsentLabel(consent)}
                 size="small"
                 sx={{
                   fontWeight: 900,
@@ -455,7 +462,7 @@ export default function ReviewDialog({
               />
 
               <Chip
-                label={`Archive consent: ${archiveConsent ? "Yes" : "No"}`}
+                label={getReviewDialogArchiveConsentLabel(archiveConsent)}
                 size="small"
                 sx={{
                   fontWeight: 900,
@@ -489,7 +496,7 @@ export default function ReviewDialog({
                   color: color_text_secondary,
                 }}
               >
-                Total upload
+                {REVIEW_DIALOG_TOTAL_UPLOAD_LABEL}
               </Typography>
 
               <Typography
@@ -534,7 +541,7 @@ export default function ReviewDialog({
             },
           }}
         >
-          Back
+          {REVIEW_DIALOG_BACK_LABEL}
         </Button>
 
         <Button

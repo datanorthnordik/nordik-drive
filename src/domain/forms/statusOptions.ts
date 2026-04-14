@@ -1,3 +1,8 @@
+import {
+  FORM_SUBMISSION_STATUS_LABELS,
+  FORM_SUBMISSION_STATUS_VALUES,
+} from "../../constants/statuses";
+
 type FormSubmissionStatusOption = {
   value: string;
   label: string;
@@ -6,23 +11,26 @@ type FormSubmissionStatusOption = {
 
 export const FORM_SUBMISSION_STATUS_OPTIONS: FormSubmissionStatusOption[] = [
   {
-    value: "pending",
-    label: "Pending",
+    value: FORM_SUBMISSION_STATUS_VALUES.PENDING,
+    label: FORM_SUBMISSION_STATUS_LABELS[FORM_SUBMISSION_STATUS_VALUES.PENDING],
     reviewed_needed: true,
   },
   {
-    value: "approved",
-    label: "Approved",
+    value: FORM_SUBMISSION_STATUS_VALUES.APPROVED,
+    label: FORM_SUBMISSION_STATUS_LABELS[FORM_SUBMISSION_STATUS_VALUES.APPROVED],
     reviewed_needed: false,
   },
   {
-    value: "rejected",
-    label: "Rejected",
+    value: FORM_SUBMISSION_STATUS_VALUES.REJECTED,
+    label: FORM_SUBMISSION_STATUS_LABELS[FORM_SUBMISSION_STATUS_VALUES.REJECTED],
     reviewed_needed: false,
   },
   {
-    value: "needs more information",
-    label: "Needs More Information",
+    value: FORM_SUBMISSION_STATUS_VALUES.NEEDS_MORE_INFORMATION,
+    label:
+      FORM_SUBMISSION_STATUS_LABELS[
+        FORM_SUBMISSION_STATUS_VALUES.NEEDS_MORE_INFORMATION
+      ],
     reviewed_needed: true,
   },
 ];

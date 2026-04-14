@@ -30,13 +30,27 @@ jest.mock("@mui/icons-material/Pause", () => ({
   default: () => <span data-testid="pause-icon">pause</span>,
 }));
 
+jest.mock("../../pages/viewers/DocumentViewer", () => ({
+  __esModule: true,
+  default: (props: any) =>
+    props.open ? (
+      <div data-testid="describe-document-viewer">
+        <div data-testid="describe-document-count">
+          {String(props.docs?.length ?? 0)}
+        </div>
+      </div>
+    ) : null,
+}));
+
 type FetchState = { loading: boolean; error: any; data: any };
 
 let mockDescribeState: FetchState;
 let mockTtsState: FetchState;
+let mockDocsState: FetchState;
 
 const mockDescribeFetchData = jest.fn();
 const mockTtsFetchData = jest.fn();
+const mockDocsFetchData = jest.fn();
 
 jest.mock("../../hooks/useFetch", () => ({
   __esModule: true,
@@ -47,6 +61,14 @@ jest.mock("../../hooks/useFetch", () => ({
         error: mockTtsState.error,
         data: mockTtsState.data,
         fetchData: mockTtsFetchData,
+      };
+    }
+    if (typeof url === "string" && url.includes("/file/docs")) {
+      return {
+        loading: mockDocsState.loading,
+        error: mockDocsState.error,
+        data: mockDocsState.data,
+        fetchData: mockDocsFetchData,
       };
     }
     return {
@@ -64,6 +86,10 @@ function setDescribe(next: Partial<FetchState>) {
 
 function setTTS(next: Partial<FetchState>) {
   mockTtsState = { ...mockTtsState, ...next };
+}
+
+function setDocs(next: Partial<FetchState>) {
+  mockDocsState = { ...mockDocsState, ...next };
 }
 
 /** TS-safe mocks */
@@ -230,6 +256,7 @@ describe("useDescribeEntry", () => {
     cleanup();
     mockDescribeState = { loading: false, error: undefined, data: undefined };
     mockTtsState = { loading: false, error: undefined, data: undefined };
+    mockDocsState = { loading: false, error: undefined, data: undefined };
     mockAudioInstances.length = 0;
   });
 
@@ -302,6 +329,47 @@ describe("useDescribeEntry", () => {
 
     expect(screen.getByText("No text")).toBeInTheDocument();
     expect(audioBtn()).toBeDisabled();
+  });
+
+  test("shows the associated documents action and opens the document viewer with linked files", async () => {
+    const { rerender } = render(<Harness />);
+    await openAndResolveDescribe(rerender);
+
+    expect(screen.getByText("Associated documents")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "If you would like to review records connected with this individual, you can open the associated documents here."
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "View Associated Documents" })
+    );
+
+    expect(mockDocsFetchData).toHaveBeenCalledWith(undefined, undefined, false, {
+      path: 1,
+    });
+
+    setDocs({
+      loading: false,
+      error: undefined,
+      data: {
+        docs: [{ id: 11, file_name: "boarding.pdf" }],
+      },
+    });
+    rerender(<Harness />);
+    await flush();
+
+    expect(screen.getByTestId("describe-document-viewer")).toBeInTheDocument();
+    expect(screen.getByTestId("describe-document-count")).toHaveTextContent("1");
+    expect(screen.queryByText("Associated documents")).not.toBeInTheDocument();
+  });
+
+  test("describe dialog overlay supports scrolling", async () => {
+    const { rerender } = render(<Harness />);
+    await openAndResolveDescribe(rerender);
+
+    expect(overlayEl()).toHaveStyle({ overflowY: "auto" });
   });
 
   test("onPlay requests TTS once with FormData; requestedRef guards double click", async () => {

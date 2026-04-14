@@ -18,6 +18,10 @@ import {
   color_text_secondary,
   color_background,
 } from "../../constants/colors";
+import {
+  FORM_SUBMISSION_STATUS_VALUES,
+  REVIEW_STATUS_VALUES,
+} from "../../constants/statuses";
 
 import { FORM_SUBMISSION_STATUS_OPTIONS } from "../../domain/forms/statusOptions";
 
@@ -281,9 +285,9 @@ export default function FormSubmissionRequests() {
             review={true}
             reviewPath="/form/answers/review"
             reviewStatuses={{
-              approved: "approved",
-              rejected: "rejected",
-              moreInfo: "needs more information",
+              approved: REVIEW_STATUS_VALUES.APPROVED,
+              rejected: REVIEW_STATUS_VALUES.REJECTED,
+              moreInfo: FORM_SUBMISSION_STATUS_VALUES.NEEDS_MORE_INFORMATION,
             }}
           />
         )}

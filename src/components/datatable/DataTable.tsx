@@ -305,6 +305,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
     describeContext,
     describeModal,
     describeInFlight,
+    describeDocumentsInFlight,
   } = useDescribeEntry(API_BASE);
 
   /* -------- Helpers for opening viewers -------- */
@@ -910,13 +911,16 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const viewerLoading =
     (pendingPhotoRowId !== null && photosLoading) ||
     (pendingDocRowId !== null && docsLoading) ||
-    describeInFlight;
+    describeInFlight ||
+    describeDocumentsInFlight;
 
   const viewerLoadingText =
     pendingPhotoRowId !== null
       ? "Loading photos..."
       : pendingDocRowId !== null
         ? "Loading documents..."
+        : describeDocumentsInFlight
+          ? "Loading documents..."
         : describeInFlight
           ? "Generating description..."
           : "Loading...";

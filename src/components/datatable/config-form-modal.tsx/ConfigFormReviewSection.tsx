@@ -2,6 +2,10 @@
 
 import React, { useMemo } from "react";
 import { Box, Button, TextField, Typography } from "@mui/material";
+import {
+  REVIEW_STATUS_VALUES,
+  type ReviewDecisionStatus,
+} from "../../../constants/statuses";
 
 import {
   color_border,
@@ -14,7 +18,7 @@ import {
   color_white_smoke,
 } from "../../../constants/colors";
 
-export type ReviewUiAction = "" | "approved" | "rejected" | "moreInfo";
+export type ReviewUiAction = "" | ReviewDecisionStatus | "moreInfo";
 
 export type UploadReviewDraft = {
   uploadId: number;
@@ -70,7 +74,8 @@ function UploadCard({
   item: UploadReviewDraft;
   onChange: (uploadId: number, patch: Partial<UploadReviewDraft>) => void;
 }) {
-  const showRejectionReason = item.reviewStatus === "rejected";
+  const showRejectionReason =
+    item.reviewStatus === REVIEW_STATUS_VALUES.REJECTED;
 
   return (
     <Box
@@ -104,15 +109,30 @@ function UploadCard({
 
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
           <Button
-            onClick={() => onChange(item.uploadId, { reviewStatus: "approved", rejectionReason: "" })}
-            sx={actionBtnSx(item.reviewStatus === "approved", "approve")}
+            onClick={() =>
+              onChange(item.uploadId, {
+                reviewStatus: REVIEW_STATUS_VALUES.APPROVED,
+                rejectionReason: "",
+              })
+            }
+            sx={actionBtnSx(
+              item.reviewStatus === REVIEW_STATUS_VALUES.APPROVED,
+              "approve"
+            )}
           >
             Approve
           </Button>
 
           <Button
-            onClick={() => onChange(item.uploadId, { reviewStatus: "rejected" })}
-            sx={actionBtnSx(item.reviewStatus === "rejected", "reject")}
+            onClick={() =>
+              onChange(item.uploadId, {
+                reviewStatus: REVIEW_STATUS_VALUES.REJECTED,
+              })
+            }
+            sx={actionBtnSx(
+              item.reviewStatus === REVIEW_STATUS_VALUES.REJECTED,
+              "reject"
+            )}
           >
             Reject
           </Button>
