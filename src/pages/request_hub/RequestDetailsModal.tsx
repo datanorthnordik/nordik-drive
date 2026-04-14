@@ -15,7 +15,6 @@ import {
   TextField,
   Typography,
   Box,
-  CircularProgress,
   Divider,
   TableContainer,
   Paper,
@@ -27,6 +26,21 @@ import useFetch from "../../hooks/useFetch";
 import toast from "react-hot-toast";
 import { API_ORIGIN } from "../../config/api";
 import { getDocumentCategoryLabel } from "../../domain/documents/categories";
+import {
+  getReviewEditRequestTitle,
+  REQUEST_DETAILS_NO_DOCUMENTS_TEXT,
+  REQUEST_DETAILS_NO_PHOTOS_TEXT,
+  REQUEST_DETAILS_REVIEW_COMMENT_HELPER,
+  REQUEST_DETAILS_REVIEW_COMMENT_LABEL,
+  REQUEST_DETAILS_REVIEW_SUBTITLE,
+  REQUEST_DETAILS_UPLOADED_DOCUMENTS_TITLE,
+  REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE,
+} from "./messages";
+import {
+  REQUEST_DETAILS_SECTION_TITLE_SX,
+  REQUEST_DETAILS_SUBTITLE_SX,
+  REQUEST_DETAILS_TITLE_SX,
+} from "./styles";
 
 // @ts-ignore
 import "react-image-gallery/styles/css/image-gallery.css";
@@ -42,8 +56,6 @@ import {
   color_text_primary,
   color_text_secondary,
   color_text_light,
-  color_success,
-  color_error,
   color_warning,
 } from "../../constants/colors";
 import PhotoViewerModal from "../viewers/PhotoViewer";
@@ -616,11 +628,11 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         }}
       >
         <DialogTitle sx={{ p: 2 }}>
-          <Typography sx={{ fontWeight: 900, color: color_text_primary, fontSize: "1.05rem" }}>
-            Review Edit Request #{request.request_id}
+          <Typography sx={REQUEST_DETAILS_TITLE_SX}>
+            {getReviewEditRequestTitle(request.request_id)}
           </Typography>
-          <Typography sx={{ mt: 0.5, color: color_text_light, fontSize: "0.8rem", fontWeight: 700 }}>
-            Review the changes and uploaded files before approving or rejecting.
+          <Typography sx={REQUEST_DETAILS_SUBTITLE_SX}>
+            {REQUEST_DETAILS_REVIEW_SUBTITLE}
           </Typography>
         </DialogTitle>
 
@@ -753,9 +765,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
           {/* PHOTOS SECTION */}
           <PhotoGrid
-            title="Uploaded Photos"
+            title={REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE}
             loading={false}
-            emptyText="No photos submitted."
+            emptyText={REQUEST_DETAILS_NO_PHOTOS_TEXT}
             photos={photoGridItems}
             getPhotoUrl={(id) => getBinaryUrl(id)}
             onOpenViewer={(idx) => handleOpenViewer(idx)}
@@ -774,15 +786,15 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             approveBtnSx={approveBtnSx}
             rejectBtnSx={rejectBtnSx}
             showReviewerCommentField={true}
-            reviewerCommentLabel="Review Comment"
+            reviewerCommentLabel={REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
             onReviewerCommentChange={(id, value) => setPhotoReviewCommentById(Number(id), value)}
           />
 
           {/* DOCUMENTS SECTION */}
           <DocumentGrid
-            title="Uploaded Documents"
+            title={REQUEST_DETAILS_UPLOADED_DOCUMENTS_TITLE}
             loading={false}
-            emptyText="No documents submitted."
+            emptyText={REQUEST_DETAILS_NO_DOCUMENTS_TEXT}
             documents={docGridItems}
             onOpenViewer={(idx) => handleOpenDocViewer(idx)}
             showCategoryChip={true}
@@ -796,7 +808,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             approveBtnSx={approveBtnSx}
             rejectBtnSx={rejectBtnSx}
             showReviewerCommentField={true}
-            reviewerCommentLabel="Review Comment"
+            reviewerCommentLabel={REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
             onReviewerCommentChange={(id, value) => setDocReviewCommentById(Number(id), value)}
             cardBorderColor={color_secondary}
             containerSx={{
@@ -817,21 +829,14 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
               mt: 2,
             }}
           >
-            <Typography
-              sx={{
-                fontWeight: 900,
-                color: color_text_primary,
-                fontSize: "0.95rem",
-                mb: 1,
-              }}
-            >
-              Review Comment
+            <Typography sx={REQUEST_DETAILS_SECTION_TITLE_SX}>
+              {REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
             </Typography>
 
             <TextField
               fullWidth
               size="small"
-              label="Review Comment"
+              label={REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
               value={requestReviewComment}
               onChange={(e) => setRequestReviewComment(e.target.value)}
               multiline
@@ -846,7 +851,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                   "&.Mui-focused fieldset": { borderColor: color_secondary },
                 },
               }}
-              helperText="Required when the request is rejected."
+              helperText={REQUEST_DETAILS_REVIEW_COMMENT_HELPER}
             />
           </Box>
         </DialogContent>

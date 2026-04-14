@@ -32,6 +32,31 @@ import "react-image-gallery/styles/css/image-gallery.css";
 
 import useFetch from "../../hooks/useFetch";
 import { API_BASE } from "../../config/api";
+import {
+    getViewerStatusLabel,
+    PHOTO_VIEWER_TITLE,
+    VIEWER_APPROVE_LABEL,
+    VIEWER_COMMENTS_TITLE,
+    VIEWER_DOWNLOAD_LABEL,
+    VIEWER_EMPTY_COUNT_TEXT,
+    VIEWER_NEXT_TOOLTIP,
+    VIEWER_NO_COMMENTS_TEXT,
+    VIEWER_NO_PHOTOS_TEXT,
+    VIEWER_PREVIOUS_TOOLTIP,
+    VIEWER_REJECT_LABEL,
+    VIEWER_RESET_ZOOM_TOOLTIP,
+    VIEWER_REVIEW_COMMENT_LABEL,
+    VIEWER_REVIEW_TITLE,
+    VIEWER_UPLOADER_COMMENT_TITLE,
+    VIEWER_ZOOM_IN_TOOLTIP,
+    VIEWER_ZOOM_OUT_TOOLTIP,
+} from "./messages";
+import {
+    getViewerStatusChipSx,
+    VIEWER_SECTION_TITLE_SX,
+    VIEWER_SUBSECTION_TITLE_SX,
+    VIEWER_TITLE_SX,
+} from "./styles";
 
 import {
     color_primary,
@@ -41,11 +66,8 @@ import {
     color_white,
     color_white_smoke,
     color_border,
-    color_text_primary,
     color_text_secondary,
     color_text_light,
-    color_success,
-    color_error,
 } from "../../constants/colors";
 
 type ReviewStatus = "approved" | "rejected" | "pending" | null | undefined;
@@ -89,39 +111,6 @@ interface PhotoViewerModalProps {
 }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
-
-function labelFromStatus(st?: ReviewStatus) {
-    if (st === "approved") return "Approved";
-    if (st === "rejected") return "Rejected";
-    if (st === "pending") return "Pending";
-    if (st === null || st === undefined) return "Pending";
-    return String(st);
-}
-
-function chipSx(st?: ReviewStatus) {
-    if (st === "approved") {
-        return {
-            color: color_success,
-            backgroundColor: "rgba(39, 174, 96, 0.12)",
-            border: "1px solid rgba(39, 174, 96, 0.25)",
-            fontWeight: 900,
-        };
-    }
-    if (st === "rejected") {
-        return {
-            color: color_error,
-            backgroundColor: "rgba(231, 76, 60, 0.12)",
-            border: "1px solid rgba(231, 76, 60, 0.25)",
-            fontWeight: 900,
-        };
-    }
-    return {
-        color: color_text_secondary,
-        backgroundColor: "rgba(107, 114, 128, 0.12)",
-        border: "1px solid rgba(107, 114, 128, 0.25)",
-        fontWeight: 900,
-    };
-}
 
 function safeFilename(name: string) {
     return (name || "download.zip")
@@ -424,13 +413,13 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                     {showStatusPill && currentPhoto && (
                         <Chip
                             size="small"
-                            label={labelFromStatus(currentPhoto.status)}
+                            label={getViewerStatusLabel(currentPhoto.status)}
                             sx={{
                                 position: "absolute",
                                 top: 14,
                                 left: 14,
                                 zIndex: 5,
-                                ...chipSx(currentPhoto.status),
+                                ...getViewerStatusChipSx(currentPhoto.status),
                             }}
                         />
                     )}
@@ -468,11 +457,11 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                 }}
             >
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontWeight: 900, fontSize: 16, color: color_text_primary }}>
-                        Photo Viewer
+                    <Typography sx={{ ...VIEWER_TITLE_SX, fontSize: 16 }}>
+                        {PHOTO_VIEWER_TITLE}
                     </Typography>
                     <Typography variant="caption" sx={{ color: color_text_light, fontWeight: 700 }}>
-                        {photos?.length ? `${currentIndex + 1} / ${photos.length}` : "No photos"}
+                        {photos?.length ? `${currentIndex + 1} / ${photos.length}` : VIEWER_EMPTY_COUNT_TEXT}
                         {inferredRequestIds.length === 1
                             ? ` • Request #${inferredRequestIds[0]}`
                             : inferredRequestIds.length > 1
@@ -499,7 +488,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
             >
                 {!photos?.length ? (
                     <Box sx={{ mt: 4, color: "#fff", px: 2 }}>
-                        <Typography sx={{ fontWeight: 800 }}>No photos found.</Typography>
+                        <Typography sx={{ fontWeight: 800 }}>{VIEWER_NO_PHOTOS_TEXT}</Typography>
                     </Box>
                 ) : (
                     <Box sx={{ width: "100%", height: "100%", display: "flex", minHeight: 0 }}>
@@ -542,7 +531,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     WebkitOverflowScrolling: "touch",
                                 }}
                             >
-                                <Tooltip title="Previous">
+                                <Tooltip title={VIEWER_PREVIOUS_TOOLTIP}>
                                     <span>
                                         <IconButton onClick={handlePrev} disabled={currentIndex === 0} sx={toolIconBtnSx}>
                                             <NavigateBeforeIcon />
@@ -550,7 +539,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     </span>
                                 </Tooltip>
 
-                                <Tooltip title="Zoom out">
+                                <Tooltip title={VIEWER_ZOOM_OUT_TOOLTIP}>
                                     <span>
                                         <IconButton onClick={zoomOut} disabled={zoom <= ZOOM_MIN} sx={toolIconBtnSx}>
                                             <ZoomOutIcon />
@@ -558,13 +547,13 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     </span>
                                 </Tooltip>
 
-                                <Tooltip title="Reset zoom">
+                                <Tooltip title={VIEWER_RESET_ZOOM_TOOLTIP}>
                                     <IconButton onClick={resetZoom} sx={toolIconBtnSx}>
                                         <RestartAltIcon />
                                     </IconButton>
                                 </Tooltip>
 
-                                <Tooltip title="Zoom in">
+                                <Tooltip title={VIEWER_ZOOM_IN_TOOLTIP}>
                                     <span>
                                         <IconButton onClick={zoomIn} disabled={zoom >= ZOOM_MAX} sx={toolIconBtnSx}>
                                             <ZoomInIcon />
@@ -584,7 +573,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                             disabled={!currentPhoto?.id || !onApprove}
                                             onClick={() => currentPhoto?.id && onApprove?.(currentPhoto.id)}
                                         >
-                                            Approve
+                                            {VIEWER_APPROVE_LABEL}
                                         </Button>
 
                                         <Button
@@ -593,7 +582,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                             disabled={!currentPhoto?.id || !onReject}
                                             onClick={() => currentPhoto?.id && onReject?.(currentPhoto.id)}
                                         >
-                                            Reject
+                                            {VIEWER_REJECT_LABEL}
                                         </Button>
                                     </>
                                 )}
@@ -615,7 +604,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                         downloadPhotoById(p.id, `photo_${p.id}.jpg`, "image/jpeg");
                                     }}
                                 >
-                                    Download
+                                    {VIEWER_DOWNLOAD_LABEL}
                                 </Button>
 
                                 <Tooltip
@@ -653,7 +642,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     </span>
                                 </Tooltip>
 
-                                <Tooltip title="Next">
+                                <Tooltip title={VIEWER_NEXT_TOOLTIP}>
                                     <span>
                                         <IconButton
                                             onClick={handleNext}
@@ -683,16 +672,16 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     gap: 1.25,
                                 }}
                             >
-                                <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.25 }}>
-                                    Comments
+                                <Typography sx={{ ...VIEWER_SECTION_TITLE_SX, mb: 0.25 }}>
+                                    {VIEWER_COMMENTS_TITLE}
                                 </Typography>
 
                                 <Divider />
 
                                 {showCommentsPanel && (
                                     <>
-                                        <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
-                                            Uploader Comment
+                                        <Typography sx={VIEWER_SUBSECTION_TITLE_SX}>
+                                            {VIEWER_UPLOADER_COMMENT_TITLE}
                                         </Typography>
 
                                         <Typography
@@ -704,7 +693,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                                 lineHeight: 1.5,
                                             }}
                                         >
-                                            {uploaderCommentText || "No comments"}
+                                            {uploaderCommentText || VIEWER_NO_COMMENTS_TEXT}
                                         </Typography>
                                     </>
                                 )}
@@ -712,20 +701,20 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                 {showReviewerCommentField && currentPhoto && (
                                     <>
                                         <Divider />
-                                        <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
-                                            Review
+                                        <Typography sx={VIEWER_SUBSECTION_TITLE_SX}>
+                                            {VIEWER_REVIEW_TITLE}
                                         </Typography>
 
                                         <Chip
                                             size="small"
-                                            label={labelFromStatus(currentPhoto.status)}
-                                            sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
+                                            label={getViewerStatusLabel(currentPhoto.status)}
+                                            sx={{ alignSelf: "flex-start", ...getViewerStatusChipSx(currentPhoto.status) }}
                                         />
 
                                         <TextField
                                             fullWidth
                                             size="small"
-                                            label="Review Comment"
+                                            label={VIEWER_REVIEW_COMMENT_LABEL}
                                             value={reviewerCommentText}
                                             onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
                                             onFocus={() => setIsCommentFocused(true)}
@@ -763,14 +752,14 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                     gap: 1,
                                 }}
                             >
-                                <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
-                                    Comments
+                                <Typography sx={VIEWER_SECTION_TITLE_SX}>
+                                    {VIEWER_COMMENTS_TITLE}
                                 </Typography>
 
                                 {showCommentsPanel && (
                                     <>
-                                        <Typography sx={{ fontWeight: 800, color: color_text_primary, fontSize: 13 }}>
-                                            Uploader Comment
+                                        <Typography sx={{ ...VIEWER_SUBSECTION_TITLE_SX, fontSize: 13 }}>
+                                            {VIEWER_UPLOADER_COMMENT_TITLE}
                                         </Typography>
 
                                         <Typography
@@ -782,7 +771,7 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                                 lineHeight: 1.45,
                                             }}
                                         >
-                                            {uploaderCommentText || "No comments"}
+                                            {uploaderCommentText || VIEWER_NO_COMMENTS_TEXT}
                                         </Typography>
                                     </>
                                 )}
@@ -792,14 +781,14 @@ const PhotoViewerModal: React.FC<PhotoViewerModalProps> = ({
                                         <Divider />
                                         <Chip
                                             size="small"
-                                            label={labelFromStatus(currentPhoto.status)}
-                                            sx={{ alignSelf: "flex-start", ...chipSx(currentPhoto.status) }}
+                                            label={getViewerStatusLabel(currentPhoto.status)}
+                                            sx={{ alignSelf: "flex-start", ...getViewerStatusChipSx(currentPhoto.status) }}
                                         />
 
                                         <TextField
                                             fullWidth
                                             size="small"
-                                            label="Review Comment"
+                                            label={VIEWER_REVIEW_COMMENT_LABEL}
                                             value={reviewerCommentText}
                                             onChange={(e) => onReviewerCommentChange?.(currentPhoto, e.target.value)}
                                             onFocus={() => setIsCommentFocused(true)}

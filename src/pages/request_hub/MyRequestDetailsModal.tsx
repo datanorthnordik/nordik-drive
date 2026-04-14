@@ -22,6 +22,20 @@ import CloseIcon from "@mui/icons-material/Close";
 
 import useFetch from "../../hooks/useFetch";
 import { API_ORIGIN } from "../../config/api";
+import {
+  getRequestDetailsTitle,
+  REQUEST_DETAILS_NO_DOCUMENTS_TEXT,
+  REQUEST_DETAILS_NO_PHOTOS_TEXT,
+  REQUEST_DETAILS_REVIEW_COMMENT_LABEL,
+  REQUEST_DETAILS_UPLOADED_DOCUMENTS_TITLE,
+  REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE,
+  REQUEST_DETAILS_VIEW_SUBTITLE,
+} from "./messages";
+import {
+  REQUEST_DETAILS_SECTION_TITLE_SX,
+  REQUEST_DETAILS_SUBTITLE_SX,
+  REQUEST_DETAILS_TITLE_SX,
+} from "./styles";
 
 import "react-image-gallery/styles/css/image-gallery.css";
 
@@ -315,11 +329,11 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         <DialogTitle sx={{ p: 2 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, alignItems: "flex-start" }}>
             <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 900, color: color_text_primary, fontSize: "1.05rem" }}>
-                Request #{request.request_id}
+              <Typography sx={REQUEST_DETAILS_TITLE_SX}>
+                {getRequestDetailsTitle(request.request_id)}
               </Typography>
-              <Typography sx={{ mt: 0.5, color: color_text_light, fontSize: "0.8rem", fontWeight: 700 }}>
-                Review the changes and uploaded files.
+              <Typography sx={REQUEST_DETAILS_SUBTITLE_SX}>
+                {REQUEST_DETAILS_VIEW_SUBTITLE}
               </Typography>
             </Box>
 
@@ -383,9 +397,9 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
 
           {/* Photos */}
           <PhotoGrid
-            title="Uploaded Photos"
+            title={REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE}
             loading={photosLoading}
-            emptyText="No photos submitted."
+            emptyText={REQUEST_DETAILS_NO_PHOTOS_TEXT}
             photos={photoGridItems}
             getPhotoUrl={(id) => getBinaryUrl(id)}
             onOpenViewer={(idx) => handleOpenViewer(idx)}
@@ -405,9 +419,9 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
 
           {/* Documents */}
           <DocumentGrid
-            title="Uploaded Documents"
+            title={REQUEST_DETAILS_UPLOADED_DOCUMENTS_TITLE}
             loading={docsLoading}
-            emptyText="No documents submitted."
+            emptyText={REQUEST_DETAILS_NO_DOCUMENTS_TEXT}
             documents={docGridItems}
             onOpenViewer={(idx) => handleOpenDocViewer(idx)}
             cardBorderColor={color_secondary} // blue border
@@ -437,15 +451,8 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
                 backgroundColor: color_white,
               }}
             >
-              <Typography
-                sx={{
-                  fontWeight: 900,
-                  color: color_text_primary,
-                  fontSize: "0.95rem",
-                  mb: 1,
-                }}
-              >
-                Review Comment
+              <Typography sx={REQUEST_DETAILS_SECTION_TITLE_SX}>
+                {REQUEST_DETAILS_REVIEW_COMMENT_LABEL}
               </Typography>
 
               <Typography

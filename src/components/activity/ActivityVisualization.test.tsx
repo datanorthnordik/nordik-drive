@@ -88,7 +88,7 @@ describe("ActivityVisualization", () => {
     render(<ActivityVisualization logData={logData} selectedCommunity="" selectedAction="VIEW" />);
 
     expect(screen.getByTestId("activity-viz-title")).toHaveTextContent(
-      'VIEW activity (overall) — contribution by Community'
+      "VIEW activity (overall) - contribution by Community"
     );
 
     expect(screen.getByTestId("activity-viz-total")).toHaveTextContent("8 events");
@@ -131,7 +131,7 @@ describe("ActivityVisualization", () => {
     );
 
     expect(screen.getByTestId("activity-viz-title")).toHaveTextContent(
-      'DOWNLOAD activity (within "Batchewana") — contribution by Person'
+      'DOWNLOAD activity (within "Batchewana") - contribution by Person'
     );
 
     const listbox = await openMuiSelect(user, "activity-viz-dimension-select");
@@ -202,14 +202,14 @@ describe("ActivityVisualization", () => {
     );
 
     expect(screen.getByTestId("activity-viz-title")).toHaveTextContent(
-      "VIEW activity (overall) — contribution by Community"
+      "VIEW activity (overall) - contribution by Community"
     );
 
     rerender(<ActivityVisualization logData={logData} selectedCommunity="X" selectedAction="VIEW" />);
 
     await waitFor(() => {
       expect(screen.getByTestId("activity-viz-title")).toHaveTextContent(
-        'VIEW activity (within "X") — contribution by Person'
+        'VIEW activity (within "X") - contribution by Person'
       );
     });
   });

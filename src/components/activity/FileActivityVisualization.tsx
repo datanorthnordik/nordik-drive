@@ -15,107 +15,128 @@ import { PieChart } from "@mui/x-charts/PieChart";
 import { BarChart } from "@mui/x-charts/BarChart";
 
 import {
-  color_secondary,
-  color_secondary_dark,
+  color_background,
   color_border,
-  color_white,
-  color_white_smoke,
   color_text_primary,
   color_text_secondary,
-  color_text_light,
-  color_background,
+  color_white,
+  color_white_smoke,
 } from "../../constants/colors";
-
-type VizType = "DONUT" | "PIE" | "BAR";
-type Mode = "CHANGES" | "PHOTOS";
-type Dimension = "BY_FILE" | "BY_FIELD";
+import {
+  appendOthersBucket,
+  buildPerBarSeries,
+  getBreakdownLabel,
+  hasFileClause,
+} from "./activityutils";
+import {
+  ACTIVITY_CHART_TYPE_OPTIONS,
+  ACTIVITY_CHART_TYPES,
+  ACTIVITY_TOP_N,
+  FILE_ACTIVITY_DIMENSIONS,
+  FILE_ACTIVITY_MODES,
+  type ActivityVizType,
+  type FileActivityDimension,
+  type FileActivityMode,
+} from "./options";
+import {
+  ACTIVITY_BREAKDOWN_TITLE,
+  ACTIVITY_CHART_LABEL,
+  ACTIVITY_GROUP_LABEL,
+  ACTIVITY_VISUALIZATION_TITLE,
+  FILE_ACTIVITY_NO_DATA_TEXT,
+  FILE_ACTIVITY_PLACEHOLDER_TEXT,
+  getBreakdownSummaryLabel,
+  getFileActivityDimensionLabel,
+  getFileActivityMetricLabel,
+  getFileActivityVisualizationTitle,
+  getPendingCountLabel,
+} from "./messages";
+import {
+  ACTIVITY_HEADER_SUBTITLE_SX,
+  ACTIVITY_HEADER_TITLE_SX,
+  ACTIVITY_ROOT_SX,
+  ACTIVITY_SECTION_SUBTITLE_SX,
+  ACTIVITY_SECTION_TITLE_SX,
+  FILE_ACTIVITY_PENDING_CHIP_SX,
+} from "./styles";
 
 type AggKV = { key: string; count: number };
-
-function buildPerBarSeries(items: { label: string; count: number }[]) {
-  const labels = items.map((a) => a.label);
-  const series = items.map((a, idx) => ({
-    label: a.label,
-    data: labels.map((_, i) => (i === idx ? a.count : null)),
-  }));
-  return { labels, series };
-}
-
-function hasFileClause(clauses: any[]): boolean {
-  return Array.isArray(clauses) && clauses.some((c) => c?.field === "file_id");
-}
 
 export default function FileActivityVisualization({
   mode,
   payload,
   clauses,
 }: {
-  mode: Mode;
+  mode: FileActivityMode;
   payload: any;
   clauses: any[];
 }) {
-  const [vizType, setVizType] = useState<VizType>("DONUT");
+  const [vizType, setVizType] = useState<ActivityVizType>(ACTIVITY_CHART_TYPES.DONUT);
 
-  const allowedDimensions: Dimension[] = useMemo(() => {
-    if (mode === "PHOTOS") return ["BY_FILE"];
-    return hasFileClause(clauses) ? ["BY_FIELD"] : ["BY_FILE"];
-  }, [mode, clauses]);
+  const allowedDimensions: FileActivityDimension[] = useMemo(() => {
+    if (mode === FILE_ACTIVITY_MODES.PHOTOS) {
+      return [FILE_ACTIVITY_DIMENSIONS.BY_FILE];
+    }
 
-  const [dimension, setDimension] = useState<Dimension>(allowedDimensions[0]);
+    return hasFileClause(clauses)
+      ? [FILE_ACTIVITY_DIMENSIONS.BY_FIELD]
+      : [FILE_ACTIVITY_DIMENSIONS.BY_FILE];
+  }, [clauses, mode]);
+
+  const [dimension, setDimension] = useState<FileActivityDimension>(allowedDimensions[0]);
 
   useEffect(() => {
-    if (!allowedDimensions.includes(dimension)) setDimension(allowedDimensions[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedDimensions]);
+    if (!allowedDimensions.includes(dimension)) {
+      setDimension(allowedDimensions[0]);
+    }
+  }, [allowedDimensions, dimension]);
 
-  const title = useMemo(() => {
-    if (mode === "PHOTOS") return "Pending photos — grouped by file";
-    return hasFileClause(clauses)
-      ? "Pending changes — grouped by field"
-      : "Pending requests — grouped by file";
-  }, [mode, clauses]);
-
-  const TOP_N = 10;
+  const title = useMemo(
+    () =>
+      getFileActivityVisualizationTitle({
+        mode,
+        hasFileFilter: hasFileClause(clauses),
+      }),
+    [clauses, mode]
+  );
 
   const aggregated = useMemo(() => {
-    const aggs = payload?.aggregations || null;
-    if (!aggs) return [];
+    const aggregations = payload?.aggregations || null;
+    if (!aggregations) return [];
 
     let list: AggKV[] = [];
 
-    if (mode === "PHOTOS") {
-      list = (aggs.ByFile || aggs.by_file || []) as AggKV[];
+    if (mode === FILE_ACTIVITY_MODES.PHOTOS) {
+      list = (aggregations.ByFile || aggregations.by_file || []) as AggKV[];
     } else {
       list =
-        dimension === "BY_FIELD"
-          ? ((aggs.ByField || aggs.by_field || []) as AggKV[])
-          : ((aggs.ByFile || aggs.by_file || []) as AggKV[]);
+        dimension === FILE_ACTIVITY_DIMENSIONS.BY_FIELD
+          ? ((aggregations.ByField || aggregations.by_field || []) as AggKV[])
+          : ((aggregations.ByFile || aggregations.by_file || []) as AggKV[]);
     }
 
-    let items = list
-      .map((x: any) => ({
-        label: String(x?.key ?? x?.label ?? "(unknown)"),
-        count: Number(x?.count ?? 0),
+    const normalizedItems = list
+      .map((item: any) => ({
+        label: getBreakdownLabel(item?.key ?? item?.label),
+        count: Number(item?.count ?? 0),
       }))
-      .filter((x) => x.count > 0)
-      .sort((a, b) => b.count - a.count);
+      .filter((item) => item.count > 0)
+      .sort((left, right) => right.count - left.count);
 
-    if (items.length <= TOP_N) return items;
+    return appendOthersBucket(normalizedItems, ACTIVITY_TOP_N);
+  }, [dimension, mode, payload]);
 
-    const top = items.slice(0, TOP_N);
-    const rest = items.slice(TOP_N);
-    const restCount = rest.reduce((s, x) => s + x.count, 0);
-    return [...top, { label: "Others", count: restCount }];
-  }, [payload, mode, dimension]);
-
-  const total = useMemo(() => aggregated.reduce((s, x) => s + x.count, 0), [aggregated]);
+  const total = useMemo(
+    () => aggregated.reduce((sum, item) => sum + item.count, 0),
+    [aggregated]
+  );
 
   const pieData = useMemo(
     () =>
-      aggregated.map((x, i) => ({
-        id: i,
-        value: x.count,
-        label: x.label,
+      aggregated.map((item, index) => ({
+        id: index,
+        value: item.count,
+        label: item.label,
       })),
     [aggregated]
   );
@@ -126,8 +147,7 @@ export default function FileActivityVisualization({
   );
 
   return (
-    <Box data-testid="file-viz-root" sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {/* Header (screenshot style) */}
+    <Box data-testid="file-viz-root" sx={ACTIVITY_ROOT_SX}>
       <Box
         sx={{
           px: 1.25,
@@ -143,47 +163,74 @@ export default function FileActivityVisualization({
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column" }}>
-          <Typography sx={{ fontWeight: 900, color: color_text_primary }}>Visualization</Typography>
-          <Typography data-testid="file-viz-title" sx={{ color: color_text_light, fontSize: 13 }}>{title}</Typography>
+          <Typography sx={ACTIVITY_HEADER_TITLE_SX}>
+            {ACTIVITY_VISUALIZATION_TITLE}
+          </Typography>
+          <Typography
+            data-testid="file-viz-title"
+            sx={{ ...ACTIVITY_HEADER_SUBTITLE_SX, fontSize: 13 }}
+          >
+            {title}
+          </Typography>
         </Box>
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
           <Chip
             data-testid="file-viz-total"
-            label={`${total} pending`}
+            label={getPendingCountLabel(total)}
             size="small"
-            sx={{
-              fontWeight: 900,
-              borderRadius: "10px",
-              background: color_white,
-              border: `1px solid ${color_secondary}`,
-              color: color_secondary_dark,
-            }}
+            sx={FILE_ACTIVITY_PENDING_CHIP_SX}
           />
 
           {allowedDimensions.length > 1 && (
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>Group</InputLabel>
-              <Select data-testid="file-viz-group-select" label="Group" value={dimension} onChange={(e) => setDimension(e.target.value as Dimension)}>
-                <MenuItem value="BY_FILE">File</MenuItem>
-                <MenuItem value="BY_FIELD">Field</MenuItem>
+              <InputLabel>{ACTIVITY_GROUP_LABEL}</InputLabel>
+              <Select
+                data-testid="file-viz-group-select"
+                label={ACTIVITY_GROUP_LABEL}
+                value={dimension}
+                onChange={(event) =>
+                  setDimension(event.target.value as FileActivityDimension)
+                }
+              >
+                {allowedDimensions.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {getFileActivityDimensionLabel(option)}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           )}
 
           <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>Chart</InputLabel>
-            <Select data-testid="file-viz-chart-select" label="Chart" value={vizType} onChange={(e) => setVizType(e.target.value as VizType)}>
-              <MenuItem value="DONUT">Donut</MenuItem>
-              <MenuItem value="PIE">Pie</MenuItem>
-              <MenuItem value="BAR">Bar</MenuItem>
+            <InputLabel>{ACTIVITY_CHART_LABEL}</InputLabel>
+            <Select
+              data-testid="file-viz-chart-select"
+              label={ACTIVITY_CHART_LABEL}
+              value={vizType}
+              onChange={(event) =>
+                setVizType(event.target.value as ActivityVizType)
+              }
+            >
+              {ACTIVITY_CHART_TYPE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Box>
       </Box>
 
-      {/* Single scroll area */}
-      <Box sx={{ p: 1.25, flex: 1, minHeight: 0, overflowY: "auto", background: color_white }}>
+      <Box
+        sx={{
+          p: 1.25,
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          background: color_white,
+        }}
+      >
         {!payload ? (
           <Box
             data-testid="file-viz-placeholder"
@@ -201,12 +248,14 @@ export default function FileActivityVisualization({
             <Box sx={{ textAlign: "center" }}>
               <InsertChartOutlinedIcon sx={{ fontSize: 54, color: "#cbd5e1" }} />
               <Typography sx={{ mt: 1, fontWeight: 900, color: color_text_secondary }}>
-                Run a search to see visualization.
+                {FILE_ACTIVITY_PLACEHOLDER_TEXT}
               </Typography>
             </Box>
           </Box>
         ) : aggregated.length === 0 ? (
-          <Typography data-testid="file-viz-no-data" sx={{ color: color_text_secondary }}>No pending aggregation data.</Typography>
+          <Typography data-testid="file-viz-no-data" sx={{ color: color_text_secondary }}>
+            {FILE_ACTIVITY_NO_DATA_TEXT}
+          </Typography>
         ) : (
           <>
             <Box
@@ -219,7 +268,7 @@ export default function FileActivityVisualization({
                 "& .MuiChartsLegend-root": { display: "none !important" },
               }}
             >
-              {vizType === "BAR" ? (
+              {vizType === ACTIVITY_CHART_TYPES.BAR ? (
                 <BarChart
                   xAxis={[{ scaleType: "band", data: barLabels }]}
                   series={perBarSeries}
@@ -231,7 +280,8 @@ export default function FileActivityVisualization({
                   series={[
                     {
                       data: pieData,
-                      innerRadius: vizType === "DONUT" ? 65 : 0,
+                      innerRadius:
+                        vizType === ACTIVITY_CHART_TYPES.DONUT ? 65 : 0,
                       outerRadius: 120,
                       paddingAngle: 2,
                       cornerRadius: 4,
@@ -242,22 +292,39 @@ export default function FileActivityVisualization({
               )}
             </Box>
 
-            <Box sx={{ mt: 1.25, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Typography sx={{ fontWeight: 900, fontSize: 13, color: color_text_secondary }}>
-                Breakdown
+            <Box
+              sx={{
+                mt: 1.25,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography
+                sx={{
+                  ...ACTIVITY_SECTION_TITLE_SX,
+                  fontSize: 13,
+                  color: color_text_secondary,
+                }}
+              >
+                {ACTIVITY_BREAKDOWN_TITLE}
               </Typography>
-              <Typography sx={{ fontSize: 12, color: color_text_light }}>
-                {aggregated.length > TOP_N ? `Top ${TOP_N} + Others` : `${aggregated.length} item(s)`}
+              <Typography sx={ACTIVITY_SECTION_SUBTITLE_SX}>
+                {getBreakdownSummaryLabel(aggregated.length)}
               </Typography>
             </Box>
 
-            <Box data-testid="file-viz-breakdown" sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {aggregated.map((x, i) => {
-                const pct = total > 0 ? Math.round((x.count / total) * 100) : 0;
+            <Box
+              data-testid="file-viz-breakdown"
+              sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}
+            >
+              {aggregated.map((item, index) => {
+                const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
+
                 return (
                   <Box
-                    key={x.label}
-                    data-testid={`file-viz-row-${i}`}
+                    key={item.label}
+                    data-testid={`file-viz-row-${index}`}
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -271,8 +338,8 @@ export default function FileActivityVisualization({
                     }}
                   >
                     <Typography
-                      title={x.label}
-                      data-testid={`file-viz-row-label-${i}`}
+                      title={item.label}
+                      data-testid={`file-viz-row-label-${index}`}
                       sx={{
                         fontWeight: 800,
                         overflow: "hidden",
@@ -284,13 +351,17 @@ export default function FileActivityVisualization({
                         color: color_text_primary,
                       }}
                     >
-                      {x.label}
+                      {item.label}
                     </Typography>
 
                     <Chip
-                      label={`${x.count}${total ? ` • ${pct}%` : ""}`}
+                      label={getFileActivityMetricLabel({
+                        count: item.count,
+                        percent,
+                        total,
+                      })}
                       size="small"
-                      data-testid={`file-viz-row-metric-${i}`}
+                      data-testid={`file-viz-row-metric-${index}`}
                       sx={{
                         fontWeight: 900,
                         flexShrink: 0,

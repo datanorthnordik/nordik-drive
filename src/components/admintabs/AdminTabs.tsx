@@ -3,6 +3,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import FolderIcon from '@mui/icons-material/Folder';
 import { AdminTab, AdminTabWrapper } from '../Tabs';
 import { useSelector } from 'react-redux';
+import { ROLE } from '../../constants/constants';
 
 interface AdminTabsProps {
     handleChange : (event: React.SyntheticEvent, newValue: number) => void;
@@ -15,7 +16,7 @@ export default function AdminTabs(props: AdminTabsProps) {
   return (
     <AdminTabWrapper value={props.value} onChange={props.handleChange} aria-label="icon tabs example">
       <AdminTab icon={<FolderIcon />} aria-label="files" label="Files" />
-      {user.role == 'Admin' && <AdminTab icon={<AccountCircleIcon />} aria-label="User Activity" label="User Activity" />}
+      {user.role == ROLE.ADMIN && <AdminTab icon={<AccountCircleIcon />} aria-label="User Activity" label="User Activity" />}
     </AdminTabWrapper>
   );
 }

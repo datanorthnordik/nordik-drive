@@ -60,7 +60,7 @@ describe("FileActivityVisualization", () => {
 
     expect(screen.getByTestId("file-viz-root")).toBeInTheDocument();
     expect(screen.getByTestId("file-viz-title")).toHaveTextContent(
-      "Pending requests — grouped by file"
+      "Pending requests - grouped by file"
     );
 
     // Placeholder branch
@@ -84,7 +84,7 @@ describe("FileActivityVisualization", () => {
     );
 
     expect(screen.getByTestId("file-viz-title")).toHaveTextContent(
-      "Pending photos — grouped by file"
+      "Pending photos - grouped by file"
     );
     expect(screen.getByTestId("file-viz-no-data")).toHaveTextContent(
       "No pending aggregation data."
@@ -106,7 +106,7 @@ describe("FileActivityVisualization", () => {
     render(<FileActivityVisualization mode="PHOTOS" payload={payload} clauses={[]} />);
 
     expect(screen.getByTestId("file-viz-title")).toHaveTextContent(
-      "Pending photos — grouped by file"
+      "Pending photos - grouped by file"
     );
     expect(screen.getByTestId("file-viz-total")).toHaveTextContent("3 pending");
 
@@ -143,7 +143,7 @@ describe("FileActivityVisualization", () => {
     );
 
     expect(screen.getByTestId("file-viz-title")).toHaveTextContent(
-      "Pending changes — grouped by field"
+      "Pending changes - grouped by field"
     );
     expect(screen.getByTestId("file-viz-total")).toHaveTextContent("5 pending");
 
@@ -197,7 +197,7 @@ describe("FileActivityVisualization", () => {
     expect(screen.getByTestId("file-viz-row-label-10")).toHaveTextContent("Others");
 
     // Others sum = counts of last 2 items = 2 + 1 = 3
-    // Metric format: "3 • X%"
+    // Metric format: "3 - X%"
     expect(screen.getByTestId("file-viz-row-metric-10")).toHaveTextContent("3");
     expect(screen.getByTestId("file-viz-row-metric-10")).toHaveTextContent("%");
   });

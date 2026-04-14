@@ -1,34 +1,60 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, FormControl, InputLabel, MenuItem, Select, Typography, Chip } from "@mui/material";
+import {
+  Box,
+  Chip,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Typography,
+} from "@mui/material";
 import { PieChart } from "@mui/x-charts/PieChart";
 import { BarChart } from "@mui/x-charts/BarChart";
 
 import {
-  color_white,
+  color_background,
   color_border,
+  color_primary,
+  color_primary_dark,
   color_secondary,
+  color_secondary_dark,
   color_text_primary,
   color_text_secondary,
-  color_text_light,
-  color_primary,
-  color_secondary_dark,
-  color_primary_dark,
-  color_background,
+  color_white,
 } from "../../constants/colors";
-
-type VizType = "PIE" | "DONUT" | "BAR";
-type Dimension = "COMMUNITY" | "FILENAME" | "PERSON";
-
-function buildPerBarSeries(items: { label: string; count: number }[]) {
-  const labels = items.map((a) => a.label);
-  const series = items.map((a, idx) => ({
-    label: a.label,
-    data: labels.map((_, i) => (i === idx ? a.count : null)),
-  }));
-  return { labels, series };
-}
+import { appendOthersBucket, buildPerBarSeries, getPersonLabel } from "./activityutils";
+import {
+  ACTIVITY_CHART_TYPE_OPTIONS,
+  ACTIVITY_CHART_TYPES,
+  ACTIVITY_DIMENSIONS,
+  ACTIVITY_TOP_N,
+  type ActivityDimension,
+  type ActivityVizType,
+} from "./options";
+import {
+  ACTIVITY_BREAKDOWN_TITLE,
+  ACTIVITY_CHART_LABEL,
+  ACTIVITY_GROUP_BY_LABEL,
+  ACTIVITY_NO_DATA_TEXT,
+  ACTIVITY_VISUALIZATION_TITLE,
+  NO_COMMUNITY_LABEL,
+  NO_FILENAME_LABEL,
+  getActivityDimensionLabel,
+  getActivityEventsLabel,
+  getActivityVisualizationTitle,
+  getBreakdownSummaryLabel,
+} from "./messages";
+import {
+  ACTIVITY_EMPTY_TEXT_SX,
+  ACTIVITY_EVENTS_CHIP_SX,
+  ACTIVITY_HEADER_SUBTITLE_SX,
+  ACTIVITY_HEADER_TITLE_SX,
+  ACTIVITY_ROOT_SX,
+  ACTIVITY_SECTION_SUBTITLE_SX,
+  ACTIVITY_SECTION_TITLE_SX,
+} from "./styles";
 
 export default function ActivityVisualization({
   logData,
@@ -39,81 +65,87 @@ export default function ActivityVisualization({
   selectedCommunity: string;
   selectedAction: string;
 }) {
-  const [vizType, setVizType] = useState<VizType>("DONUT");
+  const [vizType, setVizType] = useState<ActivityVizType>(ACTIVITY_CHART_TYPES.DONUT);
 
-  const allowedDimensions: Dimension[] = useMemo(() => {
-    if (selectedCommunity) return ["PERSON", "FILENAME"];
-    return ["COMMUNITY", "FILENAME", "PERSON"];
+  const allowedDimensions: ActivityDimension[] = useMemo(() => {
+    if (selectedCommunity) {
+      return [ACTIVITY_DIMENSIONS.PERSON, ACTIVITY_DIMENSIONS.FILENAME];
+    }
+
+    return [
+      ACTIVITY_DIMENSIONS.COMMUNITY,
+      ACTIVITY_DIMENSIONS.FILENAME,
+      ACTIVITY_DIMENSIONS.PERSON,
+    ];
   }, [selectedCommunity]);
 
-  const [dimension, setDimension] = useState<Dimension>(allowedDimensions[0]);
+  const [dimension, setDimension] = useState<ActivityDimension>(allowedDimensions[0]);
 
   useEffect(() => {
-    if (!allowedDimensions.includes(dimension)) setDimension(allowedDimensions[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allowedDimensions]);
+    if (!allowedDimensions.includes(dimension)) {
+      setDimension(allowedDimensions[0]);
+    }
+  }, [allowedDimensions, dimension]);
 
-  const title = useMemo(() => {
-    const actionTitle = selectedAction ? selectedAction : "All actions";
-    const dimTitle =
-      dimension === "COMMUNITY" ? "Community" : dimension === "FILENAME" ? "Filename" : "Person";
-    const scope = selectedCommunity ? `within "${selectedCommunity}"` : "overall";
-    return `${actionTitle} activity (${scope}) — contribution by ${dimTitle}`;
-  }, [selectedAction, dimension, selectedCommunity]);
-
-  const TOP_N = 10;
+  const title = useMemo(
+    () =>
+      getActivityVisualizationTitle({
+        selectedAction,
+        dimension,
+        selectedCommunity,
+      }),
+    [selectedAction, dimension, selectedCommunity]
+  );
 
   const aggregated = useMemo(() => {
-    const anyLog: any = logData as any;
+    const rawLogData = logData as any;
 
-    const aggs =
-      anyLog?.aggregates ||
-      anyLog?.data?.aggregates ||
-      (Array.isArray(anyLog) ? anyLog?.[0]?.aggregates : null) ||
+    const aggregates =
+      rawLogData?.aggregates ||
+      rawLogData?.data?.aggregates ||
+      (Array.isArray(rawLogData) ? rawLogData?.[0]?.aggregates : null) ||
       null;
 
-    if (!aggs) return [];
+    if (!aggregates) return [];
 
     let items: { label: string; count: number }[] = [];
 
-    if (dimension === "COMMUNITY") {
-      items = (aggs.by_community || []).map((x: any) => ({
-        label: x?.label ?? "No community",
-        count: Number(x?.count ?? 0),
+    if (dimension === ACTIVITY_DIMENSIONS.COMMUNITY) {
+      items = (aggregates.by_community || []).map((item: any) => ({
+        label: item?.label ?? NO_COMMUNITY_LABEL,
+        count: Number(item?.count ?? 0),
       }));
-    } else if (dimension === "FILENAME") {
-      items = (aggs.by_filename || []).map((x: any) => ({
-        label: x?.label ?? "No filename",
-        count: Number(x?.count ?? 0),
+    } else if (dimension === ACTIVITY_DIMENSIONS.FILENAME) {
+      items = (aggregates.by_filename || []).map((item: any) => ({
+        label: item?.label ?? NO_FILENAME_LABEL,
+        count: Number(item?.count ?? 0),
       }));
     } else {
-      items = (aggs.by_person || []).map((x: any) => ({
-        label: x?.label ?? "Unknown",
-        count: Number(x?.count ?? 0),
+      items = (aggregates.by_person || []).map((item: any) => ({
+        label: item?.label ?? getPersonLabel(item),
+        count: Number(item?.count ?? 0),
       }));
     }
 
-    items = items
-      .map((x) => ({ ...x, count: Number(x.count || 0) }))
-      .filter((x) => x.count > 0)
-      .sort((a, b) => b.count - a.count);
+    const normalizedItems = items
+      .map((item) => ({ ...item, count: Number(item.count || 0) }))
+      .filter((item) => item.count > 0)
+      .sort((left, right) => right.count - left.count);
 
-    if (items.length <= TOP_N) return items;
+    return appendOthersBucket(normalizedItems, ACTIVITY_TOP_N);
+  }, [dimension, logData]);
 
-    const top = items.slice(0, TOP_N);
-    const rest = items.slice(TOP_N);
-    const restCount = rest.reduce((s, x) => s + x.count, 0);
-    return [...top, { label: "Others", count: restCount }];
-  }, [logData, dimension]);
-
-  const total = useMemo(() => aggregated.reduce((s, x) => s + x.count, 0), [aggregated]);
+  const total = useMemo(
+    () => aggregated.reduce((sum, item) => sum + item.count, 0),
+    [aggregated]
+  );
 
   const pieData = useMemo(
     () =>
-      aggregated.map((x, i) => ({
-        id: i,
-        value: x.count,
-        label: x.label,
+      aggregated.map((item, index) => ({
+        id: index,
+        value: item.count,
+        label: item.label,
       })),
     [aggregated]
   );
@@ -123,20 +155,22 @@ export default function ActivityVisualization({
     [aggregated]
   );
 
-  //  Only allowed colors: cycle through your prim/sec variants
-  const accentPalette = [color_secondary, color_primary, color_secondary_dark, color_primary_dark];
+  const accentPalette = [
+    color_secondary,
+    color_primary,
+    color_secondary_dark,
+    color_primary_dark,
+  ];
 
   return (
-    <Box  data-testid="activity-viz-root" 
-      sx={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {/* Header + controls (PendingRequests feel: white header, subtle divider) */}
+    <Box data-testid="activity-viz-root" sx={ACTIVITY_ROOT_SX}>
       <Box
         data-testid="activity-viz-header"
         sx={{
           px: 1.25,
           py: 1,
           borderBottom: `1px solid ${color_border}`,
-          backgroundColor: color_white, //  match PendingRequests header area
+          backgroundColor: color_white,
           display: "flex",
           flexDirection: "column",
           gap: 0.75,
@@ -144,10 +178,18 @@ export default function ActivityVisualization({
         }}
       >
         <Box sx={{ display: "flex", flexDirection: "column" }}>
-          <Typography sx={{ fontWeight: 800, fontSize: 14, color: color_text_primary }}>
-            Visualization
+          <Typography sx={{ ...ACTIVITY_HEADER_TITLE_SX, fontSize: 14, fontWeight: 800 }}>
+            {ACTIVITY_VISUALIZATION_TITLE}
           </Typography>
-          <Typography data-testid="activity-viz-title" sx={{ color: color_text_secondary, fontSize: 12, lineHeight: 1.25 }}>
+          <Typography
+            data-testid="activity-viz-title"
+            sx={{
+              ...ACTIVITY_HEADER_SUBTITLE_SX,
+              color: color_text_secondary,
+              fontSize: 12,
+              lineHeight: 1.25,
+            }}
+          >
             {title}
           </Typography>
         </Box>
@@ -155,67 +197,74 @@ export default function ActivityVisualization({
         <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
           <Chip
             data-testid="activity-viz-total"
-            label={`${total} events`}
+            label={getActivityEventsLabel(total)}
             size="small"
-            sx={{
-              fontWeight: 900,
-              height: 26,
-              borderRadius: "10px",
-              backgroundColor: color_background,
-              border: `1px solid ${color_border}`,
-              color: color_text_primary,
-            }}
+            sx={ACTIVITY_EVENTS_CHIP_SX}
           />
 
           <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Group by</InputLabel>
+            <InputLabel>{ACTIVITY_GROUP_BY_LABEL}</InputLabel>
             <Select
               data-testid="activity-viz-dimension-select"
-              label="Group by"
+              label={ACTIVITY_GROUP_BY_LABEL}
               value={dimension}
-              onChange={(e) => setDimension(e.target.value as Dimension)}
+              onChange={(event) =>
+                setDimension(event.target.value as ActivityDimension)
+              }
               sx={{
                 height: 34,
                 backgroundColor: color_white,
                 "& .MuiSelect-select": { py: 0.75 },
               }}
             >
-              {allowedDimensions.map((d) => (
-                <MenuItem key={d} value={d}>
-                  {d === "COMMUNITY" ? "Community" : d === "FILENAME" ? "Filename" : "Person"}
+              {allowedDimensions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {getActivityDimensionLabel(option)}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Chart</InputLabel>
+            <InputLabel>{ACTIVITY_CHART_LABEL}</InputLabel>
             <Select
               data-testid="activity-viz-chart-select"
-              label="Chart"
+              label={ACTIVITY_CHART_LABEL}
               value={vizType}
-              onChange={(e) => setVizType(e.target.value as VizType)}
+              onChange={(event) =>
+                setVizType(event.target.value as ActivityVizType)
+              }
               sx={{
                 height: 34,
                 backgroundColor: color_white,
                 "& .MuiSelect-select": { py: 0.75 },
               }}
             >
-              <MenuItem value="DONUT">Donut</MenuItem>
-              <MenuItem value="PIE">Pie</MenuItem>
-              <MenuItem value="BAR">Bar</MenuItem>
+              {ACTIVITY_CHART_TYPE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Box>
       </Box>
 
-      {/* ONE scroll area */}
-      <Box sx={{ p: 1.25, flex: 1, minHeight: 0, overflowY: "auto", backgroundColor: color_white }}>
+      <Box
+        sx={{
+          p: 1.25,
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          backgroundColor: color_white,
+        }}
+      >
         {aggregated.length === 0 ? (
-          <Typography data-testid="activity-viz-empty" sx={{ color: color_text_light, fontSize: 13 }}>No data to visualize.</Typography>
+          <Typography data-testid="activity-viz-empty" sx={ACTIVITY_EMPTY_TEXT_SX}>
+            {ACTIVITY_NO_DATA_TEXT}
+          </Typography>
         ) : (
           <>
-            {/* Chart box */}
             <Box
               data-testid="activity-viz-chart-box"
               sx={{
@@ -226,7 +275,7 @@ export default function ActivityVisualization({
                 "& .MuiChartsLegend-root": { display: "none !important" },
               }}
             >
-              {vizType === "BAR" ? (
+              {vizType === ACTIVITY_CHART_TYPES.BAR ? (
                 <BarChart
                   xAxis={[{ scaleType: "band", data: barLabels }]}
                   series={perBarSeries}
@@ -238,7 +287,8 @@ export default function ActivityVisualization({
                   series={[
                     {
                       data: pieData,
-                      innerRadius: vizType === "DONUT" ? 58 : 0,
+                      innerRadius:
+                        vizType === ACTIVITY_CHART_TYPES.DONUT ? 58 : 0,
                       outerRadius: 105,
                       paddingAngle: 2,
                       cornerRadius: 4,
@@ -249,7 +299,6 @@ export default function ActivityVisualization({
               )}
             </Box>
 
-            {/* Breakdown header */}
             <Box
               sx={{
                 mt: 1,
@@ -258,24 +307,26 @@ export default function ActivityVisualization({
                 justifyContent: "space-between",
               }}
             >
-              <Typography sx={{ fontWeight: 900, fontSize: 12, color: color_text_primary }}>
-                Breakdown
+              <Typography sx={{ ...ACTIVITY_SECTION_TITLE_SX, fontSize: 12 }}>
+                {ACTIVITY_BREAKDOWN_TITLE}
               </Typography>
-              <Typography sx={{ fontSize: 12, color: color_text_light }}>
-                {aggregated.length > TOP_N ? `Top ${TOP_N} + Others` : `${aggregated.length} item(s)`}
+              <Typography sx={ACTIVITY_SECTION_SUBTITLE_SX}>
+                {getBreakdownSummaryLabel(aggregated.length)}
               </Typography>
             </Box>
 
-            {/* Breakdown rows */}
-            <Box data-testid="activity-viz-breakdown" sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {aggregated.map((x, i) => {
-                const pct = total > 0 ? Math.round((x.count / total) * 100) : 0;
-                const accent = accentPalette[i % accentPalette.length];
+            <Box
+              data-testid="activity-viz-breakdown"
+              sx={{ mt: 0.75, display: "flex", flexDirection: "column", gap: 0.75 }}
+            >
+              {aggregated.map((item, index) => {
+                const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
+                const accent = accentPalette[index % accentPalette.length];
 
                 return (
                   <Box
-                    data-testid={`activity-viz-row-${i}`}
-                    key={x.label}
+                    data-testid={`activity-viz-row-${index}`}
+                    key={item.label}
                     sx={{
                       display: "flex",
                       alignItems: "stretch",
@@ -300,8 +351,8 @@ export default function ActivityVisualization({
                       }}
                     >
                       <Typography
-                        data-testid={`activity-viz-row-label-${i}`}
-                        title={x.label}
+                        data-testid={`activity-viz-row-label-${index}`}
+                        title={item.label}
                         sx={{
                           fontWeight: 800,
                           fontSize: 12,
@@ -311,13 +362,13 @@ export default function ActivityVisualization({
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {x.label}
+                        {item.label}
                       </Typography>
 
                       <Box sx={{ display: "flex", gap: 0.75, alignItems: "center" }}>
                         <Chip
-                          data-testid={`activity-viz-row-count-${i}`}
-                          label={`${x.count}`}
+                          data-testid={`activity-viz-row-count-${index}`}
+                          label={`${item.count}`}
                           size="small"
                           sx={{
                             height: 22,
@@ -329,8 +380,8 @@ export default function ActivityVisualization({
                           }}
                         />
                         <Chip
-                          data-testid={`activity-viz-row-pct-${i}`}
-                          label={`${pct}%`}
+                          data-testid={`activity-viz-row-pct-${index}`}
+                          label={`${percent}%`}
                           size="small"
                           sx={{
                             height: 22,
@@ -348,7 +399,6 @@ export default function ActivityVisualization({
               })}
             </Box>
 
-            {/* Optional subtle bottom padding like PendingRequests empty area */}
             <Box sx={{ height: 10, backgroundColor: color_white }} />
           </>
         )}
