@@ -1,3 +1,10 @@
+import {
+  REVIEW_STATUS_VALUES,
+  getReviewStatusLabel,
+  normalizeReviewStatus,
+  type ReviewStatusValue,
+} from "../../constants/statuses";
+
 export const PHOTO_VIEWER_TITLE = "Photo Viewer";
 export const VIEWER_COMMENTS_TITLE = "Comments";
 export const VIEWER_UPLOADER_COMMENT_TITLE = "Uploader Comment";
@@ -31,11 +38,10 @@ export const DOCUMENT_PREVIEW_ACTION_HELPER = 'Use "Open" or "Download".';
 export const DOCUMENT_DEFAULT_TIP_TEXT =
   'If preview does not load (some types cannot embed), use "Open".';
 
-export const getViewerStatusLabel = (status?: string | null) => {
-  if (status === "approved") return "Approved";
-  if (status === "rejected") return "Rejected";
-  return "Pending";
-};
+export const getViewerStatusLabel = (status?: ReviewStatusValue | null) =>
+  getReviewStatusLabel(
+    normalizeReviewStatus(status, REVIEW_STATUS_VALUES.PENDING)
+  );
 
 export const getViewerRequestSummary = (requestIds: number[]) => {
   if (requestIds.length === 1) return `Request #${requestIds[0]}`;

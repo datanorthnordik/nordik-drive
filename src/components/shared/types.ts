@@ -1,11 +1,14 @@
 import { getDocumentCategoryLabel } from "../../domain/documents/categories";
+import {
+  REVIEW_STATUS_VALUES,
+  normalizeReviewStatus,
+  type ReviewStatusValue,
+} from "../../constants/statuses";
 
-export type FileReviewStatus = "approved" | "rejected" | "pending" | null;
+export type FileReviewStatus = ReviewStatusValue | null;
 
-export const normalizeStatus = (s?: FileReviewStatus): "approved" | "rejected" | "pending" => {
-  if (s === "approved" || s === "rejected" || s === "pending") return s;
-  return "pending";
-};
+export const normalizeStatus = (s?: FileReviewStatus): ReviewStatusValue =>
+  normalizeReviewStatus(s, REVIEW_STATUS_VALUES.PENDING);
 
 export const formatBytes = (bytes?: number) => {
   if (!bytes || bytes <= 0) return "0 B";
@@ -72,8 +75,8 @@ export type PhotoGridProps = {
   cardSx?: any;
 
   // optional override
-  statusLabel?: (st: "approved" | "rejected" | "pending") => string;
-  statusChipSx?: (st: "approved" | "rejected" | "pending") => any;
+  statusLabel?: (st: ReviewStatusValue) => string;
+  statusChipSx?: (st: ReviewStatusValue) => any;
 
   primaryBtnSx?: any;
   showStatusChip?: boolean;
@@ -88,7 +91,7 @@ export type DocumentGridItem = {
   mime_type?: string;
   size_bytes?: number;
   document_category?: string;
-  status?: "approved" | "rejected" | "pending";
+  status?: FileReviewStatus;
   reviewer_comment?: string;
   [key: string]: any;
 };
@@ -133,8 +136,8 @@ export type DocumentGridProps = {
   cardSx?: any;
 
   // optional override
-  statusLabel?: (st: "approved" | "rejected" | "pending") => string;
-  statusChipSx?: (st: "approved" | "rejected" | "pending") => any;
+  statusLabel?: (st: ReviewStatusValue) => string;
+  statusChipSx?: (st: ReviewStatusValue) => any;
 
   primaryBtnSx?: any;
   showStatusChip?: boolean;

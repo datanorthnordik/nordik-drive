@@ -29,6 +29,7 @@ import FormPhotoViewerModal, { FormViewerPhoto } from "./FormPhotoViewerModal";
 import FormDocumentViewerModal, { FormViewerDoc } from "./FormDocumentViewerModal";
 import ConfigFormFieldRenderer from "./ConfigFormFieldRenderer";
 import ConfigFormTableSection from "./ConfigFormTable";
+import { SUBMISSION_GUARD_KINDS } from "./guardConstants";
 import useConfigFormLookups from "./hooks/useConfigFormLookups";
 import useConfigFormSubmissionGuard from "./hooks/useConfigFormSubmissionGuard";
 
@@ -42,6 +43,13 @@ import {
   color_white,
   color_white_smoke,
 } from "../../../constants/colors";
+import {
+  REVIEW_STATUS_VALUES,
+  getReviewStatusLabel,
+  normalizeReviewStatus,
+  type ReviewDecisionStatus,
+  type ReviewStatusValue,
+} from "../../../constants/statuses";
 
 import {
   BaseLeafColCfg,
@@ -59,8 +67,8 @@ import {
   resolveRowId,
 } from "./shared";
 
-type ReviewUiAction = "approved" | "rejected" | "moreInfo";
-type UploadReviewStatus = "approved" | "rejected" | "pending";
+type ReviewUiAction = ReviewDecisionStatus | "moreInfo";
+type UploadReviewStatus = ReviewStatusValue;
 
 type UploadReviewDraft = {
   status: UploadReviewStatus;
@@ -320,16 +328,17 @@ export default function ConfigFormModal({
   });
 
   const normalizeUploadStatus = useCallback((value: any): UploadReviewStatus => {
-    const normalized = String(value || "").trim().toLowerCase();
-    if (normalized === "approved") return "approved";
-    if (normalized === "rejected") return "rejected";
-    return "pending";
+    return normalizeReviewStatus(value, REVIEW_STATUS_VALUES.PENDING);
   }, []);
 
   const reviewStatusToApiStatus = useCallback(
     (status: UploadReviewStatus) => {
-      if (status === "approved") return reviewStatuses?.approved || "approved";
-      if (status === "rejected") return reviewStatuses?.rejected || "rejected";
+      if (status === REVIEW_STATUS_VALUES.APPROVED) {
+        return reviewStatuses?.approved || REVIEW_STATUS_VALUES.APPROVED;
+      }
+      if (status === REVIEW_STATUS_VALUES.REJECTED) {
+        return reviewStatuses?.rejected || REVIEW_STATUS_VALUES.REJECTED;
+      }
       return "";
     },
     [reviewStatuses]
@@ -338,8 +347,8 @@ export default function ConfigFormModal({
   const uiActionToApiStatus = useCallback(
     (action: ReviewUiAction) => {
       if (!reviewStatuses) return "";
-      if (action === "approved") return reviewStatuses.approved;
-      if (action === "rejected") return reviewStatuses.rejected;
+      if (action === REVIEW_STATUS_VALUES.APPROVED) return reviewStatuses.approved;
+      if (action === REVIEW_STATUS_VALUES.REJECTED) return reviewStatuses.rejected;
       return reviewStatuses.moreInfo;
     },
     [reviewStatuses]
@@ -347,7 +356,10 @@ export default function ConfigFormModal({
 
   const getUploadReviewDraft = useCallback(
     (uploadId: number): UploadReviewDraft => {
-      return uploadReviewDrafts[uploadId] || { status: "pending", reviewer_comment: "" };
+      return uploadReviewDrafts[uploadId] || {
+        status: REVIEW_STATUS_VALUES.PENDING,
+        reviewer_comment: "",
+      };
     },
     [uploadReviewDrafts]
   );
@@ -366,7 +378,7 @@ export default function ConfigFormModal({
     setUploadReviewDrafts((prev) => ({
       ...prev,
       [uploadId]: {
-        ...(prev[uploadId] || { status: "pending" }),
+        ...(prev[uploadId] || { status: REVIEW_STATUS_VALUES.PENDING }),
         reviewer_comment: value,
       },
     }));
@@ -459,9 +471,11 @@ export default function ConfigFormModal({
     onPrepareNewRequest: resetDraftToEmpty,
   });
 
-  const approvedGuardActive = requestGuardEnabled && submissionGuard.kind === "approved";
+  const approvedGuardActive =
+    requestGuardEnabled && submissionGuard.kind === SUBMISSION_GUARD_KINDS.APPROVED;
   const otherUserGuardActive =
-    requestGuardEnabled && submissionGuard.kind === "other-user-active";
+    requestGuardEnabled &&
+    submissionGuard.kind === SUBMISSION_GUARD_KINDS.OTHER_USER_ACTIVE;
   const editable =
     isEditable && formConfig?.editable !== false && !approvedGuardActive && !otherUserGuardActive;
   const saveGuardBusy = requestGuardEnabled && !review && submissionSearchLoading;
@@ -1219,13 +1233,17 @@ export default function ConfigFormModal({
       return false;
     }
 
-    if ((submissionAction === "rejected" || submissionAction === "moreInfo") && !reviewComment.trim()) {
+    if (
+      (submissionAction === REVIEW_STATUS_VALUES.REJECTED ||
+        submissionAction === "moreInfo") &&
+      !reviewComment.trim()
+    ) {
       toast.error("Review comment is required.");
       return false;
     }
 
     const hasPendingUploadReview = Object.values(uploadReviewDrafts).some(
-      (draft) => draft.status === "pending"
+      (draft) => draft.status === REVIEW_STATUS_VALUES.PENDING
     );
 
     if (hasPendingUploadReview) {
@@ -1236,7 +1254,10 @@ export default function ConfigFormModal({
     }
 
     for (const [uploadId, draft] of Object.entries(uploadReviewDrafts)) {
-      if (draft.status === "rejected" && !draft.reviewer_comment.trim()) {
+      if (
+        draft.status === REVIEW_STATUS_VALUES.REJECTED &&
+        !draft.reviewer_comment.trim()
+      ) {
         toast.error(`Review comment is required for rejected file #${uploadId}.`);
         return false;
       }
@@ -1278,7 +1299,7 @@ export default function ConfigFormModal({
         return;
       }
 
-      if (submissionGuard.kind !== "none") {
+      if (submissionGuard.kind !== SUBMISSION_GUARD_KINDS.NONE) {
         toast.error(submissionGuard.message);
         return;
       }
@@ -1308,7 +1329,7 @@ export default function ConfigFormModal({
     if (!validateReview(submissionAction)) return;
 
     const upload_reviews = Object.entries(uploadReviewDrafts)
-      .filter(([, draft]) => draft.status !== "pending")
+      .filter(([, draft]) => draft.status !== REVIEW_STATUS_VALUES.PENDING)
       .map(([uploadId, draft]) => ({
         upload_id: Number(uploadId),
         status: reviewStatusToApiStatus(draft.status),
@@ -1370,13 +1391,17 @@ export default function ConfigFormModal({
           onDownloadSingle={(id: any, filename: any, mime: any) =>
             void handleDownloadExistingDoc(Number(id), filename, mime)
           }
-          statusLabel={(st) => (st === "approved" ? "Approved" : st === "rejected" ? "Rejected" : "Pending")}
+          statusLabel={getReviewStatusLabel}
           statusChipSx={ undefined }
           primaryBtnSx={GRID_PRIMARY_BTN_SX}
           viewBtnSx={GRID_VIEW_BTN_SX}
           showApproveReject={review}
-          onApprove={(id) => setUploadReviewStatus(Number(id), "approved")}
-          onReject={(id) => setUploadReviewStatus(Number(id), "rejected")}
+          onApprove={(id) =>
+            setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.APPROVED)
+          }
+          onReject={(id) =>
+            setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.REJECTED)
+          }
           approveBtnSx={GRID_APPROVE_BTN_SX}
           rejectBtnSx={GRID_REJECT_BTN_SX}
           showReviewerCommentField={review}
@@ -1433,7 +1458,7 @@ export default function ConfigFormModal({
             void handleDownloadExistingPhoto(Number(id), `photo_${id}.jpg`)
           }
           showStatusChip={true}
-          statusLabel={(st) =>  (st === "approved" ? "Approved" : st === "rejected" ? "Rejected" : "Pending") }
+          statusLabel={getReviewStatusLabel}
           statusChipSx={undefined}
           primaryBtnSx={GRID_PRIMARY_BTN_SX}
           showUploaderCommentField={!review && editable}
@@ -1442,8 +1467,12 @@ export default function ConfigFormModal({
             handleExistingPhotoCommentChange(fieldKey, Number(id), value)
           }
           showApproveReject={review}
-          onApprove={(id:any) => setUploadReviewStatus(Number(id), "approved")}
-          onReject={(id:any) => setUploadReviewStatus(Number(id), "rejected")}
+          onApprove={(id:any) =>
+            setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.APPROVED)
+          }
+          onReject={(id:any) =>
+            setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.REJECTED)
+          }
           approveBtnSx={GRID_APPROVE_BTN_SX}
           rejectBtnSx={GRID_REJECT_BTN_SX}
           showReviewerCommentField={review}
@@ -1689,8 +1718,24 @@ export default function ConfigFormModal({
             photo.file_name || `photo_${photo.id}.jpg`
           )
         }
-        onApprove={review ? (photo) => setUploadReviewStatus(Number(photo.id), "approved") : undefined}
-        onReject={review ? (photo) => setUploadReviewStatus(Number(photo.id), "rejected") : undefined}
+        onApprove={
+          review
+            ? (photo) =>
+                setUploadReviewStatus(
+                  Number(photo.id),
+                  REVIEW_STATUS_VALUES.APPROVED
+                )
+            : undefined
+        }
+        onReject={
+          review
+            ? (photo) =>
+                setUploadReviewStatus(
+                  Number(photo.id),
+                  REVIEW_STATUS_VALUES.REJECTED
+                )
+            : undefined
+        }
         onReviewerCommentChange={
           review ? (photo:any, value:any) => setUploadReviewerComment(Number(photo.id), value) : undefined
         }
@@ -1721,8 +1766,24 @@ export default function ConfigFormModal({
             doc.mime_type || "application/octet-stream"
           )
         }
-        onApprove={review ? (doc) => setUploadReviewStatus(Number(doc.id), "approved") : undefined}
-        onReject={review ? (doc) => setUploadReviewStatus(Number(doc.id), "rejected") : undefined}
+        onApprove={
+          review
+            ? (doc) =>
+                setUploadReviewStatus(
+                  Number(doc.id),
+                  REVIEW_STATUS_VALUES.APPROVED
+                )
+            : undefined
+        }
+        onReject={
+          review
+            ? (doc) =>
+                setUploadReviewStatus(
+                  Number(doc.id),
+                  REVIEW_STATUS_VALUES.REJECTED
+                )
+            : undefined
+        }
         onReviewerCommentChange={
           review ? (doc, value) => setUploadReviewerComment(Number(doc.id), value) : undefined
         }

@@ -2,6 +2,10 @@
 
 import React from "react";
 import { Button, DialogActions } from "@mui/material";
+import {
+  REVIEW_STATUS_VALUES,
+  type ReviewDecisionStatus,
+} from "../../../constants/statuses";
 
 import {
   color_border,
@@ -16,7 +20,7 @@ import {
   shadow_auth_button,
 } from "../../../constants/colors";
 
-type ReviewUiAction = "approved" | "rejected" | "moreInfo";
+type ReviewUiAction = ReviewDecisionStatus | "moreInfo";
 
 type Props = {
   review: boolean;
@@ -114,7 +118,7 @@ export default function ConfigFormModalActions({
 
           <Button
             variant="contained"
-            onClick={() => onReviewAction("rejected")}
+            onClick={() => onReviewAction(REVIEW_STATUS_VALUES.REJECTED)}
             disabled={isProcessing}
             sx={{
               textTransform: "none",
@@ -132,7 +136,7 @@ export default function ConfigFormModalActions({
 
           <Button
             variant="contained"
-            onClick={() => onReviewAction("approved")}
+            onClick={() => onReviewAction(REVIEW_STATUS_VALUES.APPROVED)}
             disabled={isProcessing}
             sx={{
               textTransform: "none",

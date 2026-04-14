@@ -58,6 +58,11 @@ import {
   color_text_light,
   color_warning,
 } from "../../constants/colors";
+import {
+  REVIEW_STATUS_VALUES,
+  isReviewDecisionStatus,
+  type ReviewDecisionStatus,
+} from "../../constants/statuses";
 import PhotoViewerModal from "../viewers/PhotoViewer";
 import DocumentViewerModal from "../viewers/DocumentViewer";
 import { PhotoGrid } from "../../components/shared/PhotoGrids";
@@ -70,7 +75,7 @@ interface ApproveRequestModalProps {
   onApproved?: () => void;
 }
 
-type ReviewStatus = "approved" | "rejected" | null;
+type ReviewStatus = ReviewDecisionStatus | null;
 
 interface RequestPhoto {
   id: number;
@@ -97,7 +102,7 @@ interface RequestDoc {
 
 type PhotoReviewInput = {
   photo_id: number;
-  status: "approved" | "rejected";
+  status: ReviewDecisionStatus;
   reviewer_comment: string;
 };
 
@@ -119,8 +124,7 @@ const categoryLabel = (cat?: string) => {
 
 const normalizeInitialReviewStatus = (value: any): ReviewStatus => {
   const v = String(value || "").trim().toLowerCase();
-  if (v === "approved") return "approved";
-  if (v === "rejected") return "rejected";
+  if (isReviewDecisionStatus(v)) return v;
   return null;
 };
 
@@ -185,7 +189,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
   // request-level review
   const [requestReviewComment, setRequestReviewComment] = useState("");
-  const [pendingRequestAction, setPendingRequestAction] = useState<"approved" | "rejected" | null>(null);
+  const [pendingRequestAction, setPendingRequestAction] = useState<ReviewDecisionStatus | null>(
+    null
+  );
 
   // Photo viewer
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -247,25 +253,41 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
   const handleApprovePhotoById = (id: number) => {
     setPhotos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "approved" } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: REVIEW_STATUS_VALUES.APPROVED }
+          : p
+      )
     );
   };
 
   const handleRejectPhotoById = (id: number) => {
     setPhotos((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, status: "rejected" } : p))
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, status: REVIEW_STATUS_VALUES.REJECTED }
+          : p
+      )
     );
   };
 
   const handleApproveDocById = (id: number) => {
     setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d))
+      prev.map((d) =>
+        d.id === id
+          ? { ...d, status: REVIEW_STATUS_VALUES.APPROVED }
+          : d
+      )
     );
   };
 
   const handleRejectDocById = (id: number) => {
     setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d))
+      prev.map((d) =>
+        d.id === id
+          ? { ...d, status: REVIEW_STATUS_VALUES.REJECTED }
+          : d
+      )
     );
   };
 
@@ -337,7 +359,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
     handledApproveRef.current = true;
     toast.success(
-      pendingRequestAction === "rejected"
+      pendingRequestAction === REVIEW_STATUS_VALUES.REJECTED
         ? "Request rejected successfully."
         : "Request approved successfully."
     );
@@ -464,7 +486,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   // ---------------------------------------
   // Request review submission
   // ---------------------------------------
-  const validateBeforeSubmit = (requestStatus: "approved" | "rejected") => {
+  const validateBeforeSubmit = (requestStatus: ReviewDecisionStatus) => {
     const hasPendingPhoto = photos.some((p) => p.status === null);
     const hasPendingDoc = docs.some((d) => d.status === null);
 
@@ -474,7 +496,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     }
 
     const rejectedPhotoWithoutComment = photos.find(
-      (p) => p.status === "rejected" && !String(p.reviewer_comment || "").trim()
+      (p) =>
+        p.status === REVIEW_STATUS_VALUES.REJECTED &&
+        !String(p.reviewer_comment || "").trim()
     );
     if (rejectedPhotoWithoutComment) {
       toast.error("Review comment is required for rejected photos.");
@@ -482,14 +506,19 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     }
 
     const rejectedDocWithoutComment = docs.find(
-      (d) => d.status === "rejected" && !String(d.reviewer_comment || "").trim()
+      (d) =>
+        d.status === REVIEW_STATUS_VALUES.REJECTED &&
+        !String(d.reviewer_comment || "").trim()
     );
     if (rejectedDocWithoutComment) {
       toast.error("Review comment is required for rejected documents.");
       return false;
     }
 
-    if (requestStatus === "rejected" && !requestReviewComment.trim()) {
+    if (
+      requestStatus === REVIEW_STATUS_VALUES.REJECTED &&
+      !requestReviewComment.trim()
+    ) {
       toast.error("Review comment is required when rejecting the request.");
       return false;
     }
@@ -497,7 +526,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     return true;
   };
 
-  const handleSubmitRequestReview = async (requestStatus: "approved" | "rejected") => {
+  const handleSubmitRequestReview = async (requestStatus: ReviewDecisionStatus) => {
     if (submitLockRef.current) return;
     submitLockRef.current = true;
 
@@ -505,10 +534,14 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
       if (!validateBeforeSubmit(requestStatus)) return;
 
       const reviews: PhotoReviewInput[] = [...photos, ...docs]
-        .filter((x: any) => x.status === "approved" || x.status === "rejected")
+        .filter(
+          (x: any) =>
+            x.status === REVIEW_STATUS_VALUES.APPROVED ||
+            x.status === REVIEW_STATUS_VALUES.REJECTED
+        )
         .map((x: any) => ({
           photo_id: x.id,
-          status: x.status as "approved" | "rejected",
+          status: x.status as ReviewDecisionStatus,
           reviewer_comment: String(x.reviewer_comment || "").trim(),
         }));
 
@@ -872,7 +905,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           <Button
             data-testid="reject-request-btn"
             variant="contained"
-            onClick={() => void handleSubmitRequestReview("rejected")}
+            onClick={() =>
+              void handleSubmitRequestReview(REVIEW_STATUS_VALUES.REJECTED)
+            }
             disabled={requestLoading || mediaReviewLoading}
             sx={rejectBtnSx}
           >
@@ -882,7 +917,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           <Button
             data-testid="approve-all-btn"
             variant="contained"
-            onClick={() => void handleSubmitRequestReview("approved")}
+            onClick={() =>
+              void handleSubmitRequestReview(REVIEW_STATUS_VALUES.APPROVED)
+            }
             disabled={requestLoading || mediaReviewLoading}
             sx={approveBtnSx}
           >

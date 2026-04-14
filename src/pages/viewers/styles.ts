@@ -1,4 +1,9 @@
 import type { SxProps, Theme } from "@mui/material/styles";
+import {
+  REVIEW_STATUS_VALUES,
+  normalizeReviewStatus,
+  type ReviewStatusValue,
+} from "../../constants/statuses";
 
 import {
   color_error,
@@ -24,8 +29,10 @@ export const VIEWER_SUBSECTION_TITLE_SX: ViewerSx = {
   color: color_text_primary,
 };
 
-export const getViewerStatusChipSx = (status?: string | null) => {
-  if (status === "approved") {
+export const getViewerStatusChipSx = (status?: ReviewStatusValue | null) => {
+  const normalized = normalizeReviewStatus(status, REVIEW_STATUS_VALUES.PENDING);
+
+  if (normalized === REVIEW_STATUS_VALUES.APPROVED) {
     return {
       color: color_success,
       backgroundColor: "rgba(39, 174, 96, 0.12)",
@@ -33,7 +40,7 @@ export const getViewerStatusChipSx = (status?: string | null) => {
       fontWeight: 900,
     };
   }
-  if (status === "rejected") {
+  if (normalized === REVIEW_STATUS_VALUES.REJECTED) {
     return {
       color: color_error,
       backgroundColor: "rgba(231, 76, 60, 0.12)",

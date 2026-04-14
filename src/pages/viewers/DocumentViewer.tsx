@@ -19,6 +19,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import FolderZipIcon from "@mui/icons-material/FolderZip";
 
 import useFetch from "../../hooks/useFetch";
+import { type ReviewStatusValue } from "../../constants/statuses";
 import {
   DOCUMENT_DEFAULT_TIP_TEXT,
   DOCUMENT_FALLBACK_TITLE,
@@ -59,7 +60,7 @@ import {
   color_text_light,
 } from "../../constants/colors";
 
-export type ReviewStatus = "approved" | "rejected" | "pending" | null;
+export type ReviewStatus = ReviewStatusValue | null;
 
 export interface ViewerDoc {
   id: number;

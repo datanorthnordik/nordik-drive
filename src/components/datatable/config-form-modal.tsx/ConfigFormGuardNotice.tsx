@@ -20,6 +20,7 @@ import {
   color_white,
   shadow_auth_button,
 } from "../../../constants/colors";
+import { SUBMISSION_GUARD_KINDS } from "./guardConstants";
 
 import type { SubmissionGuardState } from "./hooks/useConfigFormSubmissionGuard";
 
@@ -62,7 +63,7 @@ export default function ConfigFormGuardNotice({
     );
   }
 
-  if (submissionGuard.kind === "other-user-active") {
+  if (submissionGuard.kind === SUBMISSION_GUARD_KINDS.OTHER_USER_ACTIVE) {
     return (
       <div data-testid="submission-guard-blocked">
         <Box
@@ -103,7 +104,7 @@ export default function ConfigFormGuardNotice({
     );
   }
 
-  if (submissionGuard.kind === "approved") {
+  if (submissionGuard.kind === SUBMISSION_GUARD_KINDS.APPROVED) {
     return (
       <div data-testid="submission-guard-warning">
         <Box

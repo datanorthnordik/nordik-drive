@@ -31,6 +31,7 @@ import ImageGallery from "react-image-gallery";
 import "react-image-gallery/styles/css/image-gallery.css";
 
 import useFetch from "../../hooks/useFetch";
+import { type ReviewStatusValue } from "../../constants/statuses";
 import { API_BASE } from "../../config/api";
 import {
     getViewerStatusLabel,
@@ -70,7 +71,7 @@ import {
     color_text_light,
 } from "../../constants/colors";
 
-type ReviewStatus = "approved" | "rejected" | "pending" | null | undefined;
+type ReviewStatus = ReviewStatusValue | null | undefined;
 
 export interface ViewerPhoto {
     id: number;

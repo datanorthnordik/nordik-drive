@@ -20,6 +20,14 @@ import useFetch from "../../hooks/useFetch";
 import Loader from "../../components/Loader";
 import { API_BASE } from "../../config/api";
 import {
+  FORM_SUBMISSION_STATUS_VALUES,
+  PENDING_REVIEW_STATUS_LABEL,
+  UNKNOWN_STATUS_LABEL,
+  FORM_SUBMISSION_STATUS_LABELS,
+  isFormSubmissionStatusValue,
+  isReadonlyFormSubmissionStatus,
+} from "../../constants/statuses";
+import {
   color_secondary,
   color_secondary_dark,
   color_border,
@@ -51,23 +59,31 @@ type ConfigApiResp = {
   config?: ConfigJson;
 };
 
-type TabKey = "pending" | "approved";
+type TabKey =
+  | typeof FORM_SUBMISSION_STATUS_VALUES.PENDING
+  | typeof FORM_SUBMISSION_STATUS_VALUES.APPROVED;
 
 const REQUEST_PAGE_SIZE = 1000;
 
-const normalizeStatus = (status?: string) => String(status || "").trim().toLowerCase();
-
-const isReadonlyStatus = (status?: string) => {
-  const normalized = normalizeStatus(status);
-  return normalized === "approved" || normalized === "rejected";
-};
+const isReadonlyStatus = (status?: string) => isReadonlyFormSubmissionStatus(status);
 
 const statusChipSx = (status?: string) => {
-  const normalized = normalizeStatus(status);
+  const normalized = String(status || "").trim().toLowerCase();
 
-  if (normalized === "approved") {
+  if (!isFormSubmissionStatusValue(normalized)) {
     return {
-      label: "Approved",
+      label: status || UNKNOWN_STATUS_LABEL,
+      sx: {
+        backgroundColor: "rgba(107, 114, 128, 0.12)",
+        border: "1px solid rgba(107, 114, 128, 0.25)",
+        color: color_text_light,
+      },
+    };
+  }
+
+  if (normalized === FORM_SUBMISSION_STATUS_VALUES.APPROVED) {
+    return {
+      label: FORM_SUBMISSION_STATUS_LABELS[FORM_SUBMISSION_STATUS_VALUES.APPROVED],
       sx: {
         backgroundColor: "rgba(39, 174, 96, 0.12)",
         border: "1px solid rgba(39, 174, 96, 0.25)",
@@ -76,9 +92,9 @@ const statusChipSx = (status?: string) => {
     };
   }
 
-  if (normalized === "pending") {
+  if (normalized === FORM_SUBMISSION_STATUS_VALUES.PENDING) {
     return {
-      label: "Pending review",
+      label: PENDING_REVIEW_STATUS_LABEL,
       sx: {
         backgroundColor: "rgba(243, 156, 18, 0.14)",
         border: "1px solid rgba(243, 156, 18, 0.25)",
@@ -87,9 +103,12 @@ const statusChipSx = (status?: string) => {
     };
   }
 
-  if (normalized === "needs more information") {
+  if (normalized === FORM_SUBMISSION_STATUS_VALUES.NEEDS_MORE_INFORMATION) {
     return {
-      label: "Needs more information",
+      label:
+        FORM_SUBMISSION_STATUS_LABELS[
+          FORM_SUBMISSION_STATUS_VALUES.NEEDS_MORE_INFORMATION
+        ],
       sx: {
         backgroundColor: "rgba(52, 152, 219, 0.12)",
         border: "1px solid rgba(52, 152, 219, 0.24)",
@@ -98,9 +117,9 @@ const statusChipSx = (status?: string) => {
     };
   }
 
-  if (normalized === "rejected") {
+  if (normalized === FORM_SUBMISSION_STATUS_VALUES.REJECTED) {
     return {
-      label: "Rejected",
+      label: FORM_SUBMISSION_STATUS_LABELS[FORM_SUBMISSION_STATUS_VALUES.REJECTED],
       sx: {
         backgroundColor: "rgba(107, 114, 128, 0.12)",
         border: "1px solid rgba(107, 114, 128, 0.25)",
@@ -110,7 +129,7 @@ const statusChipSx = (status?: string) => {
   }
 
   return {
-    label: status || "Unknown",
+    label: status || UNKNOWN_STATUS_LABEL,
     sx: {
       backgroundColor: "rgba(107, 114, 128, 0.12)",
       border: "1px solid rgba(107, 114, 128, 0.25)",
@@ -129,7 +148,7 @@ const getRowKey = (row: FormSubmissionRow) =>
 
 export default function MyFormSubmissionRequests() {
   const [rows, setRows] = useState<FormSubmissionRow[]>([]);
-  const [tab, setTab] = useState<TabKey>("pending");
+  const [tab, setTab] = useState<TabKey>(FORM_SUBMISSION_STATUS_VALUES.PENDING);
   const [searchText, setSearchText] = useState("");
 
   const [cfgFormOpen, setCfgFormOpen] = useState(false);
@@ -275,7 +294,8 @@ export default function MyFormSubmissionRequests() {
     [rows]
   );
 
-  const activeList = tab === "pending" ? pendingRows : approvedRejectedRows;
+  const activeList =
+    tab === FORM_SUBMISSION_STATUS_VALUES.PENDING ? pendingRows : approvedRejectedRows;
 
   const filteredRows = useMemo(() => {
     const search = searchText.toLowerCase().trim();
@@ -407,7 +427,10 @@ export default function MyFormSubmissionRequests() {
                 },
                 "& .Mui-selected": {
                   color: color_white,
-                  backgroundColor: tab === "pending" ? color_warning : color_secondary,
+                  backgroundColor:
+                    tab === FORM_SUBMISSION_STATUS_VALUES.PENDING
+                      ? color_warning
+                      : color_secondary,
                   border: "none",
                 },
                 "& .MuiTabs-indicator": { display: "none" },
@@ -415,12 +438,12 @@ export default function MyFormSubmissionRequests() {
             >
               <Tab
                 data-testid="tab-pending"
-                value="pending"
+                value={FORM_SUBMISSION_STATUS_VALUES.PENDING}
                 label={`Pending / Need More Information (${pendingRows.length})`}
               />
               <Tab
                 data-testid="tab-approved"
-                value="approved"
+                value={FORM_SUBMISSION_STATUS_VALUES.APPROVED}
                 label={`Approved / Rejected (${approvedRejectedRows.length})`}
               />
             </Tabs>
@@ -448,7 +471,7 @@ export default function MyFormSubmissionRequests() {
                 }}
               >
                 <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
-                  {tab === "pending"
+                  {tab === FORM_SUBMISSION_STATUS_VALUES.PENDING
                     ? "No pending or needs more information requests."
                     : "No approved or rejected requests."}
                 </Typography>

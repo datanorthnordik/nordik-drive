@@ -49,6 +49,10 @@ import {
   color_primary,
   color_white,
 } from "../../constants/colors";
+import {
+  getReviewStatusUppercaseLabel,
+  type ReviewStatusValue,
+} from "../../constants/statuses";
 import PhotoViewerModal from "../viewers/PhotoViewer";
 import DocumentViewerModal from "../viewers/DocumentViewer";
 import { PhotoGrid } from "../../components/shared/PhotoGrids";
@@ -62,7 +66,7 @@ interface MyRequestDetailsModalProps {
   onClose: () => void;
 }
 
-type ReviewStatus = "approved" | "rejected" | "pending";
+type ReviewStatus = ReviewStatusValue;
 
 interface RequestPhoto {
   id: number;
@@ -412,7 +416,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
               mb: 2,
             }}
             // optional: keep your "UPPERCASE" style like old UI
-            statusLabel={(st) => st.toUpperCase()}
+            statusLabel={getReviewStatusUppercaseLabel}
             viewReviewerComment={true}
             disableReviewerCommentField={true}
           />
@@ -437,7 +441,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             viewLabel="View"
             viewBtnSx={viewBtnSx}
             showApproveReject={false}
-            statusLabel={(st) => st.toUpperCase()}
+            statusLabel={getReviewStatusUppercaseLabel}
             viewReviewerComment={true}
           />
 

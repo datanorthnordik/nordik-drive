@@ -143,7 +143,7 @@ describe("MyFormSubmissionRequests", () => {
     expect(screen.getByTestId("submission-row-9002")).toBeInTheDocument();
     expect(screen.queryByTestId("submission-row-9003")).not.toBeInTheDocument();
     expect(screen.getByTestId("status-chip-9001")).toHaveTextContent("Pending review");
-    expect(screen.getByTestId("status-chip-9002")).toHaveTextContent("Needs more information");
+    expect(screen.getByTestId("status-chip-9002")).toHaveTextContent("Needs More Information");
 
     fireEvent.click(screen.getByTestId("tab-approved"));
 
