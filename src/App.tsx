@@ -20,7 +20,7 @@ import { useSelector } from "react-redux";
 const DataView = lazy(() => import("./pages/dataview/DataView"));
 const ContactUs = lazy(() => import("./pages/contact_us/ContactUs"));
 const Acknowledgement = lazy(() => import("./pages/Acknowledgement/Acknowledgement"));
-const CoronerPage = lazy(() => import("./pages/CoronerPage/CoronerPage"));
+const FileContentPage = lazy(() => import("./pages/FileContentPage/FileContentPage"));
 const ActivityLogs = lazy(() => import("./components/tables/ActivityLogs"));
 const AdminPanel = lazy(() => import("./pages/adminpanel/AdminPanel"));
 const AdminRequestsWrapper = lazy(() => import("./pages/request_hub/AdminRequestsWrapper"));
@@ -87,8 +87,8 @@ function App() {
             element={renderProtectedRoute(<Acknowledgement />)}
           />
           <Route
-            path="/coroner"
-            element={renderProtectedRoute(<CoronerPage />)}
+            path="/file-content"
+            element={renderProtectedRoute(<FileContentPage />)}
           />
           <Route
             path="/files"

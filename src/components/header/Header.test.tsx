@@ -1,15 +1,18 @@
 import * as React from "react";
-import { render, screen, fireEvent, within, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, within, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 import AppToolbar from "./Header"; // adjust if needed
 
-// ---- virtual react-router-dom (because module isn't installed) ----
+const mockNavigate = jest.fn();
+const mockApiRequest = jest.fn();
+
 jest.mock(
   "react-router-dom",
   () => ({
     __esModule: true,
+    useNavigate: () => mockNavigate,
     Link: ({ to, children }: any) => (
       <a href={String(to)} data-testid="router-link">
         {children}
@@ -18,6 +21,11 @@ jest.mock(
   }),
   { virtual: true }
 );
+
+jest.mock("../../hooks/useFetch", () => ({
+  __esModule: true,
+  apiRequest: (...args: any[]) => mockApiRequest(...args),
+}));
 
 // ---- Make Drawer deterministic in tests ----
 // Only render drawer children when open=true
@@ -67,6 +75,13 @@ jest.mock("@mui/material", () => {
   };
 });
 
+function buildState(selectedFile: any = null, apiEntries: Record<string, any> = {}) {
+  return {
+    file: { selectedFile },
+    api: { entries: apiEntries },
+  };
+}
+
 function renderWithTheme() {
   const theme = createTheme();
   return render(
@@ -85,7 +100,7 @@ describe("AppToolbar", () => {
   test("renders Shingwauk + Nordik logos", () => {
     mockUseMediaQuery.mockReturnValue(false);
     mockUseSelector.mockImplementation((selector: any) =>
-      selector({ file: { selectedFile: null } })
+      selector(buildState())
     );
 
     renderWithTheme();
@@ -97,49 +112,250 @@ describe("AppToolbar", () => {
     expect(screen.getByAltText("Nordik Institute")).toBeInTheDocument();
   });
 
-  test("coroner logo renders when selectedFile is missing", () => {
+  test("does not render a secondary file logo when selectedFile is missing", () => {
     mockUseMediaQuery.mockReturnValue(false);
     mockUseSelector.mockImplementation((selector: any) =>
-      selector({ file: { selectedFile: null } })
+      selector(buildState())
     );
 
     renderWithTheme();
 
-    expect(
-      screen.getByAltText("Ontario Office of the Chief Coroner")
-    ).toBeInTheDocument();
+    expect(screen.queryByAltText(/partner logo/i)).not.toBeInTheDocument();
   });
 
-  test('coroner logo renders when selectedFile.filename is "Confirmed- Shingwauk (Wawanosh)"', () => {
+  test("renders the configured file logo when the selected file config has a logo URL", () => {
     mockUseMediaQuery.mockReturnValue(false);
     mockUseSelector.mockImplementation((selector: any) =>
-      selector({ file: { selectedFile: { filename: "Confirmed- Shingwauk (Wawanosh)" } } })
+      selector(
+        buildState(
+          { id: 42, filename: "Some Other File" },
+          {
+            "config_Some Other File": {
+              data: {
+                config: {
+                  logo: "https://example.com/logo.png",
+                },
+              },
+            },
+          }
+        )
+      )
     );
 
     renderWithTheme();
 
-    expect(
-      screen.getByAltText("Ontario Office of the Chief Coroner")
-    ).toBeInTheDocument();
+    expect(screen.getByAltText("Some Other File partner logo")).toHaveAttribute(
+      "src",
+      "https://example.com/logo.png"
+    );
   });
 
-  test("coroner logo does NOT render when selectedFile.filename is different", () => {
+  test("fetches file content by selected file id and navigates when html exists", async () => {
+    mockApiRequest.mockResolvedValue("<html><body>Uploaded Content</body></html>");
     mockUseMediaQuery.mockReturnValue(false);
     mockUseSelector.mockImplementation((selector: any) =>
-      selector({ file: { selectedFile: { filename: "Some Other File" } } })
+      selector(
+        buildState(
+          { id: 123, filename: "Some Other File" },
+          {
+            "config_Some Other File": {
+              data: {
+                config: {
+                  logo: "https://example.com/logo.png",
+                },
+              },
+            },
+          }
+        )
+      )
     );
 
     renderWithTheme();
 
-    expect(
-      screen.queryByAltText("Ontario Office of the Chief Coroner")
-    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByAltText("Some Other File partner logo"));
+
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        expect.stringContaining("/logo-content/123"),
+        "GET"
+      );
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/file-content",
+      expect.objectContaining({
+        state: expect.objectContaining({
+          htmlContent: "<html><body>Uploaded Content</body></html>",
+          fileId: 123,
+        }),
+      })
+    );
+  });
+
+  test("does not render a file logo when the config logo is empty", () => {
+    mockUseMediaQuery.mockReturnValue(false);
+    mockUseSelector.mockImplementation((selector: any) =>
+      selector(
+        buildState(
+          { filename: "Some Other File" },
+          {
+            "config_Some Other File": {
+              data: {
+                config: {
+                  logo: "",
+                },
+              },
+            },
+          }
+        )
+      )
+    );
+
+    renderWithTheme();
+
+    expect(screen.queryByAltText(/partner logo/i)).not.toBeInTheDocument();
+  });
+
+  test("uses logo_navigation_link when configured and does not call the content api", () => {
+    mockUseMediaQuery.mockReturnValue(false);
+    mockUseSelector.mockImplementation((selector: any) =>
+      selector(
+        buildState(
+          { id: 123, filename: "Some Other File" },
+          {
+            "config_Some Other File": {
+              data: {
+                config: {
+                  logo: "https://example.com/logo.png",
+                  logo_navigation_link: "https://example.com/landing-page",
+                },
+              },
+            },
+          }
+        )
+      )
+    );
+
+    renderWithTheme();
+
+    const logo = screen.getByAltText("Some Other File partner logo");
+    const link = logo.closest("a");
+
+    expect(link).toHaveAttribute("href", "https://example.com/landing-page");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(mockApiRequest).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  test("uses internal logo_navigation_link when configured", () => {
+    mockUseMediaQuery.mockReturnValue(false);
+    mockUseSelector.mockImplementation((selector: any) =>
+      selector(
+        buildState(
+          { id: 123, filename: "Some Other File" },
+          {
+            "config_Some Other File": {
+              data: {
+                config: {
+                  logo: "https://example.com/logo.png",
+                  logo_navigation_link: "contact-us",
+                },
+              },
+            },
+          }
+        )
+      )
+    );
+
+    renderWithTheme();
+
+    expect(screen.getByTestId("router-link")).toHaveAttribute("href", "/contact-us");
+    expect(mockApiRequest).not.toHaveBeenCalled();
+  });
+
+  test("does not navigate when the content api returns empty html", async () => {
+    mockApiRequest.mockResolvedValue("");
+    mockUseMediaQuery.mockReturnValue(false);
+    mockUseSelector.mockImplementation((selector: any) =>
+      selector(
+        buildState(
+          { id: 321, filename: "Some Other File" },
+          {
+            "config_Some Other File": {
+              data: {
+                config: {
+                  logo: "https://example.com/logo.png",
+                },
+              },
+            },
+          }
+        )
+      )
+    );
+
+    renderWithTheme();
+
+    fireEvent.click(screen.getByAltText("Some Other File partner logo"));
+
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        expect.stringContaining("/logo-content/321"),
+        "GET"
+      );
+    });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  test("does not navigate when the content api returns 404 or fails", async () => {
+    mockApiRequest.mockRejectedValue(new Error("404"));
+    mockUseMediaQuery.mockReturnValue(false);
+    mockUseSelector.mockImplementation((selector: any) =>
+      selector(
+        buildState(
+          { id: 321, filename: "Some Other File" },
+          {
+            "config_Some Other File": {
+              data: {
+                config: {
+                  logo: "https://example.com/logo.png",
+                },
+              },
+            },
+          }
+        )
+      )
+    );
+
+    renderWithTheme();
+
+    fireEvent.click(screen.getByAltText("Some Other File partner logo"));
+
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledWith(
+        expect.stringContaining("/logo-content/321"),
+        "GET"
+      );
+    });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  test("does not render a file logo when the selected file has no config entry", () => {
+    mockUseMediaQuery.mockReturnValue(false);
+    mockUseSelector.mockImplementation((selector: any) =>
+      selector(buildState({ filename: "Some Other File" }))
+    );
+
+    renderWithTheme();
+
+    expect(screen.queryByAltText(/partner logo/i)).not.toBeInTheDocument();
   });
 
   test("desktop: Logout is in header; drawer is closed", () => {
     mockUseMediaQuery.mockReturnValue(false);
     mockUseSelector.mockImplementation((selector: any) =>
-      selector({ file: { selectedFile: null } })
+      selector(buildState())
     );
 
     renderWithTheme();
@@ -157,7 +373,7 @@ describe("AppToolbar", () => {
   test("mobile: Logout is NOT in header; opens drawer via hamburger and shows Logout inside drawer", () => {
     mockUseMediaQuery.mockReturnValue(true);
     mockUseSelector.mockImplementation((selector: any) =>
-      selector({ file: { selectedFile: null } })
+      selector(buildState())
     );
 
     renderWithTheme();
@@ -186,7 +402,7 @@ describe("AppToolbar", () => {
   test("mobile drawer: clicking drawer HeaderNav triggers onLinkClick and closes drawer", () => {
     mockUseMediaQuery.mockReturnValue(true);
     mockUseSelector.mockImplementation((selector: any) =>
-      selector({ file: { selectedFile: null } })
+      selector(buildState())
     );
 
     renderWithTheme();
