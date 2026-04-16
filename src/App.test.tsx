@@ -111,9 +111,9 @@ jest.mock("./pages/Acknowledgement/Acknowledgement", () => ({
   default: () => <div>Acknowledgement Page</div>,
 }));
 
-jest.mock("./pages/CoronerPage/CoronerPage", () => ({
+jest.mock("./pages/FileContentPage/FileContentPage", () => ({
   __esModule: true,
-  default: () => <div>Coroner Page</div>,
+  default: () => <div>File Content Page</div>,
 }));
 
 jest.mock("./components/tables/ActivityLogs", () => ({
@@ -203,6 +203,14 @@ describe("App", () => {
 
     expect(await screen.findByText("My Requests Page")).toBeInTheDocument();
     expect(screen.queryByText("Admin Requests Page")).not.toBeInTheDocument();
+  });
+
+  it("renders the generic file content route inside protected wrappers", async () => {
+    renderAt("/file-content");
+
+    expect(await screen.findByText("File Content Page")).toBeInTheDocument();
+    expect(screen.getByTestId("protected-route")).toBeInTheDocument();
+    expect(screen.getByTestId("layout")).toBeInTheDocument();
   });
 
   it("renders the not found route for unknown paths", async () => {

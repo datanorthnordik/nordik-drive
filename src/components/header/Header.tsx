@@ -10,22 +10,103 @@ import "./Header.scss";
 import HeaderNav from "../header_nav/HeaderNav";
 import Logout from "../logout/Logout";
 import { NavContainer } from "../NavContainer";
-import { Link } from "react-router-dom";
 
 import { useTheme, useMediaQuery } from "@mui/material";
 import { useSelector } from "react-redux";
+import type { RootState } from "../../store/store";
+import { Link, useNavigate } from "react-router-dom";
+import { apiRequest } from "../../hooks/useFetch";
+import { apiUrl } from "../../config/api";
+
+const hasExternalScheme = (value: string) =>
+  /^(?:[a-z][a-z\d+\-.]*:)?\/\//i.test(value) || /^[a-z][a-z\d+\-.]*:/i.test(value);
+
+const normalizeInternalPath = (value: string) => {
+  if (!value) return "";
+  if (/^[?#]/.test(value)) return value;
+  return value.startsWith("/") ? value : `/${value}`;
+};
+
+const normalizeConfigValue = (value: unknown) => {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+};
+
+type LogoContentResponse =
+  | string
+  | {
+      html?: string;
+      content?: string;
+      data?: string;
+    };
+
+const extractHtml = (payload: LogoContentResponse | null) => {
+  if (typeof payload === "string") return payload.trim();
+  if (!payload || typeof payload !== "object") return "";
+
+  if (typeof payload.html === "string") return payload.html.trim();
+  if (typeof payload.content === "string") return payload.content.trim();
+  if (typeof payload.data === "string") return payload.data.trim();
+
+  return "";
+};
 
 const AppToolbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [contentLoading, setContentLoading] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const navigate = useNavigate();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  const {selectedFile} = useSelector((state: any) => state.file);
+  const { selectedFile } = useSelector((state: RootState) => state.file);
+  const configFileName = (selectedFile?.filename || "").trim();
+  const configEntry = useSelector((state: RootState) =>
+    configFileName ? state.api.entries[`config_${configFileName}`] : null
+  );
+  const configJson = (configEntry?.data as any)?.config || null;
+  const fileLogo = normalizeConfigValue(configJson?.logo);
+  const logoNavigationLink = normalizeConfigValue(configJson?.logo_navigation_link);
+  const partnerLogo = (
+    <img
+      src={fileLogo}
+      alt={`${selectedFile?.filename || "Selected file"} partner logo`}
+      style={{
+        height: isMobile ? "2.7rem" : "4.9rem",
+        width: "auto",
+        objectFit: "contain",
+      }}
+    />
+  );
+
+  const handleContentNavigation = async () => {
+    const fileId = selectedFile?.id;
+    if (!fileId || contentLoading) return;
+
+    try {
+      setContentLoading(true);
+      const response = await apiRequest<LogoContentResponse>(apiUrl(`logo-content/${fileId}`), "GET");
+      const htmlContent = extractHtml(response);
+
+      if (!htmlContent) return;
+
+      navigate("/file-content", {
+        state: {
+          htmlContent,
+          fileId,
+          pageTitle: selectedFile?.filename ? `${selectedFile.filename} content page` : "File content page",
+        },
+      });
+    } catch {
+      // If the API returns no content or 404, keep the user on the current page.
+    } finally {
+      setContentLoading(false);
+    }
+  };
 
   const drawer = (
     <Box
@@ -108,14 +189,42 @@ const AppToolbar = () => {
               />
             </a>
 
-            {(!selectedFile || selectedFile.filename == "Confirmed- Shingwauk (Wawanosh)") &&<Link to="/coroner">
-              <img
-                src="/image001.png"
-                alt="Ontario Office of the Chief Coroner"
-                // ✅ responsive height for the 2nd logo too
-                style={{ height: isMobile ? "2.7rem" : "4.9rem" }}
-              />
-            </Link>}
+            {fileLogo && (
+              logoNavigationLink ? (
+                hasExternalScheme(logoNavigationLink) ? (
+                  <a
+                    href={logoNavigationLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="partner-logo-external-link"
+                  >
+                    {partnerLogo}
+                  </a>
+                ) : (
+                  <Link to={normalizeInternalPath(logoNavigationLink)}>
+                    {partnerLogo}
+                  </Link>
+                )
+              ) : (
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={handleContentNavigation}
+                  disabled={!selectedFile?.id || contentLoading}
+                  aria-label={`${selectedFile?.filename || "Selected file"} content logo`}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    background: "transparent",
+                    border: 0,
+                    padding: 0,
+                    cursor: !selectedFile?.id || contentLoading ? "default" : "pointer",
+                  }}
+                >
+                  {partnerLogo}
+                </Box>
+              )
+            )}
           </Box>
 
           {/* CENTER (Desktop Navigation) */}

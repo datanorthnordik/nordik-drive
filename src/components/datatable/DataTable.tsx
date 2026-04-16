@@ -254,7 +254,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
     error: docsError,
   } = useFetch(`${API_BASE}/file/docs`, "GET", false);
 
-  /* -------- Config fetch (Redux + IndexDB via your apiMiddleware) -------- */
 
   const configKey = useMemo(() => {
     const fname = (selectedFile?.filename || "").trim();
@@ -272,7 +271,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
   const addInfoEnabled = hasConfig
     ? !!configJson?.addInfo?.enabled
-    : !!selectedFile?.community_filter; // old behavior
+    : !!selectedFile?.community_filter; 
 
   const communityFilterEnabled = hasConfig
     ? !!configJson?.community_filter
