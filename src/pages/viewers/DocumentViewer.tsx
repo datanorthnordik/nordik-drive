@@ -22,6 +22,7 @@ import useFetch from "../../hooks/useFetch";
 import { type ReviewStatusValue } from "../../constants/statuses";
 import {
   DOCUMENT_DEFAULT_TIP_TEXT,
+  DOCUMENT_EMPTY_TEXT,
   DOCUMENT_FALLBACK_TITLE,
   DOCUMENT_LOAD_ERROR_TITLE,
   DOCUMENT_LOADING_TEXT,
@@ -269,6 +270,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   const zipLastDoneRef = useRef<number>(0);
 
   const currentDoc: ViewerDoc | undefined = docs[index];
+  const hasDocs = docs.length > 0;
 
   const currentDocMime = useMemo(() => {
     if (!currentDoc) return "";
@@ -322,9 +324,10 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
   const openDocAtIndex = useCallback(
     async (idx: number) => {
+      clearPreview();
+
       const doc = docs[idx];
       if (!doc) return;
-      clearPreview();
 
       await fetchFileBlob(undefined, undefined, false, {
         path: doc.id,
@@ -379,6 +382,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   useEffect(() => {
     if (!open) return;
     if (!fileBlobData) return;
+    if (!currentDoc) return;
 
     const rawBlob =
       fileBlobData instanceof Blob
@@ -409,7 +413,18 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     } else {
       setDocTextPreview("");
     }
-  }, [fileBlobData, open, currentDocMime, maxTextChars]);
+  }, [fileBlobData, open, currentDoc, currentDocMime, maxTextChars]);
+
+  const canUseCurrentDoc = !!currentDoc && !!docBlobUrl;
+  const canGoPrev = hasDocs && index > 0 && !fileBlobLoading;
+  const canGoNext = hasDocs && index < docs.length - 1 && !fileBlobLoading;
+  const viewerTitle =
+    currentDoc?.file_name || (hasDocs ? DOCUMENT_FALLBACK_TITLE : DOCUMENT_EMPTY_TEXT);
+  const viewerMeta = currentDoc
+    ? `${currentDocMime || currentDoc.mime_type || "unknown"} | ID: ${currentDoc.id} | ${index + 1}/${docs.length}${
+        inferredRequestIds.length === 1 ? ` | ${getViewerRequestSummary(inferredRequestIds)}` : ""
+      }`
+    : DOCUMENT_EMPTY_TEXT;
 
   const setIndexAndLoad = useCallback(
     async (nextIdx: number) => {
@@ -514,15 +529,19 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             title={currentDoc?.file_name}
             data-testid="viewer-filename"
           >
-            {currentDoc?.file_name || DOCUMENT_FALLBACK_TITLE}
+            {viewerTitle}
           </Typography>
 
           <Typography variant="caption" data-testid="viewer-meta">
+            {!currentDoc ? viewerMeta : (
+              <>
             {(currentDocMime || currentDoc?.mime_type || "unknown") + " "}
             • ID: {currentDoc?.id} • {index + 1}/{docs.length}
             {inferredRequestIds.length === 1
               ? ` | ${getViewerRequestSummary(inferredRequestIds)}`
               : ""}
+              </>
+            )}
           </Typography>
         </Box>
 
@@ -532,7 +551,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               onClick={openInNewTab}
               variant="outlined"
               startIcon={<OpenInNewIcon />}
-              disabled={!docBlobUrl}
+              disabled={!canUseCurrentDoc}
               data-testid="top-open"
               aria-label="top-open"
               sx={{
@@ -559,7 +578,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               onClick={download}
               variant="contained"
               startIcon={<DownloadIcon />}
-              disabled={!docBlobUrl}
+              disabled={!canUseCurrentDoc}
               data-testid="top-download"
               aria-label="top-download"
               sx={{
@@ -807,7 +826,24 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </>
             )}
 
-            {!fileBlobLoading && !fileBlobError && !docBlobUrl && (
+            {!fileBlobLoading && !fileBlobError && !docBlobUrl && !currentDoc && (
+              <Box
+                sx={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  p: 3,
+                }}
+                data-testid="viewer-empty"
+              >
+                <Typography sx={{ color: color_text_light, fontWeight: 700 }}>
+                  {DOCUMENT_EMPTY_TEXT}
+                </Typography>
+              </Box>
+            )}
+
+            {!fileBlobLoading && !fileBlobError && !docBlobUrl && currentDoc && (
               <Box
                 sx={{
                   height: "100%",
@@ -892,7 +928,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               <Button
                 variant="outlined"
                 onClick={handlePrev}
-                disabled={index === 0 || fileBlobLoading}
+                disabled={!canGoPrev}
                 sx={approveBtnSx}
                 data-testid="bottom-prev"
               >
@@ -928,7 +964,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               <Button
                 variant="outlined"
                 onClick={openInNewTab}
-                disabled={!docBlobUrl}
+                disabled={!canUseCurrentDoc}
                 startIcon={<OpenInNewIcon />}
                 sx={approveBtnSx}
                 data-testid="bottom-open"
@@ -941,7 +977,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               <Button
                 variant="outlined"
                 onClick={handleNext}
-                disabled={index === docs.length - 1 || fileBlobLoading}
+                disabled={!canGoNext}
                 sx={approveBtnSx}
                 data-testid="bottom-next"
               >

@@ -201,4 +201,27 @@ describe("DocumentViewerModal (lightweight unit tests)", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
+
+  test("empty docs show a no documents state and disable actions", () => {
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[]}
+        startIndex={0}
+        apiBase={API_BASE}
+      />
+    );
+
+    expect(fileFetchSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId("viewer-filename")).toHaveTextContent("No Documents Available");
+    expect(screen.getByTestId("viewer-meta")).toHaveTextContent("No Documents Available");
+    expect(screen.getByTestId("viewer-empty")).toHaveTextContent("No Documents Available");
+    expect(screen.getByTestId("top-open")).toBeDisabled();
+    expect(screen.getByTestId("top-download")).toBeDisabled();
+    expect(screen.getByTestId("bottom-prev")).toBeDisabled();
+    expect(screen.getByTestId("bottom-open")).toBeDisabled();
+    expect(screen.getByTestId("bottom-next")).toBeDisabled();
+    expect(screen.getByTestId("download-all")).toBeDisabled();
+  });
 });

@@ -227,6 +227,33 @@ describe("Signup", () => {
     expect(signupFetch).not.toHaveBeenCalled();
   });
 
+  test("submits signup without requiring community", async () => {
+    jest.setTimeout(15000);
+    const user = userEvent.setup();
+    const { signupFetch, addCommunity } = setupUseFetchForSignup({
+      communitiesData: { communities: [{ name: "Shingwauk" }] },
+    });
+
+    render(<Signup />);
+
+    await user.type(screen.getByLabelText(/first name/i), "Athul");
+    await user.type(screen.getByLabelText(/last name/i), "N");
+    await user.type(screen.getByLabelText(/email address/i), "athul@test.com");
+    await user.type(screen.getByLabelText(/^password$/i), "secret12");
+    await user.type(screen.getByLabelText(/confirm password/i), "secret12");
+
+    await user.click(screen.getByRole("button", { name: /sign up/i }));
+
+    await waitFor(() => expect(signupFetch).toHaveBeenCalledTimes(1));
+
+    expect(addCommunity).not.toHaveBeenCalled();
+    expect(signupFetch).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "athul@test.com", community: [] }),
+      null,
+      true
+    );
+  });
+
   test("adds missing community (POST) then submits signup with unique cleaned community list (stable)", async () => {
     // optional, but helps on slow CI:
     jest.setTimeout(15000);
