@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type SubmitHandler } from "react-hook-form";
 import { Button, TextField, Box, Typography } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
 import * as yup from "yup";
@@ -48,7 +48,7 @@ type SignupFormValues = {
 
 const passwordLengthMessage = "Password must be between 6 and 16 characters";
 
-const schema = yup.object({
+const schema: yup.ObjectSchema<SignupFormValues> = yup.object({
   firstname: yup.string().required("First name is required"),
   lastname: yup.string().required("Last name is required"),
   email: trimmedEmailSchema,
@@ -61,7 +61,8 @@ const schema = yup.object({
     .string()
     .required("Confirm Password is required")
     .oneOf([yup.ref("password")], "Passwords must match"),
-  community: yup.array().of(yup.string().trim()),
+  // Keep community optional for users while preserving a stable string[] form value.
+  community: yup.array().of(yup.string().trim().defined()).required(),
 });
 
 function Signup() {
@@ -115,7 +116,7 @@ function Signup() {
   const existsInOptions = (name: string) =>
   (communityOptions || []).some((o: string) => o.trim().toLowerCase() === name.trim().toLowerCase());
 
-  const onSubmit = async (formData: SignupFormValues) => {
+  const onSubmit: SubmitHandler<SignupFormValues> = async (formData) => {
     const cleaned = (formData.community || [])
       .map((x) => (x || "").trim())
       .filter((x) => x.length > 0);
