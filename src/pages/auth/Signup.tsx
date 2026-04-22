@@ -61,7 +61,7 @@ const schema = yup.object({
     .string()
     .required("Confirm Password is required")
     .oneOf([yup.ref("password")], "Passwords must match"),
-  community: yup.array().of(yup.string().trim().required("Please select or type a community")).required(),
+  community: yup.array().of(yup.string().trim()),
 });
 
 function Signup() {
@@ -77,7 +77,7 @@ function Signup() {
       email: "",
       password: "",
       confirmPassword: "",
-      community: [""],
+      community: [],
     },
   });
 
