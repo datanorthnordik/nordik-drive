@@ -25,6 +25,7 @@ export const VIEWER_OPEN_LABEL = "Open";
 export const VIEWER_CLOSE_LABEL = "Close";
 export const VIEWER_DOWNLOAD_ALL_LABEL = "Download All";
 export const DOCUMENT_FALLBACK_TITLE = "Document";
+export const DOCUMENT_EMPTY_TEXT = "No Documents Available";
 export const DOCUMENT_LOADING_TEXT = "Loading document...";
 export const DOCUMENT_LOAD_ERROR_TITLE = "Failed to load document";
 export const DOCUMENT_NOT_LOADED_TEXT = "Document not loaded yet.";
