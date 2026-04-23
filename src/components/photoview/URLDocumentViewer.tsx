@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   Box,
@@ -25,10 +25,13 @@ import {
   color_text_primary,
   color_white,
 } from "../../constants/colors";
+import { renderDocxPreview } from "../../lib/docxPreview";
 
 // keep helpers inside module; tests will cover via rendering
 const isPdfMime = (m?: string) => m === "application/pdf";
 const isImageMime = (m?: string) => !!m && m.startsWith("image/");
+const isDocxMime = (m?: string) =>
+  m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function getFileNameFromUrl(url: string) {
   try {
@@ -95,11 +98,58 @@ export default function DocumentUrlViewerModal({
   const ZOOM_STEP = 0.25;
 
   const [zoom, setZoom] = useState(1);
+  const [docxPreviewLoading, setDocxPreviewLoading] = useState(false);
+  const [docxPreviewError, setDocxPreviewError] = useState("");
+  const docxPreviewRef = useRef<HTMLDivElement | null>(null);
 
   // optional: reset zoom every time the modal opens
   useEffect(() => {
     if (open) setZoom(1);
   }, [open]);
+
+  useEffect(() => {
+    const container = docxPreviewRef.current;
+    if (container) container.innerHTML = "";
+    setDocxPreviewLoading(false);
+    setDocxPreviewError("");
+
+    if (!open || !hasUrl || !isDocxMime(mime) || !container) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    setDocxPreviewLoading(true);
+
+    void fetch(safeUrl, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        return blob.type ? blob : new Blob([blob], { type: mime });
+      })
+      .then(async (blob) => {
+        if (cancelled) return;
+        await renderDocxPreview(blob, container);
+        if (cancelled) return;
+        setDocxPreviewLoading(false);
+      })
+      .catch((error) => {
+        if (cancelled || error?.name === "AbortError") return;
+        container.innerHTML = "";
+        setDocxPreviewLoading(false);
+        setDocxPreviewError(
+          error instanceof Error ? error.message : "Failed to load Word preview."
+        );
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      container.innerHTML = "";
+    };
+  }, [open, hasUrl, mime, safeUrl]);
 
   const clamp = (v: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v));
   const zoomIn = () => setZoom((z) => clamp(Number((z + ZOOM_STEP).toFixed(2))));
@@ -384,8 +434,57 @@ export default function DocumentUrlViewerModal({
             </Box>
           )}
 
+          {hasUrl && isDocxMime(mime) && !docxPreviewError && (
+            <Box
+              sx={{
+                width: "100%",
+                height: "100%",
+                background: color_light_gray,
+                overflow: "auto",
+                position: "relative",
+                p: { xs: 1, sm: 2 },
+                boxSizing: "border-box",
+                "& .docx-wrapper": {
+                  background: "transparent",
+                  padding: 0,
+                  minHeight: "100%",
+                },
+              }}
+              data-testid="url-docx-wrap"
+            >
+              <Box ref={docxPreviewRef} data-testid="url-docx-preview" />
+
+              {docxPreviewLoading && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    background: "rgba(255,255,255,0.84)",
+                    p: 3,
+                  }}
+                  data-testid="url-docx-loading"
+                >
+                  <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                    Loading document...
+                  </Typography>
+                  <Typography sx={{ color: color_text_light }}>
+                    Preparing Word preview.
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+
           {/* Fallback */}
-          {hasUrl && !isPdfMime(mime) && !isImageMime(mime) && (
+          {hasUrl &&
+            !isPdfMime(mime) &&
+            !isImageMime(mime) &&
+            (!isDocxMime(mime) || !!docxPreviewError) && (
             <Box
               sx={{
                 height: "100%",
@@ -429,9 +528,9 @@ export default function DocumentUrlViewerModal({
                 >
                   Download
                 </Button>
+                </Box>
               </Box>
-            </Box>
-          )}
+            )}
         </Box>
       </Box>
     </Dialog>
