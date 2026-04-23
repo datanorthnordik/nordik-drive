@@ -1,10 +1,11 @@
 /** @jest-environment jsdom */
 
 import React from "react";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import DocumentUrlViewerModal from "./URLDocumentViewer";
+import { renderDocxPreview } from "../../lib/docxPreview";
 
 /**
  * Mock colors (component imports these)
@@ -32,11 +33,11 @@ jest.mock("@mui/material", () => {
       </div>
     ) : null;
 
-  const Box = ({ children, ...rest }: any) => (
-    <div data-testid="box" {...rest}>
+  const Box = React.forwardRef<HTMLDivElement, any>(({ children, ...rest }, ref) => (
+    <div data-testid="box" ref={ref} {...rest}>
       {children}
     </div>
-  );
+  ));
 
   const Typography = ({ children, ...rest }: any) => (
     <div data-testid="typography" {...rest}>
@@ -101,9 +102,16 @@ jest.mock("@mui/icons-material/RestartAlt", () => ({
   default: () => <span data-testid="RestartAltIcon" />,
 }));
 
+jest.mock("../../lib/docxPreview", () => ({
+  __esModule: true,
+  renderDocxPreview: jest.fn(),
+}));
+
 describe("DocumentUrlViewerModal (stable)", () => {
   const onClose = jest.fn();
   const openSpy = jest.fn();
+  const fetchSpy = jest.fn();
+  const renderDocxPreviewMock = renderDocxPreview as jest.MockedFunction<typeof renderDocxPreview>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -112,6 +120,25 @@ describe("DocumentUrlViewerModal (stable)", () => {
     Object.defineProperty(window, "open", {
       writable: true,
       value: openSpy,
+    });
+
+    Object.defineProperty(global, "fetch", {
+      writable: true,
+      value: fetchSpy,
+    });
+
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () =>
+        new Blob(["docx"], {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }),
+    });
+
+    renderDocxPreviewMock.mockReset();
+    renderDocxPreviewMock.mockImplementation(async (_blob, container) => {
+      container.innerHTML = "<p>DOCX preview</p>";
     });
   });
 
@@ -229,6 +256,21 @@ describe("DocumentUrlViewerModal (stable)", () => {
     expect(zoomOutBtn).toBeDisabled();
   });
 
+  test("DOCX: fetches blob and renders inline preview", async () => {
+    const url = "https://example.com/files/letter.docx";
+
+    render(<DocumentUrlViewerModal open={true} url={url} onClose={onClose} />);
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(url, expect.any(Object)));
+    await waitFor(() => expect(renderDocxPreviewMock).toHaveBeenCalled());
+
+    expect(screen.getByText("letter.docx")).toBeInTheDocument();
+    expect(screen.getByText("application/vnd.openxmlformats-officedocument.wordprocessingml.document")).toBeInTheDocument();
+    expect(screen.getByTestId("url-docx-preview")).toBeInTheDocument();
+    expect(screen.getByText("DOCX preview")).toBeInTheDocument();
+    expect(screen.queryByText("Preview not available for this file type.")).not.toBeInTheDocument();
+  });
+
   test("Fallback: non-pdf and non-image shows fallback UI; header+fallback Open/Download call handlers", () => {
     const url = "https://example.com/files/readme.txt";
 
@@ -278,7 +320,6 @@ describe("DocumentUrlViewerModal (stable)", () => {
   });
 
   test.each([
-    ["https://x.com/a.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
     ["https://x.com/a.doc", "application/msword"],
     ["https://x.com/a.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
     ["https://x.com/a.xls", "application/vnd.ms-excel"],

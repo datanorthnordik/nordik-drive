@@ -60,6 +60,7 @@ import {
   color_text_primary,
   color_text_light,
 } from "../../constants/colors";
+import { renderDocxPreview } from "../../lib/docxPreview";
 
 export type ReviewStatus = ReviewStatusValue | null;
 
@@ -78,13 +79,6 @@ export interface ViewerDoc {
   reviewed_by?: string;
   reviewed_at?: string;
 }
-
-type SupportedText =
-  | "text/plain"
-  | "text/csv"
-  | "text/html"
-  | "text/markdown"
-  | "application/json";
 
 function safeFilename(name: string) {
   return (name || "download.zip")
@@ -110,12 +104,24 @@ const isImageMime = (m?: string) => !!m && m.startsWith("image/");
 const isPdfMime = (m?: string) => m === "application/pdf";
 
 const isDocxMime = (m?: string) =>
-  m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-  m === "application/msword";
+  m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+const isLegacyWordMime = (m?: string) => m === "application/msword";
 
 const isExcelMime = (m?: string) =>
   m === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
   m === "application/vnd.ms-excel";
+
+const isMeaningfulMime = (m?: string) => {
+  const normalized = String(m || "").trim().toLowerCase();
+  return !!normalized && normalized !== "application/octet-stream";
+};
+
+const pickPreviewMime = (preferred?: string, fallback?: string) => {
+  if (isMeaningfulMime(preferred)) return String(preferred);
+  if (isMeaningfulMime(fallback)) return String(fallback);
+  return String(preferred || fallback || "");
+};
 
 function guessMimeFromFilename(name?: string) {
   if (!name) return "";
@@ -246,10 +252,14 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   showReviewerCommentField = false,
 }) => {
   const [index, setIndex] = useState<number>(startIndex || 0);
+  const [docBlob, setDocBlob] = useState<Blob | null>(null);
   const [docBlobUrl, setDocBlobUrl] = useState<string>("");
+  const [blobMime, setBlobMime] = useState<string>("");
   const [docTextPreview, setDocTextPreview] = useState<string>("");
+  const [docxPreviewError, setDocxPreviewError] = useState<string>("");
 
   const lastBlobUrlRef = useRef<string>("");
+  const docxPreviewRef = useRef<HTMLDivElement | null>(null);
 
   const {
     data: fileBlobData,
@@ -278,12 +288,20 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     return currentDoc.mime_type || guessMimeFromFilename(currentDoc.file_name) || "";
   }, [currentDoc, resolveMime]);
 
+  const activeDocMime = useMemo(
+    () => pickPreviewMime(currentDocMime, blobMime),
+    [currentDocMime, blobMime]
+  );
+
   const clearPreview = useCallback(() => {
     const prev = lastBlobUrlRef.current;
     if (prev) URL.revokeObjectURL(prev);
     lastBlobUrlRef.current = "";
+    setDocBlob(null);
     setDocBlobUrl("");
+    setBlobMime("");
     setDocTextPreview("");
+    setDocxPreviewError("");
   }, []);
 
   const inferredRequestIds = useMemo(() => {
@@ -384,21 +402,18 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     if (!fileBlobData) return;
     if (!currentDoc) return;
 
-    const rawBlob =
-      fileBlobData instanceof Blob
-        ? fileBlobData
-        : (fileBlobData as any)?.blob instanceof Blob
-          ? (fileBlobData as any).blob
-          : null;
+    const rawBlob = normalizeBlob(fileBlobData);
 
     if (!rawBlob) return;
 
-    const forcedType = currentDocMime || rawBlob.type || "application/octet-stream";
+    const forcedType = pickPreviewMime(currentDocMime, rawBlob.type) || "application/octet-stream";
 
     const fixedBlob = new Blob([rawBlob], { type: forcedType });
     const url = URL.createObjectURL(fixedBlob);
 
+    setDocBlob(fixedBlob);
     setDocBlobUrl(url);
+    setBlobMime(forcedType);
 
     const prev = lastBlobUrlRef.current;
     if (prev) URL.revokeObjectURL(prev);
@@ -415,13 +430,36 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     }
   }, [fileBlobData, open, currentDoc, currentDocMime, maxTextChars]);
 
+  useEffect(() => {
+    const container = docxPreviewRef.current;
+    if (container) container.innerHTML = "";
+    setDocxPreviewError("");
+
+    if (!open || !docBlob || !isDocxMime(activeDocMime) || !container) return;
+
+    let cancelled = false;
+
+    void renderDocxPreview(docBlob, container).catch((error) => {
+      if (cancelled) return;
+      container.innerHTML = "";
+      setDocxPreviewError(
+        error instanceof Error ? error.message : "Failed to render Word preview."
+      );
+    });
+
+    return () => {
+      cancelled = true;
+      container.innerHTML = "";
+    };
+  }, [open, docBlob, activeDocMime]);
+
   const canUseCurrentDoc = !!currentDoc && !!docBlobUrl;
   const canGoPrev = hasDocs && index > 0 && !fileBlobLoading;
   const canGoNext = hasDocs && index < docs.length - 1 && !fileBlobLoading;
   const viewerTitle =
     currentDoc?.file_name || (hasDocs ? DOCUMENT_FALLBACK_TITLE : DOCUMENT_EMPTY_TEXT);
   const viewerMeta = currentDoc
-    ? `${currentDocMime || currentDoc.mime_type || "unknown"} | ID: ${currentDoc.id} | ${index + 1}/${docs.length}${
+    ? `${activeDocMime || currentDoc.mime_type || "unknown"} | ID: ${currentDoc.id} | ${index + 1}/${docs.length}${
         inferredRequestIds.length === 1 ? ` | ${getViewerRequestSummary(inferredRequestIds)}` : ""
       }`
     : DOCUMENT_EMPTY_TEXT;
@@ -442,7 +480,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   const openInNewTab = useCallback(() => {
     if (!docBlobUrl || !currentDoc) return;
 
-    const mime = currentDocMime || currentDoc.mime_type || "";
+    const mime = activeDocMime || currentDoc.mime_type || "";
     const fileName = ensureHasExtension(
       currentDoc.file_name || `document_${currentDoc.id}`,
       mime
@@ -461,19 +499,19 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     document.body.appendChild(a);
     a.click();
     a.remove();
-  }, [docBlobUrl, currentDoc, currentDocMime, onOpenOverride]);
+  }, [docBlobUrl, currentDoc, activeDocMime, onOpenOverride]);
 
   const download = useCallback(() => {
     if (!docBlobUrl || !currentDoc) return;
 
-    const mime = currentDocMime || currentDoc.mime_type || "";
+    const mime = activeDocMime || currentDoc.mime_type || "";
     if (onDownloadOverride) {
       onDownloadOverride(currentDoc, docBlobUrl, mime);
       return;
     }
 
     openInNewTab();
-  }, [docBlobUrl, currentDoc, currentDocMime, onDownloadOverride, openInNewTab]);
+  }, [docBlobUrl, currentDoc, activeDocMime, onDownloadOverride, openInNewTab]);
 
   const closeAndCleanup = () => {
     clearPreview();
@@ -535,7 +573,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
           <Typography variant="caption" data-testid="viewer-meta">
             {!currentDoc ? viewerMeta : (
               <>
-            {(currentDocMime || currentDoc?.mime_type || "unknown") + " "}
+            {(activeDocMime || currentDoc?.mime_type || "unknown") + " "}
             • ID: {currentDoc?.id} • {index + 1}/{docs.length}
             {inferredRequestIds.length === 1
               ? ` | ${getViewerRequestSummary(inferredRequestIds)}`
@@ -681,7 +719,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
             {!fileBlobLoading && docBlobUrl && (
               <>
-                {isPdfMime(currentDocMime) && (
+                {isPdfMime(activeDocMime) && (
                   <iframe
                     title="pdf-viewer"
                     src={docBlobUrl}
@@ -695,7 +733,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   />
                 )}
 
-                {isImageMime(currentDocMime) && (
+                {isImageMime(activeDocMime) && (
                   <Box
                     sx={{
                       width: "100%",
@@ -723,7 +761,68 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   </Box>
                 )}
 
-                {(isDocxMime(currentDocMime) || isExcelMime(currentDocMime)) && (
+                {isDocxMime(activeDocMime) && !docxPreviewError && (
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      background: color_background,
+                      overflow: "auto",
+                      p: { xs: 1, sm: 2 },
+                      boxSizing: "border-box",
+                      "& .docx-wrapper": {
+                        background: "transparent",
+                        padding: 0,
+                        minHeight: "100%",
+                      },
+                    }}
+                    data-testid="viewer-docx-wrap"
+                  >
+                    <Box
+                      key={docBlobUrl || currentDoc?.id || "viewer-docx-preview"}
+                      ref={docxPreviewRef}
+                      data-testid="viewer-docx-preview"
+                    />
+                  </Box>
+                )}
+
+                {isDocxMime(activeDocMime) && !!docxPreviewError && (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      p: 3,
+                      textAlign: "center",
+                    }}
+                    data-testid="viewer-docx-error"
+                  >
+                    <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
+                      {DOCUMENT_PREVIEW_NOT_AVAILABLE}
+                    </Typography>
+                    <Typography sx={{ color: color_text_light, mb: 2 }}>
+                      {DOCUMENT_PREVIEW_ACTION_HELPER}
+                    </Typography>
+
+                    <Button
+                      onClick={openInNewTab}
+                      variant="contained"
+                      startIcon={<OpenInNewIcon />}
+                      data-testid="viewer-docx-open"
+                      sx={{
+                        fontWeight: 900,
+                        background: color_secondary,
+                        "&:hover": { background: color_secondary_dark },
+                      }}
+                    >
+                      {VIEWER_OPEN_LABEL}
+                    </Button>
+                  </Box>
+                )}
+
+                {(isLegacyWordMime(activeDocMime) || isExcelMime(activeDocMime)) && (
                   <Box
                     sx={{
                       height: "100%",
@@ -738,7 +837,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   >
                     <Typography sx={{ fontWeight: 900, color: color_text_primary, mb: 0.5 }}>
                       {DOCUMENT_UNSUPPORTED_PREVIEW_PREFIX}{" "}
-                      {isDocxMime(currentDocMime) ? "DOC/DOCX" : "Excel"}{" "}
+                      {isLegacyWordMime(activeDocMime) ? "DOC" : "Excel"}{" "}
                       {DOCUMENT_UNSUPPORTED_PREVIEW_SUFFIX}
                     </Typography>
                     <Typography sx={{ color: color_text_light, mb: 2 }}>
@@ -761,10 +860,11 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   </Box>
                 )}
 
-                {!isPdfMime(currentDocMime) &&
-                  !isImageMime(currentDocMime) &&
-                  !isDocxMime(currentDocMime) &&
-                  !isExcelMime(currentDocMime) &&
+                {!isPdfMime(activeDocMime) &&
+                  !isImageMime(activeDocMime) &&
+                  !isDocxMime(activeDocMime) &&
+                  !isLegacyWordMime(activeDocMime) &&
+                  !isExcelMime(activeDocMime) &&
                   docTextPreview && (
                     <Box sx={{ p: 2 }} data-testid="viewer-text-wrap">
                       <pre
@@ -784,10 +884,11 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                     </Box>
                   )}
 
-                {!isPdfMime(currentDocMime) &&
-                  !isImageMime(currentDocMime) &&
-                  !isDocxMime(currentDocMime) &&
-                  !isExcelMime(currentDocMime) &&
+                {!isPdfMime(activeDocMime) &&
+                  !isImageMime(activeDocMime) &&
+                  !isDocxMime(activeDocMime) &&
+                  !isLegacyWordMime(activeDocMime) &&
+                  !isExcelMime(activeDocMime) &&
                   !docTextPreview && (
                     <Box
                       sx={{

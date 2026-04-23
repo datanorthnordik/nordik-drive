@@ -5,13 +5,20 @@ import "@testing-library/jest-dom";
 
 import DocumentViewerModal, { ViewerDoc } from "./DocumentViewer";
 import useFetch from "../../hooks/useFetch";
+import { renderDocxPreview } from "../../lib/docxPreview";
 
 jest.mock("../../hooks/useFetch", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
+jest.mock("../../lib/docxPreview", () => ({
+  __esModule: true,
+  renderDocxPreview: jest.fn(),
+}));
+
 const useFetchMock = useFetch as unknown as jest.Mock;
+const renderDocxPreviewMock = renderDocxPreview as jest.MockedFunction<typeof renderDocxPreview>;
 
 const API_BASE = "https://example.com";
 
@@ -57,6 +64,10 @@ beforeEach(() => {
 
   fileFetchSpy = jest.fn().mockResolvedValue(undefined);
   zipFetchSpy = jest.fn().mockResolvedValue(undefined);
+  renderDocxPreviewMock.mockReset();
+  renderDocxPreviewMock.mockImplementation(async (_blob, container) => {
+    container.innerHTML = "<p>DOCX preview</p>";
+  });
 
   useFetchMock.mockImplementation((url: string) => {
     const isZip = String(url).includes("/admin/download_files");
@@ -150,7 +161,7 @@ describe("DocumentViewerModal (lightweight unit tests)", () => {
     expect(img).toHaveAttribute("alt", "img.png");
   });
 
-  test("DOCX shows unsupported preview block", async () => {
+  test("DOCX renders inline preview when blob exists", async () => {
     mockFileData = new Blob(["xx"], {
       type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
@@ -172,12 +183,33 @@ describe("DocumentViewerModal (lightweight unit tests)", () => {
       />
     );
 
-    await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
+    await waitFor(() => expect(renderDocxPreviewMock).toHaveBeenCalled());
 
-    expect(screen.getByTestId("viewer-unsupported-preview")).toBeInTheDocument();
-    expect(
-      screen.getByText((t) => t.toLowerCase().includes("preview not supported"))
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("viewer-docx-preview")).toBeInTheDocument();
+    expect(screen.getByText("DOCX preview")).toBeInTheDocument();
+  });
+
+  test("DOCX preview uses blob MIME when document metadata is incomplete", async () => {
+    mockFileData = new Blob(["xx"], {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[{ id: 1, file_name: "report" } as ViewerDoc]}
+        startIndex={0}
+        apiBase={API_BASE}
+      />
+    );
+
+    await waitFor(() => expect(renderDocxPreviewMock).toHaveBeenCalled());
+
+    expect(screen.getByTestId("viewer-meta")).toHaveTextContent(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+    expect(screen.queryByTestId("viewer-unknown-preview")).not.toBeInTheDocument();
   });
 
   test("Close revokes blob URL and calls onClose", async () => {
