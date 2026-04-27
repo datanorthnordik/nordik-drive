@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Dialog,
@@ -46,7 +46,6 @@ import {
   color_text_primary,
   color_text_secondary,
   color_text_light,
-  color_primary,
   color_white,
 } from "../../constants/colors";
 import {
@@ -93,33 +92,9 @@ interface RequestDoc {
 }
 
 const getBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/photo/${id}`;
-
-function guessMimeFromFilename(name?: string) {
-  if (!name) return "";
-  const n = name.toLowerCase();
-  if (n.endsWith(".pdf")) return "application/pdf";
-  if (n.endsWith(".png")) return "image/png";
-  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
-  if (n.endsWith(".webp")) return "image/webp";
-  if (n.endsWith(".txt")) return "text/plain";
-  if (n.endsWith(".csv")) return "text/csv";
-  if (n.endsWith(".json")) return "application/json";
-  return "";
-}
-
-function extensionFromMime(mime?: string) {
-  if (!mime) return "";
-  if (mime === "application/pdf") return ".pdf";
-  if (mime === "image/png") return ".png";
-  if (mime === "image/jpeg") return ".jpg";
-  if (mime === "image/webp") return ".webp";
-  if (mime.startsWith("text/")) return ".txt";
-  return "";
-}
+const getDocumentBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/doc/${id}`;
 
 // viewer stage uses dark; palette has no black → use text_primary
-const stageBg = color_text_primary;
-
 const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, request, onClose }) => {
   const requestId = request?.request_id;
   const requestReviewerComment = String(request?.reviewer_comment || "").trim();
@@ -130,17 +105,10 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
   // Photo viewer
   const [viewerOpen, setViewerOpen] = useState(false);
   const [startIndex, setStartIndex] = useState(0);
-  const [viewerIndex, setViewerIndex] = useState(0);
 
   // Doc viewer
   const [docViewerOpen, setDocViewerOpen] = useState(false);
   const [docViewerIndex, setDocViewerIndex] = useState(0);
-
-  // blob preview url + preview text
-  const [docBlobUrl, setDocBlobUrl] = useState<string>("");
-  const [docTextPreview, setDocTextPreview] = useState<string>("");
-
-  const [lastBlobUrl, setLastBlobUrl] = useState<string>("");
 
   const { data: photoData, fetchData: loadPhotos, loading: photosLoading } = useFetch(
     `${API_ORIGIN}/api/file/edit/photos/${requestId}`,
@@ -153,16 +121,6 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     "GET",
     false
   );
-
-  const {
-    data: fileBlobData,
-    fetchData: fetchFileBlob,
-    loading: fileBlobLoading,
-    error: fileBlobError,
-  } = useFetch<any>(`${API_ORIGIN}/api/file/doc`, "GET", false);
-
-  const currentDoc: RequestDoc | undefined = docs[docViewerIndex];
-  const currentDocMime = currentDoc?.mime_type || guessMimeFromFilename(currentDoc?.file_name) || "";
 
   useEffect(() => {
     if (!open) return;
@@ -180,45 +138,8 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     setDocs((docsData as any)?.docs || []);
   }, [docsData]);
 
-  // cleanup blob URLs on unmount
-  useEffect(() => {
-    return () => {
-      if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-    };
-  }, [lastBlobUrl]);
-
-  const readBlobAsText = (blob: Blob) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = reject;
-      reader.readAsText(blob);
-    });
-
-  const clearPreview = useCallback(() => {
-    if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
-    setLastBlobUrl("");
-    setDocBlobUrl("");
-    setDocTextPreview("");
-  }, [lastBlobUrl]);
-
-  const openDocAtIndex = useCallback(
-    async (idx: number) => {
-      const doc = docs[idx];
-      if (!doc) return;
-
-      clearPreview();
-      await fetchFileBlob(undefined, undefined, false, {
-        path: doc.id,
-        responseType: "blob",
-      });
-    },
-    [docs, clearPreview, fetchFileBlob]
-  );
-
   const handleOpenViewer = (idx: number) => {
     setStartIndex(idx);
-    setViewerIndex(idx);
     setViewerOpen(true);
   };
 
@@ -226,33 +147,6 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
     setDocViewerIndex(idx);
     setDocViewerOpen(true);
   };
-
-  useEffect(() => {
-    if (!docViewerOpen) return;
-    if (!fileBlobData) return;
-
-    const rawBlob =
-      fileBlobData instanceof Blob
-        ? fileBlobData
-        : (fileBlobData as any)?.blob instanceof Blob
-          ? (fileBlobData as any).blob
-          : null;
-
-    if (!rawBlob) return;
-
-    const forcedType = currentDocMime || rawBlob.type || "application/octet-stream";
-    const fixedBlob = new Blob([rawBlob], { type: forcedType });
-    const url = URL.createObjectURL(fixedBlob);
-
-    setDocBlobUrl(url);
-    setLastBlobUrl(url);
-
-    if (forcedType.startsWith("text/") || forcedType === "application/json") {
-      readBlobAsText(fixedBlob)
-        .then((txt) => setDocTextPreview(txt.slice(0, 200000)))
-        .catch(() => setDocTextPreview(""));
-    }
-  }, [fileBlobData, docViewerOpen, currentDocMime]);
 
   const photoGridItems = useMemo(
     () =>
@@ -428,6 +322,7 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             emptyText={REQUEST_DETAILS_NO_DOCUMENTS_TEXT}
             documents={docGridItems}
             onOpenViewer={(idx) => handleOpenDocViewer(idx)}
+            getPreviewUrl={(doc) => getDocumentBinaryUrl(Number(doc.id))}
             cardBorderColor={color_secondary} // blue border
             containerSx={{
               backgroundColor: color_white,

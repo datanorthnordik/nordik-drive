@@ -278,6 +278,7 @@ export default function RequestDetailsDialog({
               emptyText="No documents submitted."
               documents={documents as any}
               onOpenViewer={onOpenDocViewer}
+              getPreviewUrl={(doc: any) => `${apiBase}/file/doc/${doc.id}`}
               showViewButton={true}
               viewLabel="View"
               viewBtnSx={{

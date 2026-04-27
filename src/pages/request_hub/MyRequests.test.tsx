@@ -1,6 +1,6 @@
 // src/pages/pending-requests/MyRequests.test.tsx
 import React from "react";
-import { render, screen, fireEvent, cleanup, waitFor, act, within } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import MyRequests from "./MyRequests";
@@ -131,39 +131,25 @@ describe("MyRequests (100% coverage)", () => {
       expect(approvedFetchSpy).toHaveBeenCalledTimes(1);
     });
 
-    expect(screen.getByText("No pending requests.")).toBeInTheDocument();
+    expect(screen.getByText("No pending requests found.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("refresh-btn"));
     expect(pendingFetchSpy).toHaveBeenCalledTimes(2);
     expect(approvedFetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  test("mobile branch: resize listener registered, reacts to resize, cleanup removes listener", async () => {
-    const addSpy = jest.spyOn(window, "addEventListener");
-    const removeSpy = jest.spyOn(window, "removeEventListener");
-
-    const { unmount } = render(<MyRequests />);
-
-    expect(addSpy).toHaveBeenCalledWith("resize", expect.any(Function));
+  test("renders without the old status tabs", async () => {
+    render(<MyRequests />);
 
     await waitFor(() => {
       expect(pendingFetchSpy).toHaveBeenCalled();
       expect(approvedFetchSpy).toHaveBeenCalled();
     });
 
-    act(() => {
-      (window as any).innerWidth = 700;
-      window.dispatchEvent(new Event("resize"));
-    });
-
-    // smoke check still rendered
-    expect(screen.getByTestId("myrequests-tabs")).toBeInTheDocument();
-
-    unmount();
-    expect(removeSpy).toHaveBeenCalledWith("resize", expect.any(Function));
-
-    addSpy.mockRestore();
-    removeSpy.mockRestore();
+    expect(screen.getByTestId("status-summary-pending")).toBeInTheDocument();
+    expect(screen.queryByTestId("myrequests-tabs")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-pending")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-approved")).not.toBeInTheDocument();
   });
 
   test("renders rows + all statusChipSx branches + helper outputs (no brittle long-text match)", async () => {
@@ -175,6 +161,10 @@ describe("MyRequests (100% coverage)", () => {
           created_at: "2026-01-01T01:02:03Z",
           details: [{ id: 1, filename: "alpha.csv" }, { id: 2, filename: "alpha.csv" }],
         }),
+      ],
+    };
+    approvedDataNext = {
+      requests: [
         mkReq({
           request_id: 2,
           status: "APPROVED",
@@ -199,36 +189,38 @@ describe("MyRequests (100% coverage)", () => {
 
     render(<MyRequests />);
 
-    // rows exist
+    // pending is selected by default
     expect(screen.getByTestId("request-row-1")).toBeInTheDocument();
-    expect(screen.getByTestId("request-row-2")).toBeInTheDocument();
-    expect(screen.getByTestId("request-row-3")).toBeInTheDocument();
-    expect(screen.getByTestId("request-row-4")).toBeInTheDocument();
+    expect(screen.queryByTestId("request-row-2")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("request-row-3")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("request-row-4")).not.toBeInTheDocument();
 
-    // status chip labels via testid (no ambiguity with tabs)
+    // status chip labels via testid
     expect(screen.getByTestId("status-chip-1")).toHaveTextContent("Pending review");
+    expect(screen.getByTestId("status-summary-pending")).toHaveTextContent("Pending1/ 4");
+    expect(screen.getByTestId("status-summary-approved")).toHaveTextContent("Approved1/ 4");
+    expect(screen.getByTestId("status-summary-rejected")).toHaveTextContent("Rejected1/ 4");
+    expect(screen.getByTestId("status-summary-pending")).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByTestId("status-summary-approved"));
+    expect(screen.getByTestId("request-row-2")).toBeInTheDocument();
     expect(screen.getByTestId("status-chip-2")).toHaveTextContent("Approved");
+    expect(screen.queryByTestId("request-row-1")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("status-summary-rejected"));
+    expect(screen.getByTestId("request-row-3")).toBeInTheDocument();
     expect(screen.getByTestId("status-chip-3")).toHaveTextContent("Rejected");
-    expect(screen.getByTestId("status-chip-4")).toHaveTextContent("Unknown");
+    expect(screen.queryByTestId("request-row-2")).not.toBeInTheDocument();
 
     // helper output: filename appears (for request 4 it should be "—")
+    fireEvent.click(screen.getByTestId("status-summary-pending"));
     expect(within(screen.getByTestId("request-row-1")).getByText("alpha.csv")).toBeInTheDocument();
-    expect(within(screen.getByTestId("request-row-2")).getByText("beta.pdf")).toBeInTheDocument();
-    expect(within(screen.getByTestId("request-row-3")).getByText("gamma.txt")).toBeInTheDocument();
-
-    // request 4 has filename fallback "—"
-    expect(within(screen.getByTestId("request-row-4")).getByText("—")).toBeInTheDocument();
 
     // formatWhen + getChangeCount: assert against row container text (avoids split-node issues)
     const row1Text = screen.getByTestId("request-row-1").textContent || "";
     expect(row1Text).toContain("Request #1");
     expect(row1Text).toContain("Created 2026-01-01 01:02:03");
     expect(row1Text).toContain("2 changes");
-
-    const row4Text = screen.getByTestId("request-row-4").textContent || "";
-    expect(row4Text).toContain("Request #4");
-    expect(row4Text).toContain("Created");
-    expect(row4Text).toContain("0 changes");
   });
 
   test("search filters by filename and by request id; empty filtered shows empty state + refresh", async () => {
@@ -264,16 +256,16 @@ describe("MyRequests (100% coverage)", () => {
     expect(screen.getByTestId("request-row-11")).toBeInTheDocument();
     expect(screen.queryByTestId("request-row-10")).not.toBeInTheDocument();
 
-    // filter to none -> empty state (pending tab)
+    // filter to none -> empty state
     fireEvent.change(getSearchInput(), { target: { value: "zzz" } });
-    expect(screen.getByText("No pending requests.")).toBeInTheDocument();
+    expect(screen.getByText("No pending requests found.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("refresh-btn"));
     expect(pendingFetchSpy).toHaveBeenCalledTimes(2); // mount + refresh
     expect(approvedFetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  test("tab switch uses approved/rejected list; empty copy when filtered to none", async () => {
+  test("renders approved/rejected rows in the combined list", async () => {
     approvedDataNext = {
       requests: [
         mkReq({
@@ -287,14 +279,12 @@ describe("MyRequests (100% coverage)", () => {
 
     render(<MyRequests />);
 
-    fireEvent.click(screen.getByTestId("tab-approved"));
+    fireEvent.click(screen.getByTestId("status-summary-approved"));
     expect(await screen.findByTestId("request-row-21")).toBeInTheDocument();
+    expect(screen.queryByTestId("tab-approved")).not.toBeInTheDocument();
 
     fireEvent.change(getSearchInput(), { target: { value: "nope" } });
-    expect(screen.getByText("No approved/rejected requests.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("tab-pending"));
-    expect(screen.getByText("No pending requests.")).toBeInTheDocument();
+    expect(screen.getByText("No approved requests found.")).toBeInTheDocument();
   });
 
   test("Details open/close drives MyRequestDetailsModal props and closes via modal callback", async () => {

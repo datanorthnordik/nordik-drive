@@ -1351,77 +1351,67 @@ export default function ConfigFormModal({
     });
   };
 
-  const renderExistingDocumentsGrid = useCallback(
-    (fieldKey: string) => {
-      const items = existingDocsByField[fieldKey] || [];
-      if (!items.length) return null;
+  const renderExistingDocumentsGrid = (fieldKey: string) => {
+    const items = existingDocsByField[fieldKey] || [];
+    if (!items.length) return null;
 
-      const documents = items
-        .map((d) => {
-          const id = Number(d.id);
-          if (!id || Number.isNaN(id)) return null;
-          const draft = getUploadReviewDraft(id);
+    const documents = items
+      .map((d) => {
+        const id = Number(d.id);
+        if (!id || Number.isNaN(id)) return null;
+        const draft = getUploadReviewDraft(id);
 
-          return {
-            id,
-            file_name: d.file_name,
-            filename: d.file_name,
-            mime_type: d.mime_type || "",
-            size_bytes: d.file_size_bytes || 0,
-            document_category: d.file_category || "",
-            status: draft.status,
-            reviewer_comment: draft.reviewer_comment || "",
-          };
-        })
-        .filter(Boolean) as any[];
+        return {
+          id,
+          file_name: d.file_name,
+          filename: d.file_name,
+          mime_type: d.mime_type || "",
+          size_bytes: d.file_size_bytes || 0,
+          document_category: d.file_category || "",
+          status: draft.status,
+          reviewer_comment: draft.reviewer_comment || "",
+        };
+      })
+      .filter(Boolean) as any[];
 
-      if (!documents.length) return null;
+    if (!documents.length) return null;
 
-      return (
-        <DocumentGrid
-          title="Previously Uploaded Documents"
-          loading={false}
-          emptyText="No documents submitted."
-          documents={documents}
-          showCategoryChip={true}
-          showSizeChip={true}
-          showViewButton={true}
-          showDownload={true}
-          onOpenViewer={(idx: any) => openExistingDocModal(fieldKey, Number(idx))}
-          onDownloadSingle={(id: any, filename: any, mime: any) =>
-            void handleDownloadExistingDoc(Number(id), filename, mime)
-          }
-          statusLabel={getReviewStatusLabel}
-          statusChipSx={ undefined }
-          primaryBtnSx={GRID_PRIMARY_BTN_SX}
-          viewBtnSx={GRID_VIEW_BTN_SX}
-          showApproveReject={review}
-          onApprove={(id) =>
-            setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.APPROVED)
-          }
-          onReject={(id) =>
-            setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.REJECTED)
-          }
-          approveBtnSx={GRID_APPROVE_BTN_SX}
-          rejectBtnSx={GRID_REJECT_BTN_SX}
-          showReviewerCommentField={review}
-          reviewerCommentLabel="Review Comment"
-          onReviewerCommentChange={(id:any, value:any) => setUploadReviewerComment(Number(id), value)}
-          viewReviewerComment={!review}
-          disableReviewerCommentField={!review}
-        />
-      );
-    },
-    [
-      existingDocsByField,
-      getUploadReviewDraft,
-      openExistingDocModal,
-      handleDownloadExistingDoc,
-      review,
-      setUploadReviewStatus,
-      setUploadReviewerComment,
-    ]
-  );
+    return (
+      <DocumentGrid
+        title="Previously Uploaded Documents"
+        loading={false}
+        emptyText="No documents submitted."
+        documents={documents}
+        showCategoryChip={true}
+        showSizeChip={true}
+        showViewButton={true}
+        showDownload={true}
+        onOpenViewer={(idx: any) => openExistingDocModal(fieldKey, Number(idx))}
+        getPreviewUrl={(doc: any) => `${apiBase}/form/answers/upload/${doc.id}`}
+        onDownloadSingle={(id: any, filename: any, mime: any) =>
+          void handleDownloadExistingDoc(Number(id), filename, mime)
+        }
+        statusLabel={getReviewStatusLabel}
+        statusChipSx={undefined}
+        primaryBtnSx={GRID_PRIMARY_BTN_SX}
+        viewBtnSx={GRID_VIEW_BTN_SX}
+        showApproveReject={review}
+        onApprove={(id) =>
+          setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.APPROVED)
+        }
+        onReject={(id) =>
+          setUploadReviewStatus(Number(id), REVIEW_STATUS_VALUES.REJECTED)
+        }
+        approveBtnSx={GRID_APPROVE_BTN_SX}
+        rejectBtnSx={GRID_REJECT_BTN_SX}
+        showReviewerCommentField={review}
+        reviewerCommentLabel="Review Comment"
+        onReviewerCommentChange={(id:any, value:any) => setUploadReviewerComment(Number(id), value)}
+        viewReviewerComment={!review}
+        disableReviewerCommentField={!review}
+      />
+    );
+  };
 
   const renderExistingPhotosGrid = useCallback(
     (fieldKey: string) => {

@@ -108,6 +108,7 @@ type PhotoReviewInput = {
 
 // For images shown in card grid + ImageGallery
 const getBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/photo/${id}`;
+const getDocumentBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/doc/${id}`;
 
 const formatBytes = (bytes?: number) => {
   if (!bytes || bytes <= 0) return "0 B";
@@ -201,10 +202,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   const [docViewerOpen, setDocViewerOpen] = useState(false);
   const [docViewerIndex, setDocViewerIndex] = useState(0);
 
-  // blob preview url + preview text
-  const [docBlobUrl, setDocBlobUrl] = useState<string>("");
-  const [docTextPreview, setDocTextPreview] = useState<string>("");
-
   // keep last created blob URL so we can revoke it safely
   const [lastBlobUrl, setLastBlobUrl] = useState<string>("");
 
@@ -242,7 +239,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   const {
     data: fileBlobData,
     fetchData: fetchFileBlob,
-    loading: fileBlobLoading,
     error: fileBlobError,
   } = useFetch<any>(`${API_ORIGIN}/api/file/doc`, "GET", false);
 
@@ -393,14 +389,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     updated[index].new_value = value;
     setEditableDetails(updated);
   };
-
-  const readBlobAsText = (blob: Blob) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = reject;
-      reader.readAsText(blob);
-    });
 
   // ---------------------------------------
   // Button styles (palette locked to your constants)
@@ -568,8 +556,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   const clearPreview = useCallback(() => {
     if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
     setLastBlobUrl("");
-    setDocBlobUrl("");
-    setDocTextPreview("");
   }, [lastBlobUrl]);
 
   const openDocAtIndex = useCallback(
@@ -609,14 +595,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     const fixedBlob = new Blob([rawBlob], { type: forcedType });
     const url = URL.createObjectURL(fixedBlob);
 
-    setDocBlobUrl(url);
     setLastBlobUrl(url);
-
-    if (forcedType.startsWith("text/") || forcedType === "application/json") {
-      readBlobAsText(fixedBlob)
-        .then((txt) => setDocTextPreview(txt.slice(0, 200000)))
-        .catch(() => setDocTextPreview(""));
-    }
   }, [fileBlobData, docViewerOpen, currentDocMime]);
 
   const photoGridItems = photos.map((p) => ({
@@ -830,6 +809,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             emptyText={REQUEST_DETAILS_NO_DOCUMENTS_TEXT}
             documents={docGridItems}
             onOpenViewer={(idx) => handleOpenDocViewer(idx)}
+            getPreviewUrl={(doc) => getDocumentBinaryUrl(Number(doc.id))}
             showCategoryChip={true}
             showSizeChip={true}
             showViewButton={true}

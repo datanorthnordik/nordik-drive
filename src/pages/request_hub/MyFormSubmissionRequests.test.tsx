@@ -89,6 +89,15 @@ describe("MyFormSubmissionRequests", () => {
     status: "approved",
   };
 
+  const rejectedItem = {
+    ...pendingItem,
+    id: 4,
+    row_id: 9004,
+    file_id: 504,
+    file_name: "rejected-form.csv",
+    status: "rejected",
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -115,13 +124,13 @@ describe("MyFormSubmissionRequests", () => {
 
   const getSearchInput = () => within(screen.getByTestId("search-input")).getByRole("textbox");
 
-  it("fetches once on mount and groups rows into the two local sections", async () => {
+  it("fetches once on mount and renders all statuses in one list", async () => {
     hookState.search.data = {
       page: 1,
       page_size: 1000,
-      total_items: 3,
+      total_items: 4,
       total_pages: 1,
-      items: [pendingItem, needsMoreInfoItem, approvedItem],
+      items: [pendingItem, needsMoreInfoItem, approvedItem, rejectedItem],
     };
 
     render(<MyFormSubmissionRequests />);
@@ -134,21 +143,27 @@ describe("MyFormSubmissionRequests", () => {
     });
 
     expect(screen.getByTestId("loader")).toHaveTextContent("false");
-    expect(screen.getByTestId("tab-pending")).toHaveTextContent(
-      "Pending / Need More Information (2)"
-    );
-    expect(screen.getByTestId("tab-approved")).toHaveTextContent("Approved / Rejected (1)");
+    expect(screen.queryByTestId("tab-pending")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-approved")).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-summary-pending")).toHaveTextContent("Pending2/ 4");
+    expect(screen.getByTestId("status-summary-approved")).toHaveTextContent("Approved1/ 4");
+    expect(screen.getByTestId("status-summary-rejected")).toHaveTextContent("Rejected1/ 4");
+    expect(screen.getByTestId("status-summary-pending")).toHaveAttribute("aria-pressed", "true");
 
     expect(screen.getByTestId("submission-row-9001")).toBeInTheDocument();
     expect(screen.getByTestId("submission-row-9002")).toBeInTheDocument();
     expect(screen.queryByTestId("submission-row-9003")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("submission-row-9004")).not.toBeInTheDocument();
     expect(screen.getByTestId("status-chip-9001")).toHaveTextContent("Pending review");
     expect(screen.getByTestId("status-chip-9002")).toHaveTextContent("Needs More Information");
 
-    fireEvent.click(screen.getByTestId("tab-approved"));
-
+    fireEvent.click(screen.getByTestId("status-summary-approved"));
     expect(screen.getByTestId("submission-row-9003")).toBeInTheDocument();
     expect(screen.queryByTestId("submission-row-9001")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("status-summary-rejected"));
+    expect(screen.getByTestId("submission-row-9004")).toBeInTheDocument();
+    expect(screen.getByTestId("status-chip-9004")).toHaveTextContent("Rejected");
   });
 
   it("filters the active section and refreshes from the empty state", async () => {
@@ -173,7 +188,7 @@ describe("MyFormSubmissionRequests", () => {
 
     fireEvent.change(getSearchInput(), { target: { value: "missing-value" } });
 
-    expect(screen.getByText("No pending or needs more information requests.")).toBeInTheDocument();
+    expect(screen.getByText("No pending form submission requests found.")).toBeInTheDocument();
 
     hookState.search.fetchData.mockClear();
     fireEvent.click(screen.getByTestId("refresh-btn"));
@@ -255,7 +270,7 @@ describe("MyFormSubmissionRequests", () => {
 
     const view = render(<MyFormSubmissionRequests />);
 
-    fireEvent.click(screen.getByTestId("tab-approved"));
+    fireEvent.click(screen.getByTestId("status-summary-approved"));
     fireEvent.click(screen.getByTestId("details-btn-9003"));
 
     await waitFor(() => {
