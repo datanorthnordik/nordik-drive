@@ -89,6 +89,9 @@ export type DocumentGridItem = {
   file_name?: string;
   filename?: string;
   mime_type?: string;
+  preview_url?: string;
+  file_url?: string;
+  url?: string;
   size_bytes?: number;
   document_category?: string;
   status?: FileReviewStatus;
@@ -117,6 +120,7 @@ export type DocumentGridProps = {
   onDownloadSingle?: (id: number, filename?: string, mime?: string) => void;
   resolveFilename?: (d: DocumentGridItem) => string;
   resolveMime?: (d: DocumentGridItem) => string;
+  getPreviewUrl?: (d: DocumentGridItem) => string;
 
   showApproveReject?: boolean; // default false
   onApprove?: (id: number) => void;
@@ -132,6 +136,7 @@ export type DocumentGridProps = {
   // styling
   cardBorderColor?: string; // default: color_secondary
   cardWidth?: number;       // default: 360
+  previewHeight?: number;   // default: 190
   containerSx?: any;
   cardSx?: any;
 

@@ -4,8 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Paper,
-  Tabs,
-  Tab,
   Typography,
   TextField,
   InputAdornment,
@@ -36,11 +34,13 @@ import {
   color_text_light,
   color_white,
   color_warning,
+  color_error,
 } from "../../constants/colors";
 
 import ConfigFormModal from "../../components/datatable/config-form-modal.tsx/ConfigFormModal";
 import { FormCfg } from "../../components/datatable/config-form-modal.tsx/shared";
 import type { FormSubmissionRow } from "../../components/tables/FormSubmissionGrid";
+import RequestStatusSummary from "./RequestStatusSummary";
 
 type SearchResp = {
   page: number;
@@ -58,10 +58,6 @@ type ConfigJson = {
 type ConfigApiResp = {
   config?: ConfigJson;
 };
-
-type TabKey =
-  | typeof FORM_SUBMISSION_STATUS_VALUES.PENDING
-  | typeof FORM_SUBMISSION_STATUS_VALUES.APPROVED;
 
 const REQUEST_PAGE_SIZE = 1000;
 
@@ -121,9 +117,9 @@ const statusChipSx = (status?: string) => {
     return {
       label: FORM_SUBMISSION_STATUS_LABELS[FORM_SUBMISSION_STATUS_VALUES.REJECTED],
       sx: {
-        backgroundColor: "rgba(107, 114, 128, 0.12)",
-        border: "1px solid rgba(107, 114, 128, 0.25)",
-        color: color_text_primary,
+        backgroundColor: "rgba(231, 76, 60, 0.12)",
+        border: "1px solid rgba(231, 76, 60, 0.25)",
+        color: "#991b1b",
       },
     };
   }
@@ -146,9 +142,14 @@ const formatWhen = (iso?: string) => {
 const getRowKey = (row: FormSubmissionRow) =>
   String(row.row_id || row.id || row.file_id || `${row.form_key}-${row.file_name}`);
 
+const getFormStatusCount = (rows: FormSubmissionRow[], status: string) =>
+  rows.filter((row) => String(row?.status || "").trim().toLowerCase() === status).length;
+
 export default function MyFormSubmissionRequests() {
   const [rows, setRows] = useState<FormSubmissionRow[]>([]);
-  const [tab, setTab] = useState<TabKey>(FORM_SUBMISSION_STATUS_VALUES.PENDING);
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    FORM_SUBMISSION_STATUS_VALUES.PENDING
+  );
   const [searchText, setSearchText] = useState("");
 
   const [cfgFormOpen, setCfgFormOpen] = useState(false);
@@ -289,19 +290,53 @@ export default function MyFormSubmissionRequests() {
     [rows]
   );
 
-  const approvedRejectedRows = useMemo(
-    () => rows.filter((row) => isReadonlyStatus(row.status)),
-    [rows]
+  const rowTotal = rows.length;
+  const statusSummaryItems = useMemo(
+    () => [
+      {
+        key: FORM_SUBMISSION_STATUS_VALUES.PENDING,
+        label: "Pending",
+        count: pendingRows.length,
+        total: rowTotal,
+        accent: color_warning,
+        background: "rgba(243, 156, 18, 0.10)",
+      },
+      {
+        key: FORM_SUBMISSION_STATUS_VALUES.APPROVED,
+        label: "Approved",
+        count: getFormStatusCount(rows, FORM_SUBMISSION_STATUS_VALUES.APPROVED),
+        total: rowTotal,
+        accent: "#166534",
+        background: "rgba(39, 174, 96, 0.10)",
+      },
+      {
+        key: FORM_SUBMISSION_STATUS_VALUES.REJECTED,
+        label: "Rejected",
+        count: getFormStatusCount(rows, FORM_SUBMISSION_STATUS_VALUES.REJECTED),
+        total: rowTotal,
+        accent: color_error,
+        background: "rgba(231, 76, 60, 0.10)",
+      },
+    ],
+    [pendingRows.length, rowTotal, rows]
   );
 
-  const activeList =
-    tab === FORM_SUBMISSION_STATUS_VALUES.PENDING ? pendingRows : approvedRejectedRows;
+  const activeList = rows;
+  const statusFilteredRows = useMemo(() => {
+    if (selectedStatus === FORM_SUBMISSION_STATUS_VALUES.PENDING) {
+      return activeList.filter((row) => !isReadonlyStatus(row.status));
+    }
+
+    return activeList.filter(
+      (row) => String(row?.status || "").trim().toLowerCase() === selectedStatus
+    );
+  }, [activeList, selectedStatus]);
 
   const filteredRows = useMemo(() => {
     const search = searchText.toLowerCase().trim();
-    if (!search) return activeList;
+    if (!search) return statusFilteredRows;
 
-    return activeList.filter((row) => {
+    return statusFilteredRows.filter((row) => {
       const haystack = [
         row.file_name,
         row.form_label,
@@ -316,7 +351,7 @@ export default function MyFormSubmissionRequests() {
 
       return haystack.includes(search);
     });
-  }, [activeList, searchText]);
+  }, [statusFilteredRows, searchText]);
 
   return (
     <>
@@ -410,43 +445,11 @@ export default function MyFormSubmissionRequests() {
           </Box>
 
           <Box sx={{ px: { xs: 1.25, md: 2.25 }, pt: 1, background: color_white, flexShrink: 0 }}>
-            <Tabs
-              value={tab}
-              onChange={(_, value) => setTab(value)}
-              data-testid="my-form-submission-tabs"
-              sx={{
-                minHeight: 44,
-                "& .MuiTab-root": {
-                  minHeight: 44,
-                  textTransform: "none",
-                  fontWeight: 900,
-                  borderRadius: 2,
-                  mr: 1,
-                  color: color_text_light,
-                  border: `1px solid ${color_border}`,
-                },
-                "& .Mui-selected": {
-                  color: color_white,
-                  backgroundColor:
-                    tab === FORM_SUBMISSION_STATUS_VALUES.PENDING
-                      ? color_warning
-                      : color_secondary,
-                  border: "none",
-                },
-                "& .MuiTabs-indicator": { display: "none" },
-              }}
-            >
-              <Tab
-                data-testid="tab-pending"
-                value={FORM_SUBMISSION_STATUS_VALUES.PENDING}
-                label={`Pending / Need More Information (${pendingRows.length})`}
-              />
-              <Tab
-                data-testid="tab-approved"
-                value={FORM_SUBMISSION_STATUS_VALUES.APPROVED}
-                label={`Approved / Rejected (${approvedRejectedRows.length})`}
-              />
-            </Tabs>
+            <RequestStatusSummary
+              items={statusSummaryItems}
+              selectedKey={selectedStatus}
+              onSelect={setSelectedStatus}
+            />
 
             <Divider sx={{ mt: 1, borderColor: color_border }} />
           </Box>
@@ -471,9 +474,7 @@ export default function MyFormSubmissionRequests() {
                 }}
               >
                 <Typography sx={{ fontWeight: 900, color: color_text_primary }}>
-                  {tab === FORM_SUBMISSION_STATUS_VALUES.PENDING
-                    ? "No pending or needs more information requests."
-                    : "No approved or rejected requests."}
+                  No {selectedStatus} form submission requests found.
                 </Typography>
                 <Typography
                   sx={{

@@ -1,10 +1,16 @@
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 
 import { DocumentGrid } from "./DocumentGrids";
 import { categoryLabel, formatBytes, normalizeStatus } from "./types";
+import { renderDocxPreview } from "../../lib/docxPreview";
+
+jest.mock("../../lib/docxPreview", () => ({
+  __esModule: true,
+  renderDocxPreview: jest.fn(),
+}));
 
 type AnyDoc = any;
 
@@ -83,6 +89,35 @@ const baseDocs = (): AnyDoc[] => [
 ];
 
 describe("DocumentGrid (100% coverage)", () => {
+  const fetchSpy = jest.fn();
+  const renderDocxPreviewMock = renderDocxPreview as jest.MockedFunction<typeof renderDocxPreview>;
+  const createObjectUrlSpy = jest.fn();
+  const revokeObjectUrlSpy = jest.fn();
+
+  beforeEach(() => {
+    Object.defineProperty(global, "fetch", {
+      writable: true,
+      value: fetchSpy,
+    });
+    Object.defineProperty(global, "URL", {
+      writable: true,
+      value: {
+        ...global.URL,
+        createObjectURL: createObjectUrlSpy,
+        revokeObjectURL: revokeObjectUrlSpy,
+      },
+    });
+
+    fetchSpy.mockReset();
+    createObjectUrlSpy.mockReset();
+    revokeObjectUrlSpy.mockReset();
+    renderDocxPreviewMock.mockReset();
+    createObjectUrlSpy.mockImplementation((blob: Blob) => `blob:${blob.type || "unknown"}`);
+    renderDocxPreviewMock.mockImplementation(async (_blob, container) => {
+      container.innerHTML = "<p>DOCX inline preview</p>";
+    });
+  });
+
   test("renders default title and default emptyText when no documents", () => {
     render(<DocumentGrid documents={[]} onOpenViewer={jest.fn()} />);
     expect(screen.getByText("Uploaded Documents")).toBeInTheDocument();
@@ -123,6 +158,137 @@ describe("DocumentGrid (100% coverage)", () => {
 
     // Default View button
     expect(screen.getByTestId("doc-view-11")).toHaveTextContent("View");
+  });
+
+  test("renders image and pdf card previews from fetched blobs when preview URLs are provided", async () => {
+    fetchSpy
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        blob: async () => new Blob(["image"], { type: "image/png" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        blob: async () => new Blob(["pdf"], { type: "application/pdf" }),
+      });
+
+    render(
+      <DocumentGrid
+        documents={[
+          {
+            id: 11,
+            status: STATUS_APPROVED_IN,
+            filename: "front.png",
+            mime_type: "image/png",
+          },
+          {
+            id: 22,
+            status: STATUS_PENDING_IN,
+            filename: "report.pdf",
+            mime_type: "application/pdf",
+          },
+        ]}
+        onOpenViewer={jest.fn()}
+        getPreviewUrl={(doc) => `https://example.com/files/${doc.id}`}
+      />
+    );
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      1,
+      "https://example.com/files/11",
+      expect.objectContaining({ credentials: "include" })
+    );
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      2,
+      "https://example.com/files/22",
+      expect.objectContaining({ credentials: "include" })
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("doc-preview-image-11")).toHaveAttribute(
+        "src",
+        "blob:image/png"
+      )
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("doc-preview-pdf-22")).toHaveAttribute(
+        "src",
+        "blob:application/pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH"
+      )
+    );
+  });
+
+  test("prefers the filename extension over a mismatched mime type for preview rendering", async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["pdf bytes"], { type: "image/png" }),
+    });
+
+    render(
+      <DocumentGrid
+        documents={[
+          {
+            id: 41,
+            status: STATUS_PENDING_IN,
+            filename: "claim-form.pdf",
+            mime_type: "image/png",
+          },
+        ]}
+        onOpenViewer={jest.fn()}
+        getPreviewUrl={(doc) => `https://example.com/files/${doc.id}`}
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("doc-preview-pdf-41")).toHaveAttribute(
+        "src",
+        "blob:application/pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH"
+      )
+    );
+
+    expect(screen.getByText("PDF preview")).toBeInTheDocument();
+  });
+
+  test("renders docx card preview by fetching the document blob", async () => {
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () =>
+        new Blob(["docx"], {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }),
+    });
+
+    render(
+      <DocumentGrid
+        documents={[
+          {
+            id: 31,
+            status: STATUS_APPROVED_IN,
+            filename: "letter.docx",
+            mime_type:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          },
+        ]}
+        onOpenViewer={jest.fn()}
+        getPreviewUrl={(doc) => `https://example.com/files/${doc.id}`}
+      />
+    );
+
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "https://example.com/files/31",
+        expect.objectContaining({ credentials: "include" })
+      )
+    );
+    await waitFor(() => expect(renderDocxPreviewMock).toHaveBeenCalled());
+
+    expect(screen.getByTestId("doc-preview-docx-31")).toBeInTheDocument();
+    expect(screen.getByText("DOCX inline preview")).toBeInTheDocument();
   });
 
   test("clicking a card calls onOpenViewer with correct index", async () => {
