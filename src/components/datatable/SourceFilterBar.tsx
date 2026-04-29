@@ -1,10 +1,13 @@
 "use client";
 
 import React from "react";
-import { SOURCE_COLORS } from "./sourceColors";
+import { Box, Tooltip } from "@mui/material";
+import { SOURCE_COLORS, SOURCE_ACRONYM_DETAILS } from "./sourceColors";
 import {
   color_black,
   color_light_gray,
+  color_secondary,
+  color_text_secondary,
   color_white,
 } from "../../constants/colors";
 
@@ -12,6 +15,22 @@ type Props = {
   availableSources: string[];
   sourceFilter: string | null;
   setSourceFilter: (v: string | null) => void;
+};
+
+
+
+const getFriendlySourceLabel = (source: string) => {
+  const detail = SOURCE_ACRONYM_DETAILS.find(({ acronym }) =>
+    new RegExp(`\\b${acronym}\\b`, "i").test(source)
+  );
+
+  if (!detail) return { expandedLabel: source, acronym: null, fullName: null };
+
+  const expandedLabel = source
+    .replace(new RegExp(`\\b${detail.acronym}\\b`, "gi"), detail.fullName)
+    .replace(/\bSOURCE\b/g, "Source");
+
+  return { expandedLabel, acronym: detail.acronym, fullName: detail.fullName };
 };
 
 export default function SourceFilterBar({
@@ -117,36 +136,92 @@ export default function SourceFilterBar({
               All
             </button>
 
-            {availableSources.map((key) => (
-              <button
-                key={key}
-                onClick={() => setSourceFilter(key)}
-                style={{
-                  fontSize: "0.7rem",
-                  padding: "4px 14px",
-                  borderRadius: "6px",
-                  border:
-                    sourceFilter === key
-                      ? "3px solid #000"
-                      : "1px solid #ccc",
-                  background: SOURCE_COLORS[key],
-                  color: color_white,
-                  cursor: "pointer",
-                  fontWeight: 600,
-                  boxShadow:
-                    sourceFilter === key
-                      ? "0 0 6px rgba(0,0,0,0.4)"
-                      : "none",
-                  textShadow:
-                    "0 1px 2px rgba(0,0,0,0.3)",
-                  flexShrink: 0,
-                  whiteSpace: "nowrap",
-                  scrollSnapAlign: "start",
-                }}
-              >
-                {key}
-              </button>
-            ))}
+            {availableSources.map((key) => {
+              const sourceLabel = getFriendlySourceLabel(key);
+              const button = (
+                <button
+                  key={key}
+                  onClick={() => setSourceFilter(key)}
+                  style={{
+                    fontSize: "0.7rem",
+                    padding: "4px 14px",
+                    borderRadius: "6px",
+                    border:
+                      sourceFilter === key
+                        ? "3px solid #000"
+                        : "1px solid #ccc",
+                    background: SOURCE_COLORS[key],
+                    color: color_white,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    boxShadow:
+                      sourceFilter === key
+                        ? "0 0 6px rgba(0,0,0,0.4)"
+                        : "none",
+                    textShadow:
+                      "0 1px 2px rgba(0,0,0,0.3)",
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
+                    scrollSnapAlign: "start",
+                  }}
+                >
+                  {key}
+                </button>
+              );
+
+              if (!sourceLabel.acronym) return button;
+
+              return (
+                <Tooltip
+                  key={key}
+                  arrow
+                  describeChild
+                  title={
+                    <Box sx={{ p: 0.4 }}>
+                      <Box
+                        component="span"
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          px: 0.8,
+                          py: 0.2,
+                          mb: 0.6,
+                          borderRadius: "999px",
+                          backgroundColor: color_secondary,
+                          color: color_white,
+                          fontSize: "0.72rem",
+                          fontWeight: 900,
+                          letterSpacing: "0.03em",
+                        }}
+                      >
+                        {sourceLabel.acronym}
+                      </Box>
+                      <Box sx={{ color: color_text_secondary, fontSize: "0.86rem", fontWeight: 700 }}>
+                        {sourceLabel.expandedLabel}
+                      </Box>
+                    </Box>
+                  }
+                  slotProps={{
+                    tooltip: {
+                      sx: {
+                        backgroundColor: color_white,
+                        border: "1px solid rgba(0, 75, 156, 0.18)",
+                        borderRadius: "10px",
+                        boxShadow: "0 12px 28px rgba(15, 23, 42, 0.18)",
+                        maxWidth: 360,
+                      },
+                    },
+                    arrow: {
+                      sx: {
+                        color: color_white,
+                      },
+                    },
+                  }}
+                >
+                  {button}
+                </Tooltip>
+              );
+            })}
           </div>
         </div>
       </div>
