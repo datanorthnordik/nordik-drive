@@ -9,3 +9,14 @@ export const SOURCE_COLORS: Record<string, string> = {
   "STUDENTS REMOVED FROM NCTR": "#d77d7d",
   "FURTHER INVESTIGATION REQUIRED": "#afaf5b",
 };
+
+export const SOURCE_ACRONYM_DETAILS = [
+  {
+    acronym: "NCTR",
+    fullName: "National Center for Truth and Reconciliation",
+  },
+  {
+    acronym: "CIRNAC",
+    fullName: "Crown-Indigenous Relations and Northern Affairs Canada",
+  },
+];

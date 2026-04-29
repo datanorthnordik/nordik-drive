@@ -8,7 +8,19 @@ jest.mock("./sourceColors", () => ({
   SOURCE_COLORS: {
     SourceA: "#123456",
     SourceB: "#654321",
+    "NCTR SOURCE": "#FFC000",
+    "CIRNAC SOURCE": "#9F5FCF",
   },
+  SOURCE_ACRONYM_DETAILS: [
+    {
+      acronym: "NCTR",
+      fullName: "National Center for Truth and Reconciliation",
+    },
+    {
+      acronym: "CIRNAC",
+      fullName: "Crown-Indigenous Relations and Northern Affairs Canada",
+    },
+  ],
 }));
 
 import SourceFilterBar from "./SourceFilterBar";
@@ -165,5 +177,38 @@ describe("SourceFilterBar", () => {
     expect(sourceBButton).toHaveStyle("box-shadow: none");
     expect(sourceBButton).toHaveStyle(`background: ${SOURCE_COLORS["SourceB"]}`);
     expect(sourceBButton).toHaveStyle(`color: ${color_white}`);
+  });
+
+  it("keeps source button labels unchanged for NCTR, CIRNAC, and other sources", () => {
+    render(
+      <SourceFilterBar
+        availableSources={["NCTR SOURCE", "CIRNAC SOURCE", "SourceA"]}
+        sourceFilter={null}
+        setSourceFilter={mockSetSourceFilter}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "NCTR SOURCE" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "CIRNAC SOURCE" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SourceA" })).toBeInTheDocument();
+  });
+
+  it("shows the acronym and expanded source value in a tooltip", async () => {
+    render(
+      <SourceFilterBar
+        availableSources={["NCTR SOURCE"]}
+        sourceFilter={null}
+        setSourceFilter={mockSetSourceFilter}
+      />
+    );
+
+    fireEvent.mouseOver(
+      screen.getByRole("button", { name: "NCTR SOURCE" })
+    );
+
+    expect(await screen.findByText("NCTR")).toBeInTheDocument();
+    expect(
+      await screen.findByText("National Center for Truth and Reconciliation Source")
+    ).toBeInTheDocument();
   });
 });
