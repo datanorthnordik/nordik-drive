@@ -331,7 +331,7 @@ export default function FileActivities({
       { field: "lastname", headerName: "Last Name", width: 140 },
       { field: "community", headerName: "Community", width: 160 },
       { field: "uploader_community", headerName: "Uploader Community", width: 190 },
-      { field: "status", headerName: "Status", width: 120 },
+      { field: "status", headerName: "Request Status", width: 140 },
       { field: "requested_by", headerName: "Requested By", width: 180 },
       { field: "reviewed_by", headerName: "Reviewed By", width: 180 },
       { field: "consent", headerName: "Consent", width: 110 },

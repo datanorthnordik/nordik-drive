@@ -53,6 +53,7 @@ import {
   color_warning,
 } from "../../constants/colors";
 import {
+  REQUEST_STATUS_VALUES,
   REVIEW_STATUS_VALUES,
   isReviewDecisionStatus,
   type ReviewDecisionStatus,
@@ -190,9 +191,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
   // request-level review
   const [requestReviewComment, setRequestReviewComment] = useState("");
-  const [pendingRequestAction, setPendingRequestAction] = useState<ReviewDecisionStatus | null>(
-    null
-  );
 
   // Photo viewer
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -317,7 +315,6 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     loadDocs();
     setEditableDetails((request.details || []).map(normalizeEditableDetail));
     setRequestReviewComment(String(request?.reviewer_comment || ""));
-    setPendingRequestAction(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, request?.request_id, request?.reviewer_comment]);
 
@@ -354,14 +351,10 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     if (handledApproveRef.current) return;
 
     handledApproveRef.current = true;
-    toast.success(
-      pendingRequestAction === REVIEW_STATUS_VALUES.REJECTED
-        ? "Request rejected successfully."
-        : "Request approved successfully."
-    );
+    toast.success("Review submitted successfully.");
     onApproved?.();
     onClose();
-  }, [reviewRequestResponse, pendingRequestAction, onApproved, onClose]);
+  }, [reviewRequestResponse, onApproved, onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -517,7 +510,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   // ---------------------------------------
   // Request review submission
   // ---------------------------------------
-  const validateBeforeSubmit = (requestStatus: ReviewDecisionStatus) => {
+  const validateBeforeSubmit = () => {
     const hasPendingDetail = editableDetails.some((d) => d.status === null);
     const hasPendingPhoto = photos.some((p) => p.status === null);
     const hasPendingDoc = docs.some((d) => d.status === null);
@@ -562,23 +555,15 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
       return false;
     }
 
-    if (
-      requestStatus === REVIEW_STATUS_VALUES.REJECTED &&
-      !requestReviewComment.trim()
-    ) {
-      toast.error("Review comment is required when rejecting the request.");
-      return false;
-    }
-
     return true;
   };
 
-  const handleSubmitRequestReview = async (requestStatus: ReviewDecisionStatus) => {
+  const handleSubmitRequestReview = async () => {
     if (submitLockRef.current) return;
     submitLockRef.current = true;
 
     try {
-      if (!validateBeforeSubmit(requestStatus)) return;
+      if (!validateBeforeSubmit()) return;
 
       const reviews: PhotoReviewInput[] = [...photos, ...docs]
         .filter(
@@ -596,11 +581,9 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         await submitReview({ reviews });
       }
 
-      setPendingRequestAction(requestStatus);
-
       await reviewRequest({
         request_id: request.request_id,
-        status: requestStatus,
+        status: REQUEST_STATUS_VALUES.COMPLETED,
         reviewer_comment: requestReviewComment.trim(),
         updates: editableDetails.map((detail) => ({
           ...detail,
@@ -1062,27 +1045,13 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           </Button>
 
           <Button
-            data-testid="reject-request-btn"
+            data-testid="submit-review-btn"
             variant="contained"
-            onClick={() =>
-              void handleSubmitRequestReview(REVIEW_STATUS_VALUES.REJECTED)
-            }
-            disabled={requestLoading || mediaReviewLoading}
-            sx={rejectBtnSx}
-          >
-            {requestLoading || mediaReviewLoading ? "Processing..." : "Reject Request"}
-          </Button>
-
-          <Button
-            data-testid="approve-all-btn"
-            variant="contained"
-            onClick={() =>
-              void handleSubmitRequestReview(REVIEW_STATUS_VALUES.APPROVED)
-            }
+            onClick={() => void handleSubmitRequestReview()}
             disabled={requestLoading || mediaReviewLoading}
             sx={approveBtnSx}
           >
-            {requestLoading || mediaReviewLoading ? "Processing..." : "Approve All Changes"}
+            {requestLoading || mediaReviewLoading ? "Processing..." : "Submit Review"}
           </Button>
         </DialogActions>
       </Dialog>

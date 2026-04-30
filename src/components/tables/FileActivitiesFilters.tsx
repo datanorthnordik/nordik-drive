@@ -47,7 +47,7 @@ import {
   color_white,
   color_white_smoke,
 } from "../../constants/colors";
-import { REVIEW_STATUS_FILTER_OPTIONS } from "../../constants/statuses";
+import { REQUEST_STATUS_FILTER_OPTIONS } from "../../constants/statuses";
 
 type Props = {
   clauses: Clause[];
@@ -143,7 +143,7 @@ export default function FileActivitiesFilters({
   }, [builderOp, selectedField]);
 
   const statusOptions: SelectOption[] = useMemo(
-    () => REVIEW_STATUS_FILTER_OPTIONS.map((option) => ({ ...option })),
+    () => REQUEST_STATUS_FILTER_OPTIONS.map((option) => ({ ...option })),
     []
   );
 
