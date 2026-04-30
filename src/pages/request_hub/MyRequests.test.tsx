@@ -62,22 +62,22 @@ type UseFetchReturn = {
 };
 
 let pendingFetchSpy: jest.Mock;
-let approvedFetchSpy: jest.Mock;
+let completedFetchSpy: jest.Mock;
 
 let pendingDataNext: any = null;
-let approvedDataNext: any = null;
+let completedDataNext: any = null;
 let pendingLoadingNext = false;
-let approvedLoadingNext = false;
+let completedLoadingNext = false;
 
 function setupUseFetchMock() {
   pendingFetchSpy = jest.fn();
-  approvedFetchSpy = jest.fn();
+  completedFetchSpy = jest.fn();
 
   useFetchMock.mockImplementation((url: string) => {
     const isPending = String(url).includes("status=pending");
     const ret: UseFetchReturn = isPending
       ? { data: pendingDataNext, fetchData: pendingFetchSpy, loading: pendingLoadingNext }
-      : { data: approvedDataNext, fetchData: approvedFetchSpy, loading: approvedLoadingNext };
+      : { data: completedDataNext, fetchData: completedFetchSpy, loading: completedLoadingNext };
     return ret;
   });
 }
@@ -104,9 +104,9 @@ beforeEach(() => {
   useSelectorMock.mockImplementation((selFn: any) => selFn({ auth: { user: { id: "26" } } }));
 
   pendingDataNext = { requests: [] };
-  approvedDataNext = { requests: [] };
+  completedDataNext = { requests: [] };
   pendingLoadingNext = false;
-  approvedLoadingNext = false;
+  completedLoadingNext = false;
 
   setupUseFetchMock();
 
@@ -120,7 +120,7 @@ afterEach(() => {
 describe("MyRequests (100% coverage)", () => {
   test("mount: calls both fetchers; loader uses OR; empty pending state + refresh calls both", async () => {
     pendingLoadingNext = true;
-    approvedLoadingNext = false;
+    completedLoadingNext = false;
 
     render(<MyRequests />);
 
@@ -128,14 +128,14 @@ describe("MyRequests (100% coverage)", () => {
 
     await waitFor(() => {
       expect(pendingFetchSpy).toHaveBeenCalledTimes(1);
-      expect(approvedFetchSpy).toHaveBeenCalledTimes(1);
+      expect(completedFetchSpy).toHaveBeenCalledTimes(1);
     });
 
     expect(screen.getByText("No pending requests found.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("refresh-btn"));
     expect(pendingFetchSpy).toHaveBeenCalledTimes(2);
-    expect(approvedFetchSpy).toHaveBeenCalledTimes(2);
+    expect(completedFetchSpy).toHaveBeenCalledTimes(2);
   });
 
   test("renders without the old status tabs", async () => {
@@ -143,16 +143,16 @@ describe("MyRequests (100% coverage)", () => {
 
     await waitFor(() => {
       expect(pendingFetchSpy).toHaveBeenCalled();
-      expect(approvedFetchSpy).toHaveBeenCalled();
+      expect(completedFetchSpy).toHaveBeenCalled();
     });
 
     expect(screen.getByTestId("status-summary-pending")).toBeInTheDocument();
     expect(screen.queryByTestId("myrequests-tabs")).not.toBeInTheDocument();
     expect(screen.queryByTestId("tab-pending")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("tab-approved")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-completed")).not.toBeInTheDocument();
   });
 
-  test("renders rows + all statusChipSx branches + helper outputs (no brittle long-text match)", async () => {
+  test("renders pending and completed rows + helper outputs (no brittle long-text match)", async () => {
     pendingDataNext = {
       requests: [
         mkReq({
@@ -163,19 +163,13 @@ describe("MyRequests (100% coverage)", () => {
         }),
       ],
     };
-    approvedDataNext = {
+    completedDataNext = {
       requests: [
         mkReq({
           request_id: 2,
-          status: "APPROVED",
+          status: "completed",
           created_at: "2026-01-02T10:20:30Z",
           details: [{ id: 1, filename: "beta.pdf" }],
-        }),
-        mkReq({
-          request_id: 3,
-          status: "rejected",
-          created_at: "2026-01-03T11:22:33Z",
-          details: [{ id: 1, filename: "gamma.txt" }],
         }),
         // unknown + no created_at + details not array -> filename "—", changes 0, created "—"
         mkReq({
@@ -192,25 +186,18 @@ describe("MyRequests (100% coverage)", () => {
     // pending is selected by default
     expect(screen.getByTestId("request-row-1")).toBeInTheDocument();
     expect(screen.queryByTestId("request-row-2")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("request-row-3")).not.toBeInTheDocument();
     expect(screen.queryByTestId("request-row-4")).not.toBeInTheDocument();
 
     // status chip labels via testid
     expect(screen.getByTestId("status-chip-1")).toHaveTextContent("Pending review");
-    expect(screen.getByTestId("status-summary-pending")).toHaveTextContent("Pending1/ 4");
-    expect(screen.getByTestId("status-summary-approved")).toHaveTextContent("Approved1/ 4");
-    expect(screen.getByTestId("status-summary-rejected")).toHaveTextContent("Rejected1/ 4");
+    expect(screen.getByTestId("status-summary-pending")).toHaveTextContent("Pending1/ 3");
+    expect(screen.getByTestId("status-summary-completed")).toHaveTextContent("Completed1/ 3");
     expect(screen.getByTestId("status-summary-pending")).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.click(screen.getByTestId("status-summary-approved"));
+    fireEvent.click(screen.getByTestId("status-summary-completed"));
     expect(screen.getByTestId("request-row-2")).toBeInTheDocument();
-    expect(screen.getByTestId("status-chip-2")).toHaveTextContent("Approved");
+    expect(screen.getByTestId("status-chip-2")).toHaveTextContent("Completed");
     expect(screen.queryByTestId("request-row-1")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("status-summary-rejected"));
-    expect(screen.getByTestId("request-row-3")).toBeInTheDocument();
-    expect(screen.getByTestId("status-chip-3")).toHaveTextContent("Rejected");
-    expect(screen.queryByTestId("request-row-2")).not.toBeInTheDocument();
 
     // helper output: filename appears (for request 4 it should be "—")
     fireEvent.click(screen.getByTestId("status-summary-pending"));
@@ -262,15 +249,15 @@ describe("MyRequests (100% coverage)", () => {
 
     fireEvent.click(screen.getByTestId("refresh-btn"));
     expect(pendingFetchSpy).toHaveBeenCalledTimes(2); // mount + refresh
-    expect(approvedFetchSpy).toHaveBeenCalledTimes(2);
+    expect(completedFetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  test("renders approved/rejected rows in the combined list", async () => {
-    approvedDataNext = {
+  test("renders completed rows in the combined list", async () => {
+    completedDataNext = {
       requests: [
         mkReq({
           request_id: 21,
-          status: "approved",
+          status: "completed",
           created_at: "2026-01-09T09:09:09Z",
           details: [{ id: 1, filename: "ok.pdf" }],
         }),
@@ -279,12 +266,12 @@ describe("MyRequests (100% coverage)", () => {
 
     render(<MyRequests />);
 
-    fireEvent.click(screen.getByTestId("status-summary-approved"));
+    fireEvent.click(screen.getByTestId("status-summary-completed"));
     expect(await screen.findByTestId("request-row-21")).toBeInTheDocument();
-    expect(screen.queryByTestId("tab-approved")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-completed")).not.toBeInTheDocument();
 
     fireEvent.change(getSearchInput(), { target: { value: "nope" } });
-    expect(screen.getByText("No approved requests found.")).toBeInTheDocument();
+    expect(screen.getByText("No completed requests found.")).toBeInTheDocument();
   });
 
   test("Details open/close drives MyRequestDetailsModal props and closes via modal callback", async () => {
@@ -322,11 +309,11 @@ describe("MyRequests (100% coverage)", () => {
 
     const urls = useFetchMock.mock.calls.map((c: any[]) => String(c[0]));
     const pendingUrl = urls.find((u) => u.includes("status=pending"))!;
-    const arUrl = urls.find((u) => u.includes("status=approved%2Crejected"))!;
+    const completedUrl = urls.find((u) => u.includes("status=completed"))!;
 
     expect(pendingUrl).toContain("status=pending");
     expect(pendingUrl).not.toContain("user_id=");
-    expect(arUrl).toContain("status=approved%2Crejected");
-    expect(arUrl).not.toContain("user_id=");
+    expect(completedUrl).toContain("status=completed");
+    expect(completedUrl).not.toContain("user_id=");
   });
 });

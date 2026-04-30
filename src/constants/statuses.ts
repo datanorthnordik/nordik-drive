@@ -12,7 +12,8 @@ export type ReviewDecisionStatus =
   | typeof REVIEW_STATUS_VALUES.REJECTED;
 
 export const REQUEST_STATUS_VALUES = {
-  ...REVIEW_STATUS_VALUES,
+  PENDING: REVIEW_STATUS_VALUES.PENDING,
+  COMPLETED: "completed",
   ALL: "all",
 } as const;
 
@@ -40,7 +41,8 @@ export const REVIEW_STATUS_UPPERCASE_LABELS = {
 } as const;
 
 export const REQUEST_STATUS_LABELS = {
-  ...REVIEW_STATUS_LABELS,
+  [REQUEST_STATUS_VALUES.PENDING]: "Pending",
+  [REQUEST_STATUS_VALUES.COMPLETED]: "Completed",
   [REQUEST_STATUS_VALUES.ALL]: "All",
 } as const;
 
@@ -64,10 +66,22 @@ export const REVIEW_STATUS_FILTER_OPTIONS = [
   },
 ] as const;
 
+export const REQUEST_STATUS_FILTER_OPTIONS = [
+  {
+    value: REQUEST_STATUS_VALUES.PENDING,
+    label: REQUEST_STATUS_LABELS[REQUEST_STATUS_VALUES.PENDING],
+  },
+  {
+    value: REQUEST_STATUS_VALUES.COMPLETED,
+    label: REQUEST_STATUS_LABELS[REQUEST_STATUS_VALUES.COMPLETED],
+  },
+] as const;
+
 export const PENDING_REVIEW_STATUS_LABEL = "Pending review";
 export const UNKNOWN_STATUS_LABEL = "Unknown";
 export const PENDING_STATUS_CSV = REVIEW_STATUS_VALUES.PENDING;
-export const APPROVED_REJECTED_STATUS_CSV = `${REVIEW_STATUS_VALUES.APPROVED},${REVIEW_STATUS_VALUES.REJECTED}`;
+export const COMPLETED_STATUS_CSV = REQUEST_STATUS_VALUES.COMPLETED;
+export const APPROVED_REJECTED_STATUS_CSV = COMPLETED_STATUS_CSV;
 export const ALL_ACTIONS_LABEL = `${REQUEST_STATUS_LABELS[REQUEST_STATUS_VALUES.ALL]} actions`;
 
 const normalizeStatusInput = (value: unknown) => String(value || "").trim().toLowerCase();

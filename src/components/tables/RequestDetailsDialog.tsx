@@ -4,6 +4,7 @@ import React from "react";
 import {
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -35,6 +36,11 @@ import {
 import { PhotoGrid } from "../shared/PhotoGrids";
 import { DocumentGrid } from "../shared/DocumentGrids";
 import { guessMimeFromFilename } from "../../lib/fileUtil";
+import {
+  getReviewStatusUppercaseLabel,
+  normalizeReviewStatus,
+  type ReviewStatusValue,
+} from "../../constants/statuses";
 
 type Props = {
   open: boolean;
@@ -62,6 +68,39 @@ type Props = {
   primaryBtnSx: any;
   secondaryBtnSx: any;
 };
+
+const detailStatusChipSx = (status: ReviewStatusValue) => {
+  if (status === "approved") {
+    return {
+      backgroundColor: "rgba(39,174,96,0.14)",
+      color: "#166534",
+      border: "1px solid rgba(39,174,96,0.28)",
+      fontWeight: 900,
+    };
+  }
+
+  if (status === "rejected") {
+    return {
+      backgroundColor: "rgba(166,29,51,0.12)",
+      color: "#A61D33",
+      border: "1px solid rgba(166,29,51,0.24)",
+      fontWeight: 900,
+    };
+  }
+
+  return {
+    backgroundColor: color_white_smoke,
+    color: color_text_light,
+    border: `1px solid ${color_border}`,
+    fontWeight: 900,
+  };
+};
+
+const getDetailReviewStatus = (detail: any): ReviewStatusValue =>
+  normalizeReviewStatus(detail?.status ?? detail?.review_status);
+
+const getDetailReviewerComment = (detail: any) =>
+  String(detail?.reviewer_comment ?? detail?.review_comment ?? "").trim();
 
 export default function RequestDetailsDialog({
   open,
@@ -235,22 +274,43 @@ export default function RequestDetailsDialog({
                         <th style={{ textAlign: "left", padding: 12, fontWeight: 900, color: color_text_primary }}>
                           New
                         </th>
+                        <th style={{ textAlign: "left", padding: 12, fontWeight: 900, color: color_text_primary }}>
+                          Status
+                        </th>
+                        <th style={{ textAlign: "left", padding: 12, fontWeight: 900, color: color_text_primary }}>
+                          Reviewer Comment
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {detailsRows.map((d, idx) => (
-                        <tr key={d.id ?? `${d.field_key}-${idx}`}>
-                          <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_primary }}>
-                            {d.field_key ?? d.field_name ?? "-"}
-                          </td>
-                          <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_secondary }}>
-                            {d.old_value ?? <i>(empty)</i>}
-                          </td>
-                          <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_secondary }}>
-                            {d.new_value ?? <i>(empty)</i>}
-                          </td>
-                        </tr>
-                      ))}
+                      {detailsRows.map((d, idx) => {
+                        const status = getDetailReviewStatus(d);
+                        const reviewerComment = getDetailReviewerComment(d);
+
+                        return (
+                          <tr key={d.id ?? `${d.field_key}-${idx}`}>
+                            <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_primary }}>
+                              {d.field_key ?? d.field_name ?? "-"}
+                            </td>
+                            <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_secondary }}>
+                              {d.old_value ?? <i>(empty)</i>}
+                            </td>
+                            <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_secondary }}>
+                              {d.new_value ?? <i>(empty)</i>}
+                            </td>
+                            <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_secondary }}>
+                              <Chip
+                                size="small"
+                                label={getReviewStatusUppercaseLabel(status)}
+                                sx={detailStatusChipSx(status)}
+                              />
+                            </td>
+                            <td style={{ padding: 12, borderTop: `1px solid ${color_border}`, color: color_text_secondary }}>
+                              {reviewerComment || <i>No review comment</i>}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </Box>

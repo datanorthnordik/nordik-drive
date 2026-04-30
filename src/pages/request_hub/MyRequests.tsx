@@ -23,15 +23,14 @@ import {
   color_text_light,
   color_white,
   color_warning,
-  color_error,
 } from "../../constants/colors";
 import {
-  APPROVED_REJECTED_STATUS_CSV,
+  COMPLETED_STATUS_CSV,
   PENDING_REVIEW_STATUS_LABEL,
   PENDING_STATUS_CSV,
-  REVIEW_STATUS_VALUES,
+  REQUEST_STATUS_LABELS,
+  REQUEST_STATUS_VALUES,
   UNKNOWN_STATUS_LABEL,
-  getReviewStatusLabel,
 } from "../../constants/statuses";
 import { API_ORIGIN } from "../../config/api";
 
@@ -54,9 +53,9 @@ const formatWhen = (iso?: string) => {
 const statusChipSx = (status?: string) => {
   const s = String(status || "").toLowerCase();
 
-  if (s.includes(REVIEW_STATUS_VALUES.APPROVED)) {
+  if (s.includes(REQUEST_STATUS_VALUES.COMPLETED)) {
     return {
-      label: getReviewStatusLabel(REVIEW_STATUS_VALUES.APPROVED),
+      label: REQUEST_STATUS_LABELS[REQUEST_STATUS_VALUES.COMPLETED],
       sx: {
         backgroundColor: "rgba(39, 174, 96, 0.12)",
         border: "1px solid rgba(39, 174, 96, 0.25)",
@@ -64,23 +63,13 @@ const statusChipSx = (status?: string) => {
       },
     };
   }
-  if (s.includes(REVIEW_STATUS_VALUES.PENDING)) {
+  if (s.includes(REQUEST_STATUS_VALUES.PENDING)) {
     return {
       label: PENDING_REVIEW_STATUS_LABEL,
       sx: {
         backgroundColor: "rgba(243, 156, 18, 0.14)",
         border: "1px solid rgba(243, 156, 18, 0.25)",
         color: color_text_primary,
-      },
-    };
-  }
-  if (s.includes(REVIEW_STATUS_VALUES.REJECTED)) {
-    return {
-      label: getReviewStatusLabel(REVIEW_STATUS_VALUES.REJECTED),
-      sx: {
-        backgroundColor: "rgba(231, 76, 60, 0.12)",
-        border: "1px solid rgba(231, 76, 60, 0.25)",
-        color: "#991b1b",
       },
     };
   }
@@ -106,7 +95,7 @@ const getStatusCount = (requests: any[], status: string) =>
     .length;
 
 const MyRequests: React.FC = () => {
-  const [selectedStatus, setSelectedStatus] = useState<string>(REVIEW_STATUS_VALUES.PENDING);
+  const [selectedStatus, setSelectedStatus] = useState<string>(REQUEST_STATUS_VALUES.PENDING);
   const [searchText, setSearchText] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
@@ -117,8 +106,8 @@ const MyRequests: React.FC = () => {
     [user?.id]
   );
 
-  const approvedRejectedUrl = useMemo(
-    () => buildRequestsUrl(APPROVED_REJECTED_STATUS_CSV, user?.id || undefined),
+  const completedUrl = useMemo(
+    () => buildRequestsUrl(COMPLETED_STATUS_CSV, user?.id || undefined),
     [user?.id]
   );
 
@@ -129,62 +118,54 @@ const MyRequests: React.FC = () => {
   } = useFetch(pendingUrl, "GET", false);
 
   const {
-    data: approvedRejectedData,
-    fetchData: fetchApprovedRejected,
-    loading: approvedRejectedLoading,
-  } = useFetch(approvedRejectedUrl, "GET", false);
+    data: completedData,
+    fetchData: fetchCompleted,
+    loading: completedLoading,
+  } = useFetch(completedUrl, "GET", false);
 
-  const loading = pendingLoading || approvedRejectedLoading;
+  const loading = pendingLoading || completedLoading;
 
   useEffect(() => {
     fetchPending();
-    fetchApprovedRejected();
+    fetchCompleted();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingUrl, approvedRejectedUrl]);
+  }, [pendingUrl, completedUrl]);
 
   const refreshBoth = useCallback(() => {
     fetchPending();
-    fetchApprovedRejected();
-  }, [fetchPending, fetchApprovedRejected]);
+    fetchCompleted();
+  }, [fetchPending, fetchCompleted]);
 
   const pending: any[] = useMemo(
     () => ((pendingData as any)?.requests || []),
     [pendingData]
   );
-  const approvedRejected: any[] = useMemo(
-    () => ((approvedRejectedData as any)?.requests || []),
-    [approvedRejectedData]
+  const completed: any[] = useMemo(
+    () => ((completedData as any)?.requests || []),
+    [completedData]
   );
   const allRequests = useMemo(
-    () => [...pending, ...approvedRejected],
-    [pending, approvedRejected]
+    () => [...pending, ...completed],
+    [pending, completed]
   );
   const requestTotal = allRequests.length;
   const statusSummaryItems = useMemo(
     () => [
       {
-        key: REVIEW_STATUS_VALUES.PENDING,
+        key: REQUEST_STATUS_VALUES.PENDING,
         label: "Pending",
-        count: getStatusCount(allRequests, REVIEW_STATUS_VALUES.PENDING),
+        count: getStatusCount(allRequests, REQUEST_STATUS_VALUES.PENDING),
         total: requestTotal,
         accent: color_warning,
         background: "rgba(243, 156, 18, 0.10)",
       },
       {
-        key: REVIEW_STATUS_VALUES.APPROVED,
-        label: "Approved",
-        count: getStatusCount(allRequests, REVIEW_STATUS_VALUES.APPROVED),
+        key: REQUEST_STATUS_VALUES.COMPLETED,
+        label: "Completed",
+        count: getStatusCount(allRequests, REQUEST_STATUS_VALUES.COMPLETED),
         total: requestTotal,
         accent: "#166534",
         background: "rgba(39, 174, 96, 0.10)",
-      },
-      {
-        key: REVIEW_STATUS_VALUES.REJECTED,
-        label: "Rejected",
-        count: getStatusCount(allRequests, REVIEW_STATUS_VALUES.REJECTED),
-        total: requestTotal,
-        accent: color_error,
-        background: "rgba(231, 76, 60, 0.10)",
       },
     ],
     [allRequests, requestTotal]

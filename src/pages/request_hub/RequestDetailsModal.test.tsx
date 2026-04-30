@@ -340,7 +340,7 @@ describe("ApproveRequestModal UI", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
   });
 
-  test("approve all blocked when any photo/doc pending -> toast.error and no submit", async () => {
+  test("submit review blocked when any photo/doc pending -> toast.error and no submit", async () => {
     photoDataNext = { photos: [{ id: 1, status: null, reviewer_comment: "" }] };
     docsDataNext = {
       docs: [
@@ -361,14 +361,14 @@ describe("ApproveRequestModal UI", () => {
 
     await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     expect((toast as any).error).toHaveBeenCalled();
     expect(submitReviewSpy).not.toHaveBeenCalled();
     expect(approveRequestSpy).not.toHaveBeenCalled();
   });
 
-  test("approve all blocked when any field change has no review decision", async () => {
+  test("submit review blocked when any field change has no review decision", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = { docs: [] };
 
@@ -388,7 +388,7 @@ describe("ApproveRequestModal UI", () => {
 
     expect(screen.getByTestId("detail-status-1")).toHaveTextContent("PENDING");
 
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     expect((toast as any).error).toHaveBeenCalledWith(
       "Please approve or reject all field changes before submitting the review."
@@ -396,7 +396,7 @@ describe("ApproveRequestModal UI", () => {
     expect(approveRequestSpy).not.toHaveBeenCalled();
   });
 
-  test("approve all blocked when rejected field change has no reviewer comment", async () => {
+  test("submit review blocked when rejected field change has no reviewer comment", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = { docs: [] };
 
@@ -415,7 +415,7 @@ describe("ApproveRequestModal UI", () => {
     await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: /^Reject$/ }));
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     expect((toast as any).error).toHaveBeenCalledWith(
       "Review comment is required for rejected field changes."
@@ -423,7 +423,7 @@ describe("ApproveRequestModal UI", () => {
     expect(approveRequestSpy).not.toHaveBeenCalled();
   });
 
-  test("approve all blocked when rejected photo has no review comment", async () => {
+  test("submit review blocked when rejected photo has no review comment", async () => {
     photoDataNext = { photos: [{ id: 11, status: "rejected", reviewer_comment: "" }] };
     docsDataNext = { docs: [] };
 
@@ -431,14 +431,14 @@ describe("ApproveRequestModal UI", () => {
 
     await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     expect((toast as any).error).toHaveBeenCalledWith("Review comment is required for rejected photos.");
     expect(submitReviewSpy).not.toHaveBeenCalled();
     expect(approveRequestSpy).not.toHaveBeenCalled();
   });
 
-  test("approve all blocked when rejected document has no review comment", async () => {
+  test("submit review blocked when rejected document has no review comment", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = {
       docs: [
@@ -459,35 +459,14 @@ describe("ApproveRequestModal UI", () => {
 
     await waitFor(() => expect(loadDocsSpy).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     expect((toast as any).error).toHaveBeenCalledWith("Review comment is required for rejected documents.");
     expect(submitReviewSpy).not.toHaveBeenCalled();
     expect(approveRequestSpy).not.toHaveBeenCalled();
   });
 
-  test("reject request blocked when request review comment is missing", async () => {
-    photoDataNext = { photos: [] };
-    docsDataNext = { docs: [] };
-
-    render(
-      <ApproveRequestModal
-        open={true}
-        request={baseRequest({ reviewer_comment: "" })}
-        onClose={jest.fn()}
-      />
-    );
-
-    await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
-
-    fireEvent.click(screen.getByTestId("reject-request-btn"));
-
-    expect((toast as any).error).toHaveBeenCalledWith("Review comment is required when rejecting the request.");
-    expect(submitReviewSpy).not.toHaveBeenCalled();
-    expect(approveRequestSpy).not.toHaveBeenCalled();
-  });
-
-  test("approve all submits media reviews + request review; submit-lock prevents double click while pending", async () => {
+  test("submit review submits media reviews + request review; submit-lock prevents double click while pending", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = {
       docs: [
@@ -521,8 +500,8 @@ describe("ApproveRequestModal UI", () => {
     const reviewCommentFields = screen.getAllByLabelText("Review Comment");
     fireEvent.change(reviewCommentFields[0], { target: { value: "Document rejected for correction" } });
 
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     expect(submitReviewSpy).toHaveBeenCalledTimes(1);
 
@@ -546,13 +525,13 @@ describe("ApproveRequestModal UI", () => {
 
     expect(approveRequestSpy).toHaveBeenCalledWith({
       request_id: 55,
-      status: "approved",
+      status: "completed",
       reviewer_comment: "",
       updates: expect.any(Array),
     });
   });
 
-  test("approve all submits individual field change decisions and comments", async () => {
+  test("submit review submits individual field change decisions and comments", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = { docs: [] };
 
@@ -565,7 +544,7 @@ describe("ApproveRequestModal UI", () => {
       target: { value: "Name change needs evidence" },
     });
 
-    fireEvent.click(screen.getByTestId("approve-all-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     await waitFor(() => {
       expect(approveRequestSpy).toHaveBeenCalledTimes(1);
@@ -573,7 +552,7 @@ describe("ApproveRequestModal UI", () => {
 
     expect(approveRequestSpy).toHaveBeenCalledWith({
       request_id: 55,
-      status: "approved",
+      status: "completed",
       reviewer_comment: "",
       updates: [
         expect.objectContaining({
@@ -590,7 +569,7 @@ describe("ApproveRequestModal UI", () => {
     });
   });
 
-  test("reject request submits request review with review comment", async () => {
+  test("submit review submits request review with optional request comment", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = { docs: [] };
 
@@ -607,7 +586,7 @@ describe("ApproveRequestModal UI", () => {
     const requestCommentField = screen.getByLabelText("Review Comment") as HTMLInputElement;
     fireEvent.change(requestCommentField, { target: { value: "Request is incomplete" } });
 
-    fireEvent.click(screen.getByTestId("reject-request-btn"));
+    fireEvent.click(screen.getByTestId("submit-review-btn"));
 
     await waitFor(() => {
       expect(approveRequestSpy).toHaveBeenCalledTimes(1);
@@ -617,7 +596,7 @@ describe("ApproveRequestModal UI", () => {
 
     expect(approveRequestSpy).toHaveBeenCalledWith({
       request_id: 55,
-      status: "rejected",
+      status: "completed",
       reviewer_comment: "Request is incomplete",
       updates: expect.any(Array),
     });

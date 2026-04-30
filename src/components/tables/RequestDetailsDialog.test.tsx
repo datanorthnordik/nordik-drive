@@ -18,6 +18,7 @@ jest.mock("@mui/material", () => ({
             {children}
         </button>
     ),
+    Chip: ({ label }: any) => <span>{label}</span>,
     CircularProgress: () => (
         <span aria-hidden="true" data-testid="circular-progress">
             loading
@@ -143,6 +144,8 @@ describe("RequestDetailsDialog", () => {
                 field_key: "email",
                 old_value: "old@example.com",
                 new_value: "new@example.com",
+                status: "approved",
+                reviewer_comment: "Looks good",
             },
         ],
         photos: [
@@ -310,13 +313,17 @@ describe("RequestDetailsDialog", () => {
         expect(screen.getByText("Field")).toBeInTheDocument();
         expect(screen.getByText("Old")).toBeInTheDocument();
         expect(screen.getByText("New")).toBeInTheDocument();
+        expect(screen.getByText("Status")).toBeInTheDocument();
+        expect(screen.getByText("Reviewer Comment")).toBeInTheDocument();
 
         expect(screen.getByText("email")).toBeInTheDocument();
         expect(screen.getByText("old@example.com")).toBeInTheDocument();
         expect(screen.getByText("new@example.com")).toBeInTheDocument();
+        expect(screen.getAllByText("PENDING")).toHaveLength(2);
 
         expect(screen.getByText("phone")).toBeInTheDocument();
         expect(screen.getAllByText("(empty)")).toHaveLength(2);
+        expect(screen.getAllByText("No review comment")).toHaveLength(2);
     });
 
     it("renders photo grid and wires photo viewer and download callbacks", () => {

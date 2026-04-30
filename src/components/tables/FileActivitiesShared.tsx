@@ -72,7 +72,7 @@ export type PendingDownload = {
 // Request-level filters
 export const COMMON_FIELDS: FieldOption[] = [
   { key: "created_at", label: "Created Date", type: "date" },
-  { key: "status", label: "Status", type: "select" },
+  { key: "status", label: "Request Status", type: "select" },
   { key: "file_id", label: "File", type: "select" },
 
   { key: "firstname", label: "First Name", type: "text" },
