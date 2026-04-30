@@ -7,17 +7,11 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Table,
-  TableRow,
-  TableCell,
-  TableHead,
-  TableBody,
   TextField,
   Typography,
   Box,
   Divider,
-  TableContainer,
-  Paper,
+  Chip,
 } from "@mui/material";
 
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
@@ -128,6 +122,12 @@ const normalizeInitialReviewStatus = (value: any): ReviewStatus => {
   if (isReviewDecisionStatus(v)) return v;
   return null;
 };
+
+const normalizeEditableDetail = (detail: any) => ({
+  ...detail,
+  status: normalizeInitialReviewStatus(detail?.status ?? detail?.review_status),
+  reviewer_comment: String(detail?.reviewer_comment ?? detail?.review_comment ?? ""),
+});
 
 const isImageMime = (m?: string) => !!m && m.startsWith("image/");
 const isPdfMime = (m?: string) => m === "application/pdf";
@@ -315,7 +315,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
     loadPhotos();
     loadDocs();
-    setEditableDetails(request.details || []);
+    setEditableDetails((request.details || []).map(normalizeEditableDetail));
     setRequestReviewComment(String(request?.reviewer_comment || ""));
     setPendingRequestAction(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -388,6 +388,22 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     const updated = [...editableDetails];
     updated[index].new_value = value;
     setEditableDetails(updated);
+  };
+
+  const setDetailReviewStatus = (index: number, status: ReviewDecisionStatus) => {
+    setEditableDetails((prev) =>
+      prev.map((detail, detailIndex) =>
+        detailIndex === index ? { ...detail, status } : detail
+      )
+    );
+  };
+
+  const setDetailReviewComment = (index: number, value: string) => {
+    setEditableDetails((prev) =>
+      prev.map((detail, detailIndex) =>
+        detailIndex === index ? { ...detail, reviewer_comment: value } : detail
+      )
+    );
   };
 
   // ---------------------------------------
@@ -471,15 +487,58 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     alignItems: "flex-start",
   });
 
+  const statusChipSx = (status: ReviewStatus) => {
+    if (status === REVIEW_STATUS_VALUES.APPROVED) {
+      return {
+        backgroundColor: "rgba(39,174,96,0.14)",
+        color: "#166534",
+        border: "1px solid rgba(39,174,96,0.28)",
+        fontWeight: 900,
+      };
+    }
+
+    if (status === REVIEW_STATUS_VALUES.REJECTED) {
+      return {
+        backgroundColor: "rgba(166,29,51,0.12)",
+        color: color_primary,
+        border: "1px solid rgba(166,29,51,0.24)",
+        fontWeight: 900,
+      };
+    }
+
+    return {
+      backgroundColor: color_background,
+      color: color_text_light,
+      border: `1px solid ${color_border}`,
+      fontWeight: 900,
+    };
+  };
+
   // ---------------------------------------
   // Request review submission
   // ---------------------------------------
   const validateBeforeSubmit = (requestStatus: ReviewDecisionStatus) => {
+    const hasPendingDetail = editableDetails.some((d) => d.status === null);
     const hasPendingPhoto = photos.some((p) => p.status === null);
     const hasPendingDoc = docs.some((d) => d.status === null);
 
+    if (editableDetails.length > 0 && hasPendingDetail) {
+      toast.error("Please approve or reject all field changes before submitting the review.");
+      return false;
+    }
+
     if ((photos.length > 0 && hasPendingPhoto) || (docs.length > 0 && hasPendingDoc)) {
       toast.error("Please approve or reject all uploaded photos and documents before submitting the review.");
+      return false;
+    }
+
+    const rejectedDetailWithoutComment = editableDetails.find(
+      (d) =>
+        d.status === REVIEW_STATUS_VALUES.REJECTED &&
+        !String(d.reviewer_comment || "").trim()
+    );
+    if (rejectedDetailWithoutComment) {
+      toast.error("Review comment is required for rejected field changes.");
       return false;
     }
 
@@ -543,7 +602,10 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         request_id: request.request_id,
         status: requestStatus,
         reviewer_comment: requestReviewComment.trim(),
-        updates: editableDetails,
+        updates: editableDetails.map((detail) => ({
+          ...detail,
+          reviewer_comment: String(detail.reviewer_comment || "").trim(),
+        })),
       });
     } finally {
       submitLockRef.current = false;
@@ -705,54 +767,119 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             </Box>
           </Box>
 
-          {/* FIELD CHANGES TABLE */}
+          {/* FIELD CHANGES */}
           <Box
             sx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
               borderRadius: 2,
-              overflow: "hidden",
+              p: 1.5,
+              mb: 2,
             }}
           >
-            <TableContainer component={Paper} elevation={0} sx={{ backgroundColor: "transparent" }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: color_background }}>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>
-                      Row
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>
-                      Field Name
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>
-                      Old Value
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>
-                      New Value
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 1.5,
+                flexWrap: "wrap",
+                mb: 1.25,
+              }}
+            >
+              <Typography sx={REQUEST_DETAILS_SECTION_TITLE_SX}>Field Changes</Typography>
+              <Chip
+                size="small"
+                label={`${editableDetails.length} ${editableDetails.length === 1 ? "change" : "changes"}`}
+                sx={{
+                  backgroundColor: color_background,
+                  color: color_text_secondary,
+                  border: `1px solid ${color_border}`,
+                  fontWeight: 900,
+                }}
+              />
+            </Box>
 
-                <TableBody>
-                  {editableDetails.map((d, index) => (
-                    <TableRow key={d.id}>
-                      <TableCell sx={{ py: 1, color: color_text_secondary, fontWeight: 800 }}>
-                        {d.row_id}
-                      </TableCell>
+            {editableDetails.length === 0 ? (
+              <Typography sx={{ color: color_text_light, fontWeight: 800 }}>
+                No field changes in this request.
+              </Typography>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+                {editableDetails.map((d, index) => (
+                  <Box
+                    key={d.id ?? index}
+                    sx={{
+                      border: `1px solid ${color_border}`,
+                      borderRadius: 1.5,
+                      p: 1.25,
+                      backgroundColor: color_background,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 1.25,
+                        flexWrap: "wrap",
+                        mb: 1,
+                      }}
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ color: color_text_light, fontSize: "0.74rem", fontWeight: 900 }}>
+                          Row {d.row_id}
+                        </Typography>
+                        <Typography sx={{ color: color_text_primary, fontWeight: 900, lineHeight: 1.35 }}>
+                          {d.field_name}
+                        </Typography>
+                      </Box>
 
-                      <TableCell sx={{ py: 1, color: color_text_secondary, fontWeight: 800 }}>
-                        {d.field_name}
-                      </TableCell>
+                      <Chip
+                        size="small"
+                        label={
+                          d.status === REVIEW_STATUS_VALUES.APPROVED
+                            ? "APPROVED"
+                            : d.status === REVIEW_STATUS_VALUES.REJECTED
+                              ? "REJECTED"
+                              : "PENDING"
+                        }
+                        data-testid={`detail-status-${d.id ?? index}`}
+                        sx={statusChipSx(d.status)}
+                      />
+                    </Box>
 
-                      <TableCell sx={{ py: 1, color: color_text_light, fontWeight: 800 }}>
-                        {d.old_value ? d.old_value : <i>(empty)</i>}
-                      </TableCell>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                        gap: 1,
+                        mb: 1.25,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          border: `1px solid ${color_border}`,
+                          borderRadius: 1,
+                          p: 1,
+                          backgroundColor: color_white,
+                          minWidth: 0,
+                        }}
+                      >
+                        <Typography sx={{ color: color_text_light, fontSize: "0.72rem", fontWeight: 900, mb: 0.4 }}>
+                          Old Value
+                        </Typography>
+                        <Typography sx={{ color: color_text_secondary, fontWeight: 800, wordBreak: "break-word" }}>
+                          {d.old_value ? d.old_value : <i>(empty)</i>}
+                        </Typography>
+                      </Box>
 
-                      <TableCell sx={{ py: 0.75 }}>
+                      <Box sx={{ minWidth: 0 }}>
                         <TextField
                           inputProps={{ "data-testid": `field-input-${index}` }}
                           fullWidth
                           size="small"
+                          label="New Value"
                           value={d.new_value}
                           onChange={(e) => updateField(index, e.target.value)}
                           sx={{
@@ -767,12 +894,64 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
                             },
                           }}
                         />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                      </Box>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "220px 1fr" },
+                        gap: 1,
+                        alignItems: "start",
+                      }}
+                    >
+                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                        <Button
+                          size="small"
+                          onClick={() => setDetailReviewStatus(index, REVIEW_STATUS_VALUES.APPROVED)}
+                          sx={{ ...approveBtnSx, px: 1.4, py: 0.6, fontSize: "0.76rem" }}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="small"
+                          onClick={() => setDetailReviewStatus(index, REVIEW_STATUS_VALUES.REJECTED)}
+                          sx={{ ...rejectBtnSx, px: 1.4, py: 0.6, fontSize: "0.76rem" }}
+                        >
+                          Reject
+                        </Button>
+                      </Box>
+
+                      <TextField
+                        inputProps={{ "data-testid": `detail-review-comment-${d.id ?? index}` }}
+                        fullWidth
+                        size="small"
+                        label={d.status === REVIEW_STATUS_VALUES.REJECTED ? "Required when rejected" : "Reviewer Comment"}
+                        value={d.reviewer_comment || ""}
+                        onChange={(e) => setDetailReviewComment(index, e.target.value)}
+                        multiline
+                        minRows={2}
+                        error={
+                          d.status === REVIEW_STATUS_VALUES.REJECTED &&
+                          !String(d.reviewer_comment || "").trim()
+                        }
+                        sx={{
+                          backgroundColor: color_white,
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: 1,
+                            fontWeight: 800,
+                            color: color_text_secondary,
+                            "& fieldset": { borderColor: color_border },
+                            "&:hover fieldset": { borderColor: color_text_secondary },
+                            "&.Mui-focused fieldset": { borderColor: color_secondary },
+                          },
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
           </Box>
 
           {/* PHOTOS SECTION */}
