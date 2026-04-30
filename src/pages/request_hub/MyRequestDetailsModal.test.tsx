@@ -169,6 +169,44 @@ describe("MyRequestDetailsModal (unit tests)", () => {
     expect(screen.queryByLabelText("Review Comment")).not.toBeInTheDocument();
   });
 
+  test("renders field change review decisions and comments as readonly values", () => {
+    render(
+      <MyRequestDetailsModal
+        open={true}
+        request={baseRequest({
+          details: [
+            {
+              id: 1,
+              row_id: 1,
+              field_name: "name",
+              old_value: "Old",
+              new_value: "New",
+              status: "approved",
+              reviewer_comment: "",
+            },
+            {
+              id: 2,
+              row_id: 2,
+              field_name: "city",
+              old_value: "Old City",
+              new_value: "New City",
+              status: "rejected",
+              reviewer_comment: "City change needs supporting document",
+            },
+          ],
+        })}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("readonly-detail-status-1")).toHaveTextContent("APPROVED");
+    expect(screen.getByTestId("readonly-detail-status-2")).toHaveTextContent("REJECTED");
+    expect(screen.getByText("City change needs supporting document")).toBeInTheDocument();
+    expect(screen.getByText("No review comment")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Approve$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Reject$/ })).not.toBeInTheDocument();
+  });
+
   test("Close button calls onClose", () => {
     const onClose = jest.fn();
 

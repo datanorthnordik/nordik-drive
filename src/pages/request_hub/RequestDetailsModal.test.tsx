@@ -132,8 +132,8 @@ const baseRequest = (over: Partial<any> = {}) => ({
   archive_consent: true,
   reviewer_comment: "",
   details: [
-    { id: 1, row_id: 1, field_name: "name", old_value: "", new_value: "new1" },
-    { id: 2, row_id: 2, field_name: "city", old_value: "old2", new_value: "new2" },
+    { id: 1, row_id: 1, field_name: "name", old_value: "", new_value: "new1", status: "approved" },
+    { id: 2, row_id: 2, field_name: "city", old_value: "old2", new_value: "new2", status: "approved" },
   ],
   ...over,
 });
@@ -223,7 +223,7 @@ describe("ApproveRequestModal UI", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  test("open loads photos + docs, renders consent texts, renders details table and request review comment", async () => {
+  test("open loads photos + docs, renders consent texts, renders field change cards and request review comment", async () => {
     photoDataNext = { photos: [] };
     docsDataNext = { docs: [] };
 
@@ -243,8 +243,9 @@ describe("ApproveRequestModal UI", () => {
     expect(screen.getByText(/User has not given consent/i)).toBeInTheDocument();
     expect(screen.getByText(/has given consent to archive/i)).toBeInTheDocument();
 
-    expect(screen.getByText("Row")).toBeInTheDocument();
-    expect(screen.getByText("Field Name")).toBeInTheDocument();
+    expect(screen.getByText("Field Changes")).toBeInTheDocument();
+    expect(screen.getByText("Row 1")).toBeInTheDocument();
+    expect(screen.getByText("name")).toBeInTheDocument();
 
     expect(screen.getByText("(empty)")).toBeInTheDocument();
 
@@ -364,6 +365,61 @@ describe("ApproveRequestModal UI", () => {
 
     expect((toast as any).error).toHaveBeenCalled();
     expect(submitReviewSpy).not.toHaveBeenCalled();
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  });
+
+  test("approve all blocked when any field change has no review decision", async () => {
+    photoDataNext = { photos: [] };
+    docsDataNext = { docs: [] };
+
+    render(
+      <ApproveRequestModal
+        open={true}
+        request={baseRequest({
+          details: [
+            { id: 1, row_id: 1, field_name: "name", old_value: "", new_value: "new1" },
+          ],
+        })}
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
+
+    expect(screen.getByTestId("detail-status-1")).toHaveTextContent("PENDING");
+
+    fireEvent.click(screen.getByTestId("approve-all-btn"));
+
+    expect((toast as any).error).toHaveBeenCalledWith(
+      "Please approve or reject all field changes before submitting the review."
+    );
+    expect(approveRequestSpy).not.toHaveBeenCalled();
+  });
+
+  test("approve all blocked when rejected field change has no reviewer comment", async () => {
+    photoDataNext = { photos: [] };
+    docsDataNext = { docs: [] };
+
+    render(
+      <ApproveRequestModal
+        open={true}
+        request={baseRequest({
+          details: [
+            { id: 1, row_id: 1, field_name: "name", old_value: "", new_value: "new1" },
+          ],
+        })}
+        onClose={jest.fn()}
+      />
+    );
+
+    await waitFor(() => expect(loadPhotosSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: /^Reject$/ }));
+    fireEvent.click(screen.getByTestId("approve-all-btn"));
+
+    expect((toast as any).error).toHaveBeenCalledWith(
+      "Review comment is required for rejected field changes."
+    );
     expect(approveRequestSpy).not.toHaveBeenCalled();
   });
 
@@ -493,6 +549,44 @@ describe("ApproveRequestModal UI", () => {
       status: "approved",
       reviewer_comment: "",
       updates: expect.any(Array),
+    });
+  });
+
+  test("approve all submits individual field change decisions and comments", async () => {
+    photoDataNext = { photos: [] };
+    docsDataNext = { docs: [] };
+
+    render(<ApproveRequestModal open={true} request={baseRequest()} onClose={jest.fn()} />);
+
+    await waitFor(() => expect(loadDocsSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getAllByRole("button", { name: /^Reject$/ })[0]);
+    fireEvent.change(screen.getByTestId("detail-review-comment-1"), {
+      target: { value: "Name change needs evidence" },
+    });
+
+    fireEvent.click(screen.getByTestId("approve-all-btn"));
+
+    await waitFor(() => {
+      expect(approveRequestSpy).toHaveBeenCalledTimes(1);
+    });
+
+    expect(approveRequestSpy).toHaveBeenCalledWith({
+      request_id: 55,
+      status: "approved",
+      reviewer_comment: "",
+      updates: [
+        expect.objectContaining({
+          id: 1,
+          status: "rejected",
+          reviewer_comment: "Name change needs evidence",
+        }),
+        expect.objectContaining({
+          id: 2,
+          status: "approved",
+          reviewer_comment: "",
+        }),
+      ],
     });
   });
 

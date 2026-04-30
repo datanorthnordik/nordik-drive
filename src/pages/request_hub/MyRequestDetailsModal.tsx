@@ -7,15 +7,9 @@ import {
   DialogTitle,
   DialogContent,
   Button,
+  Chip,
   Typography,
   Divider,
-  Table,
-  TableRow,
-  TableCell,
-  TableHead,
-  TableBody,
-  TableContainer,
-  Paper,
 } from "@mui/material";
 
 import CloseIcon from "@mui/icons-material/Close";
@@ -50,6 +44,7 @@ import {
 } from "../../constants/colors";
 import {
   getReviewStatusUppercaseLabel,
+  normalizeReviewStatus,
   type ReviewStatusValue,
 } from "../../constants/statuses";
 import PhotoViewerModal from "../viewers/PhotoViewer";
@@ -93,6 +88,12 @@ interface RequestDoc {
 
 const getBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/photo/${id}`;
 const getDocumentBinaryUrl = (id: number) => `${API_ORIGIN}/api/file/doc/${id}`;
+
+const getDetailReviewStatus = (detail: any): ReviewStatusValue =>
+  normalizeReviewStatus(detail?.status ?? detail?.review_status);
+
+const getDetailReviewerComment = (detail: any) =>
+  String(detail?.reviewer_comment ?? detail?.review_comment ?? "").trim();
 
 // viewer stage uses dark; palette has no black → use text_primary
 const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, request, onClose }) => {
@@ -155,11 +156,11 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         file_name: p.file_name,
         size_bytes: p.size_bytes,
         mime_type: p.mime_type,
-        status: request?.status,
+        status: p.status,
         photo_comment: p.photo_comment,
         reviewer_comment: p.reviewer_comment
       })),
-    [photos, request?.status]
+    [photos]
   );
 
   const docGridItems = useMemo(
@@ -171,11 +172,38 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         size_bytes: d.size_bytes,
         mime_type: d.mime_type,
         document_category: d.document_category,
-        status: request?.status,
+        status: d.status,
         reviewer_comment: d.reviewer_comment,
       })),
-    [docs, request?.status]
+    [docs]
   );
+
+  const detailStatusChipSx = (status: ReviewStatusValue) => {
+    if (status === "approved") {
+      return {
+        backgroundColor: "rgba(39,174,96,0.14)",
+        color: "#166534",
+        border: "1px solid rgba(39,174,96,0.28)",
+        fontWeight: 900,
+      };
+    }
+
+    if (status === "rejected") {
+      return {
+        backgroundColor: "rgba(166,29,51,0.12)",
+        color: "#A61D33",
+        border: "1px solid rgba(166,29,51,0.24)",
+        fontWeight: 900,
+      };
+    }
+
+    return {
+      backgroundColor: color_background,
+      color: color_text_light,
+      border: `1px solid ${color_border}`,
+      fontWeight: 900,
+    };
+  };
 
    // read-only button styles (no red)
   const viewBtnSx = {
@@ -244,53 +272,155 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         <Divider sx={{ borderColor: color_border }} />
 
         <DialogContent sx={{ p: 2, backgroundColor: color_background }}>
-          {/* Changes Table */}
+          {/* Changes */}
           <Box
             sx={{
               backgroundColor: color_white,
               border: `1px solid ${color_border}`,
               borderRadius: 2,
-              overflow: "hidden",
+              p: 1.5,
               mb: 2,
             }}
           >
-            <TableContainer component={Paper} elevation={0} sx={{ backgroundColor: "transparent" }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: color_background }}>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>Row</TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>Field</TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>Old</TableCell>
-                    <TableCell sx={{ fontWeight: 900, color: color_text_secondary, py: 1 }}>New</TableCell>
-                  </TableRow>
-                </TableHead>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 1.5,
+                flexWrap: "wrap",
+                mb: 1.25,
+              }}
+            >
+              <Typography sx={REQUEST_DETAILS_SECTION_TITLE_SX}>Field Changes</Typography>
+              <Chip
+                size="small"
+                label={`${(request.details || []).length} ${(request.details || []).length === 1 ? "change" : "changes"}`}
+                sx={{
+                  backgroundColor: color_background,
+                  color: color_text_secondary,
+                  border: `1px solid ${color_border}`,
+                  fontWeight: 900,
+                }}
+              />
+            </Box>
 
-                <TableBody>
-                  {(request.details || []).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} sx={{ py: 2 }}>
-                        <Typography sx={{ color: color_text_light, fontWeight: 800 }}>
-                          No field changes in this request.
+            {(request.details || []).length === 0 ? (
+              <Typography sx={{ color: color_text_light, fontWeight: 800 }}>
+                No field changes in this request.
+              </Typography>
+            ) : (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+                {(request.details || []).map((d: any) => {
+                  const status = getDetailReviewStatus(d);
+                  const reviewerComment = getDetailReviewerComment(d);
+
+                  return (
+                    <Box
+                      key={d.id}
+                      sx={{
+                        border: `1px solid ${color_border}`,
+                        borderRadius: 1.5,
+                        p: 1.25,
+                        backgroundColor: color_background,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: 1.25,
+                          flexWrap: "wrap",
+                          mb: 1,
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography sx={{ color: color_text_light, fontSize: "0.74rem", fontWeight: 900 }}>
+                            Row {d.row_id}
+                          </Typography>
+                          <Typography sx={{ color: color_text_primary, fontWeight: 900, lineHeight: 1.35 }}>
+                            {d.field_name}
+                          </Typography>
+                        </Box>
+
+                        <Chip
+                          size="small"
+                          label={getReviewStatusUppercaseLabel(status)}
+                          data-testid={`readonly-detail-status-${d.id}`}
+                          sx={detailStatusChipSx(status)}
+                        />
+                      </Box>
+
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                          gap: 1,
+                          mb: 1,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            border: `1px solid ${color_border}`,
+                            borderRadius: 1,
+                            p: 1,
+                            backgroundColor: color_white,
+                            minWidth: 0,
+                          }}
+                        >
+                          <Typography sx={{ color: color_text_light, fontSize: "0.72rem", fontWeight: 900, mb: 0.4 }}>
+                            Old Value
+                          </Typography>
+                          <Typography sx={{ color: color_text_secondary, fontWeight: 800, wordBreak: "break-word" }}>
+                            {d.old_value ? d.old_value : <i>(empty)</i>}
+                          </Typography>
+                        </Box>
+
+                        <Box
+                          sx={{
+                            border: `1px solid ${color_border}`,
+                            borderRadius: 1,
+                            p: 1,
+                            backgroundColor: color_white,
+                            minWidth: 0,
+                          }}
+                        >
+                          <Typography sx={{ color: color_text_light, fontSize: "0.72rem", fontWeight: 900, mb: 0.4 }}>
+                            New Value
+                          </Typography>
+                          <Typography sx={{ color: color_text_primary, fontWeight: 900, wordBreak: "break-word" }}>
+                            {d.new_value ? d.new_value : <i>(empty)</i>}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          border: `1px solid ${color_border}`,
+                          borderRadius: 1,
+                          p: 1,
+                          backgroundColor: color_white,
+                        }}
+                      >
+                        <Typography sx={{ color: color_text_light, fontSize: "0.72rem", fontWeight: 900, mb: 0.4 }}>
+                          Reviewer Comment
                         </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    (request.details || []).map((d: any) => (
-                      <TableRow key={d.id}>
-                        <TableCell sx={{ py: 1, color: color_text_secondary, fontWeight: 800 }}>{d.row_id}</TableCell>
-                        <TableCell sx={{ py: 1, color: color_text_secondary, fontWeight: 800 }}>{d.field_name}</TableCell>
-                        <TableCell sx={{ py: 1, color: color_text_light, fontWeight: 800 }}>
-                          {d.old_value ? d.old_value : <i>(empty)</i>}
-                        </TableCell>
-                        <TableCell sx={{ py: 1, color: color_text_primary, fontWeight: 900 }}>
-                          {d.new_value ? d.new_value : <i>(empty)</i>}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                        {reviewerComment ? (
+                          <Typography sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", color: color_text_secondary, fontWeight: 800 }}>
+                            {reviewerComment}
+                          </Typography>
+                        ) : (
+                          <Typography sx={{ color: color_text_light, fontStyle: "italic", fontWeight: 700 }}>
+                            No review comment
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
           </Box>
 
           {/* Photos */}
