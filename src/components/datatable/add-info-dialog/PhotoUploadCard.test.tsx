@@ -178,6 +178,34 @@ describe("PhotoUploadCard", () => {
         expect(props.setConsent).toHaveBeenCalledWith(true);
     });
 
+    it("shows the disclaimer only after consent is selected", () => {
+        const disclaimer =
+            "Please make sure everyone shown in these photos is comfortable with them being shared.";
+
+        const { rerender } = render(
+            <PhotoUploadCard
+                {...baseProps}
+                consent={false}
+                config={{ disclaimer }}
+            />
+        );
+
+        expect(screen.queryByText("Disclaimer")).not.toBeInTheDocument();
+        expect(screen.queryByText(disclaimer)).not.toBeInTheDocument();
+
+        rerender(
+            <PhotoUploadCard
+                {...baseProps}
+                consent={true}
+                config={{ disclaimer }}
+            />
+        );
+
+        expect(screen.getByText("Disclaimer")).toBeInTheDocument();
+        expect(screen.getByText(disclaimer)).toBeInTheDocument();
+        expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
     it("supports custom config and hides total/count sections when disabled by config", () => {
         const { container } = render(
             <PhotoUploadCard

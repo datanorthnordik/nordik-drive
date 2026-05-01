@@ -39,6 +39,7 @@ import {
   ADD_INFO_CONSENT_TEXT_SX,
   ADD_INFO_PRIMARY_ACTION_BUTTON_SX,
 } from "./styles";
+import UploadDisclaimer from "./UploadDisclaimer";
 
 type DocumentTypeOpt = { value: string; label: string };
 
@@ -48,6 +49,7 @@ type Config = {
   type?: "doc_upload";
   description?: string;
   consent?: string;
+  disclaimer?: string;
   docs_count_enabled?: boolean;
   total_upload_size?: boolean;
   individual_upload_size?: boolean;
@@ -81,6 +83,7 @@ export default function AdditionalDocsCard({
   const title = String(config?.display_name || config?.name || ADDITIONAL_DOCS_FALLBACK_TITLE);
   const description = String(config?.description || "");
   const consentText = String(config?.consent || "").trim();
+  const disclaimerText = String(config?.disclaimer || "").trim();
 
   const showDocsCount = config?.docs_count_enabled !== false;
   const showTotalUpload = config?.total_upload_size !== false;
@@ -235,6 +238,10 @@ export default function AdditionalDocsCard({
             {consentText}
           </Box>
         </Box>
+      ) : null}
+
+      {archiveConsent && disclaimerText ? (
+        <UploadDisclaimer text={disclaimerText} />
       ) : null}
     </Box>
   );
