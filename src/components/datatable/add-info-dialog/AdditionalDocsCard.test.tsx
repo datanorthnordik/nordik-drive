@@ -176,6 +176,36 @@ describe("AdditionalDocsCard", () => {
         expect(props.setArchiveConsent).toHaveBeenCalledWith(true);
     });
 
+    it("shows the disclaimer only after archive consent is selected", () => {
+        const disclaimer =
+            "Archived documents may be reviewed by staff as part of the historical record.";
+
+        const { rerender } = render(
+            <AdditionalDocsCard
+                {...getProps({
+                    archiveConsent: false,
+                    config: { disclaimer },
+                })}
+            />
+        );
+
+        expect(screen.queryByText("Disclaimer")).not.toBeInTheDocument();
+        expect(screen.queryByText(disclaimer)).not.toBeInTheDocument();
+
+        rerender(
+            <AdditionalDocsCard
+                {...getProps({
+                    archiveConsent: true,
+                    config: { disclaimer },
+                })}
+            />
+        );
+
+        expect(screen.getByText("Disclaimer")).toBeInTheDocument();
+        expect(screen.getByText(disclaimer)).toBeInTheDocument();
+        expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
     it("does not render consent checkbox when consent text is empty", () => {
         render(
             <AdditionalDocsCard

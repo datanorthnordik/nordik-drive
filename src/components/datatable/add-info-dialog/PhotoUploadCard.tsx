@@ -34,6 +34,7 @@ import {
   ADD_INFO_CONSENT_TEXT_SX,
   ADD_INFO_PRIMARY_ACTION_BUTTON_SX,
 } from "./styles";
+import UploadDisclaimer from "./UploadDisclaimer";
 
 export type PhotoItem = {
   id: string;
@@ -46,6 +47,7 @@ type UploadConfig = {
   display_name?: string;
   description?: string;
   consent?: string;
+  disclaimer?: string;
   docs_count_enabled?: boolean;
   total_upload_size?: boolean;
   individual_upload_size?: boolean;
@@ -116,6 +118,7 @@ export default function PhotoUploadCard({
   const title = String(config?.display_name || config?.name || PHOTO_UPLOAD_FALLBACK_TITLE);
   const description = String(config?.description || getPhotoUploadDefaultDescription());
   const consentText = String(config?.consent || "").trim();
+  const disclaimerText = String(config?.disclaimer || "").trim();
 
   const showCount = config?.docs_count_enabled !== false;
   const showTotal = config?.total_upload_size !== false;
@@ -296,6 +299,10 @@ export default function PhotoUploadCard({
             {consentText}
           </Box>
         </Box>
+      ) : null}
+
+      {consent && disclaimerText ? (
+        <UploadDisclaimer text={disclaimerText} />
       ) : null}
     </Box>
   );

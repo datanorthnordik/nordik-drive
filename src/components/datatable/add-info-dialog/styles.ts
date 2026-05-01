@@ -6,6 +6,8 @@ import {
   color_focus_ring,
   color_secondary,
   color_secondary_dark,
+  color_warning,
+  color_warning_light,
   color_text_light,
   color_text_primary,
   color_white,
@@ -52,6 +54,35 @@ export const ADD_INFO_CONSENT_TEXT_SX: AddInfoSx = {
   color: color_text_primary,
   fontSize: "0.98rem",
   fontWeight: 800,
+};
+
+export const ADD_INFO_DISCLAIMER_BOX_SX: AddInfoSx = {
+  mt: 1.5,
+  p: 1.75,
+  display: "flex",
+  gap: 1.5,
+  alignItems: "flex-start",
+  borderRadius: "16px",
+  border: `3px solid ${color_warning}`,
+  background: `linear-gradient(90deg, ${color_white} 0%, ${color_warning_light} 100%)`,
+  boxShadow: "0 8px 22px rgba(243, 156, 18, 0.10)",
+};
+
+export const ADD_INFO_DISCLAIMER_KICKER_SX: AddInfoSx = {
+  color: color_text_primary,
+  fontSize: "1.22rem",
+  fontWeight: 900,
+  lineHeight: 1.3,
+  mb: 0.5,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+};
+
+export const ADD_INFO_DISCLAIMER_TEXT_SX: AddInfoSx = {
+  color: color_text_primary,
+  fontSize: "1.08rem",
+  fontWeight: 700,
+  lineHeight: 1.7,
 };
 
 export const ADD_INFO_REVIEW_SECTION_TITLE_SX: AddInfoSx = {

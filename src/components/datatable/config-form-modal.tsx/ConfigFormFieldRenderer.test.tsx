@@ -55,6 +55,7 @@ describe("boarding_home_tab", () => {
             placeholder: "Enter boarding home",
             description: "Field description",
             consent: "Field level consent",
+            disclaimer: "Field level disclaimer",
             docs_count_enabled: true,
             total_upload_size: true,
             individual_upload_size: true,
@@ -145,6 +146,7 @@ describe("boarding_home_tab", () => {
             type: "doc_upload",
             description: "Field description",
             consent: "Field level consent",
+            disclaimer: "Field level disclaimer",
             docs_count_enabled: true,
             total_upload_size: true,
             individual_upload_size: true,
@@ -162,6 +164,7 @@ describe("boarding_home_tab", () => {
 
         const childProps = mockAdditionalDocsCard.mock.calls[0][0] as Record<string, any>;
         expect(childProps.config.consent).toBe("");
+        expect(childProps.config.disclaimer).toBe("Field level disclaimer");
     });
 
     it("renders photo upload branch and passes correct props when editable", () => {
@@ -194,6 +197,7 @@ describe("boarding_home_tab", () => {
             display_name: "Boarding Home",
             description: "Field description",
             consent: "",
+            disclaimer: "Field level disclaimer",
             docs_count_enabled: true,
             total_upload_size: true,
             individual_upload_size: true,

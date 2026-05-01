@@ -30,6 +30,7 @@ export type FieldCfg = {
   display_name?: string;
   description?: string;
   consent?: string;
+  disclaimer?: string;
   docs_count_enabled?: boolean;
   total_upload_size?: boolean;
   individual_upload_size?: boolean;
