@@ -60,7 +60,7 @@ function HeaderNav({ onLinkClick }: HeaderNavProps) {
         
           <HeaderLink to="/requests" onClick={onLinkClick}>
             <PendingActionsOutlinedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            Requests
+            {user.role === 'User' ? "My Requests" : "Requests"}
           </HeaderLink>
       
         
