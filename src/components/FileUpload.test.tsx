@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import FileUploader from "./FileUploader";
+import { MAX_UPLOAD_FILENAME_LENGTH } from "../constants/fileUpload";
 import useFetch from "../hooks/useFetch";
 import toast from "react-hot-toast";
 
@@ -160,6 +161,80 @@ describe("FileUploader", () => {
 
         // fetchData should not be called
         expect(fetchData).not.toHaveBeenCalled();
+    });
+
+    test("submitting with a file name longer than 50 characters shows validation error", async () => {
+        const setNewFile = jest.fn();
+        const fetchData = jest.fn();
+
+        mockUseFetch.mockReturnValue({
+            loading: false,
+            error: null,
+            data: null,
+            fetchData,
+        });
+
+        const { container } = render(<FileUploader setNewFile={setNewFile} />);
+
+        const input = container.querySelector("#archival-file-input") as HTMLInputElement;
+        const file1 = new File(["a"], "a.csv", { type: "text/csv" });
+
+        await act(async () => {
+            fireEvent.change(input, { target: { files: [file1] } });
+        });
+
+        const nameField = screen.getByLabelText("File name");
+        const tooLongName = "a".repeat(MAX_UPLOAD_FILENAME_LENGTH + 1);
+
+        await act(async () => {
+            fireEvent.change(nameField, { target: { value: tooLongName } });
+        });
+
+        expect(nameField).toHaveValue(tooLongName);
+        expect(nameField).not.toHaveAttribute("maxlength");
+        expect(
+            await screen.findByText(
+                `File name must be ${MAX_UPLOAD_FILENAME_LENGTH} characters or fewer`
+            )
+        ).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Upload Files" })).toBeDisabled();
+        expect(fetchData).not.toHaveBeenCalled();
+    });
+
+    test("upload button is enabled again when the file name returns to the allowed length", async () => {
+        const setNewFile = jest.fn();
+        const { container } = render(<FileUploader setNewFile={setNewFile} />);
+
+        const input = container.querySelector("#archival-file-input") as HTMLInputElement;
+        const file1 = new File(["a"], "a.csv", { type: "text/csv" });
+
+        await act(async () => {
+            fireEvent.change(input, { target: { files: [file1] } });
+        });
+
+        const nameField = screen.getByLabelText("File name");
+        const uploadButton = screen.getByRole("button", { name: "Upload Files" });
+
+        await act(async () => {
+            fireEvent.change(nameField, {
+                target: { value: "a".repeat(MAX_UPLOAD_FILENAME_LENGTH + 1) },
+            });
+        });
+
+        expect(uploadButton).toBeDisabled();
+
+        await act(async () => {
+            fireEvent.change(nameField, {
+                target: { value: "a".repeat(MAX_UPLOAD_FILENAME_LENGTH) },
+            });
+        });
+
+        expect(
+            screen.queryByText(
+                `File name must be ${MAX_UPLOAD_FILENAME_LENGTH} characters or fewer`
+            )
+        ).not.toBeInTheDocument();
+        expect(uploadButton).toBeEnabled();
     });
 
     test("submitting with valid data calls fetchData with FormData including files + fields", async () => {

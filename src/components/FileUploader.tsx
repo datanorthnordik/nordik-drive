@@ -10,10 +10,11 @@ import {
   Box,
   Divider,
 } from "@mui/material";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { color_primary, color_secondary } from "../constants/colors";
+import { MAX_UPLOAD_FILENAME_LENGTH } from "../constants/fileUpload";
 import { apiUrl } from "../config/api";
 import useFetch from "../hooks/useFetch";
 import Loader from "./Loader";
@@ -30,7 +31,14 @@ const getSchema = (files: File[]) =>
       .array()
       .of(
         yup.object({
-          filename: yup.string().trim().required("File name is required"),
+          filename: yup
+            .string()
+            .trim()
+            .required("File name is required")
+            .max(
+              MAX_UPLOAD_FILENAME_LENGTH,
+              `File name must be ${MAX_UPLOAD_FILENAME_LENGTH} characters or fewer`
+            ),
           private: yup.boolean().default(false),
           communityFilter: yup.boolean().default(false),
         })
@@ -134,9 +142,13 @@ const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
   } = useForm<FileForm>({
     resolver: yupResolver(getSchema(files)) as any,
     defaultValues: { files: [] },
-    mode: "onSubmit",
+    mode: "onChange",
     reValidateMode: "onChange",
   });
+  const formFiles = useWatch({ control, name: "files", defaultValue: [] });
+  const hasFilenameLengthError = formFiles.some(
+    (file) => String(file?.filename || "").trim().length > MAX_UPLOAD_FILENAME_LENGTH
+  );
 
   const { loading, error, fetchData, data } = useFetch(
     apiUrl("file/upload"),
@@ -398,6 +410,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ setNewFile }) => {
                     <Button
                       type="submit"
                       variant="contained"
+                      disabled={loading || hasFilenameLengthError}
                       sx={{
                         width: "100%",
                         textTransform: "none",
