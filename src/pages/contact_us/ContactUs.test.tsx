@@ -3,6 +3,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 
+const mockNavigate = jest.fn();
+
+jest.mock("react-router-dom", () => ({
+  __esModule: true,
+  useNavigate: () => mockNavigate,
+}), { virtual: true });
+
 jest.mock("../../components/Links", () => ({
   __esModule: true,
   WebLink: ({ href, children, ...props }: any) => (
@@ -51,7 +58,12 @@ describe("ContactUs", () => {
     render(<ContactUs />);
 
     expect(screen.getByText(/get in touch/i)).toBeInTheDocument();
+    expect(screen.getByText(/need help using the website\?/i)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /join here/i })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /view faqs/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/read common questions and answers/i)
+    ).toBeInTheDocument();
 
     expect(screen.getByText("123 Example Address")).toBeInTheDocument();
     expect(screen.getByText("Example Street")).toBeInTheDocument();
@@ -98,10 +110,18 @@ describe("ContactUs", () => {
   test("renders external WebLink anchors", () => {
     render(<ContactUs />);
 
-    const cssa = screen.getByRole("link", { name: /cssa\?/i });
+    const cssa = screen.getByRole("link", { name: /csaa\?/i });
     expect(cssa).toHaveAttribute("href", "https://childrenofshingwauk.org/");
 
     const nordik = screen.getByRole("link", { name: /nordik institute\?/i });
     expect(nordik).toHaveAttribute("href", "https://nordikinstitute.com/");
+  });
+
+  test("opens the dedicated faq page from the faq callout", async () => {
+    const user = userEvent.setup();
+    render(<ContactUs />);
+
+    await user.click(screen.getByRole("button", { name: /view faqs/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/faq");
   });
 });
