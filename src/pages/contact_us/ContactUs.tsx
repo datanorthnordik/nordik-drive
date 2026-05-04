@@ -8,10 +8,15 @@ import {
   CardContent,
   Button,
   Stack,
-  useTheme,
-  useMediaQuery,
 } from "@mui/material";
-import { Email, Phone, LocationOn, Business } from "@mui/icons-material";
+import {
+  Email,
+  Phone,
+  LocationOn,
+  Business,
+  HelpOutline,
+} from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import { WebLink } from "../../components/Links";
 import { CONTACT_INFO } from "./contactInfo";
 import {
@@ -29,8 +34,7 @@ import {
 } from "../../constants/colors";
 
 const ContactUs = () => {
-  const theme = useTheme();
-  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
+  const navigate = useNavigate();
 
   const onJoinHere = (link: string) => {
     window.open(link, "_blank", "noopener,noreferrer");
@@ -267,7 +271,72 @@ const ContactUs = () => {
           >
             <CardContent sx={{ px: { xs: 2.5, md: 3.5 }, py: { xs: 2.8, md: 3.2 } }}>
               {/*  ONE wrapper controls BOTH text + button width */}
-              <Stack spacing={3.2} sx={{ width: "100%", maxWidth: RIGHT_BLOCK_MAX, mx: "auto" }}>
+              <Stack spacing={2.5} sx={{ width: "100%", maxWidth: RIGHT_BLOCK_MAX, mx: "auto" }}>
+                <Box sx={{ width: "100%" }}>
+                  <Box
+                    sx={{
+                      p: { xs: 1.6, md: 1.8 },
+                      borderRadius: "16px",
+                      background: color_white_smoke,
+                      border: `1px solid ${color_border}`,
+                      boxShadow: "0 8px 16px rgba(0, 0, 0, 0.05)",
+                    }}
+                  >
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={1.5}
+                      alignItems={{ xs: "stretch", sm: "center" }}
+                      justifyContent="space-between"
+                    >
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography
+                          sx={{
+                            fontSize: { xs: 17, md: 18 },
+                            fontWeight: 900,
+                            color: color_text_primary,
+                            lineHeight: 1.3,
+                            mb: 0.4,
+                          }}
+                        >
+                          Need help using the website?
+                        </Typography>
+
+                        <Typography
+                          sx={{
+                            fontSize: { xs: 14, md: 14.4 },
+                            lineHeight: 1.6,
+                            color: color_text_secondary,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Read common questions and answers.
+                        </Typography>
+                      </Box>
+
+                      <Button
+                        onClick={() => navigate("/faq")}
+                        startIcon={<HelpOutline />}
+                        sx={{
+                          alignSelf: { xs: "stretch", sm: "center" },
+                          flexShrink: 0,
+                          textTransform: "none",
+                          borderRadius: "14px",
+                          px: 2.2,
+                          py: 1.05,
+                          fontWeight: 900,
+                          fontSize: 15.2,
+                          background: color_secondary_dark,
+                          color: color_white,
+                          boxShadow: "0 10px 18px rgba(0,0,0,0.12)",
+                          "&:hover": { background: color_secondary_dark },
+                        }}
+                      >
+                        View FAQs
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Box>
+
                 {/* Block 1 */}
                 <Box sx={{ width: "100%" }}>
                   <Typography
@@ -280,7 +349,7 @@ const ContactUs = () => {
                   >
                     Interested in becoming a member of{" "}
                     <WebLink href="https://childrenofshingwauk.org/" target="_blank">
-                      CSSA?
+                      CSAA?
                     </WebLink>
                   </Typography>
 

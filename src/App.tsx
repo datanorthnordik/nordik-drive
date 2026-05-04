@@ -19,6 +19,7 @@ import { useSelector } from "react-redux";
 
 const DataView = lazy(() => import("./pages/dataview/DataView"));
 const ContactUs = lazy(() => import("./pages/contact_us/ContactUs"));
+const FaqPage = lazy(() => import("./pages/contact_us/FaqPage"));
 const Acknowledgement = lazy(() => import("./pages/Acknowledgement/Acknowledgement"));
 const FileContentPage = lazy(() => import("./pages/FileContentPage/FileContentPage"));
 const ActivityLogs = lazy(() => import("./components/tables/ActivityLogs"));
@@ -81,6 +82,10 @@ function App() {
           <Route
             path="/contact-us"
             element={renderProtectedRoute(<ContactUs />)}
+          />
+          <Route
+            path="/faq"
+            element={renderProtectedRoute(<FaqPage />)}
           />
           <Route
             path="/acknowledgement"

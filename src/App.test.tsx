@@ -106,6 +106,11 @@ jest.mock("./pages/contact_us/ContactUs", () => ({
   default: () => <div>Contact Us Page</div>,
 }));
 
+jest.mock("./pages/contact_us/FaqPage", () => ({
+  __esModule: true,
+  default: () => <div>FAQ Page</div>,
+}));
+
 jest.mock("./pages/Acknowledgement/Acknowledgement", () => ({
   __esModule: true,
   default: () => <div>Acknowledgement Page</div>,
@@ -187,6 +192,14 @@ describe("App", () => {
     renderAt("/dataview");
 
     expect(await screen.findByText("Data View Page")).toBeInTheDocument();
+    expect(screen.getByTestId("protected-route")).toBeInTheDocument();
+    expect(screen.getByTestId("layout")).toBeInTheDocument();
+  });
+
+  it("renders the faq route inside protected wrappers", async () => {
+    renderAt("/faq");
+
+    expect(await screen.findByText("FAQ Page")).toBeInTheDocument();
     expect(screen.getByTestId("protected-route")).toBeInTheDocument();
     expect(screen.getByTestId("layout")).toBeInTheDocument();
   });
