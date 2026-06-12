@@ -3,6 +3,7 @@ import authReducer from "./auth/authSlics";
 import fileReducer from "./auth/fileSlice";
 import roleReducer from "./auth/roleSlice";
 import apiReducer from "./api/apiSlice";
+import niaChatReducer from "./niaChatSlice";
 import { apiMiddleware } from "./middleware/apiMiddleware";
 
 export const store = configureStore({
@@ -11,6 +12,7 @@ export const store = configureStore({
     file: fileReducer,
     role: roleReducer,
     api: apiReducer,
+    niaChat: niaChatReducer,
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(apiMiddleware),
 });

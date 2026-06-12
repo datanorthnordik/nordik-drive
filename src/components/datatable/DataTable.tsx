@@ -43,6 +43,7 @@ import SmartSearchSuggestions from "./SmartSearchSuggestions";
 
 import useFetch from "../../hooks/useFetch";
 import Loader from "../Loader";
+import { selectNiaUnreadCountForFileName } from "../../store/niaChatSlice";
 
 /** split components (keep using them) */
 import TopControlsBar from "./TopControlBar";
@@ -217,6 +218,9 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
   const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
   const currentUserEmail = useSelector((state: any) => state.auth?.user?.email ?? null);
+  const niaUnreadCount = useSelector((state: any) =>
+    selectNiaUnreadCountForFileName(state, selectedFile?.filename)
+  );
 
   const [formOpen, setFormOpen] = useState(false);
   const [formRow, setFormRow] = useState<any>(null);
@@ -1017,6 +1021,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                   fontSize={fontSize}
                   onZoomChange={onZoomChange}
                   setNiaOpen={setNiaOpen}
+                  niaUnreadCount={niaUnreadCount}
                 />
               </div>
 

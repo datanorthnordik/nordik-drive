@@ -43,6 +43,7 @@ type Props = {
   onZoomChange: (newSize: number) => void;
 
   setNiaOpen: (v: boolean) => void;
+  niaUnreadCount: number;
 };
 
 export default function TopControlsBar({
@@ -60,6 +61,7 @@ export default function TopControlsBar({
   fontSize,
   onZoomChange,
   setNiaOpen,
+  niaUnreadCount,
 }: Props) {
   const resultsText = useMemo(() => {
     return matchesCount > 0 ? `${currentMatchIndex + 1} of ${matchesCount}` : "0 results";
@@ -349,7 +351,7 @@ export default function TopControlsBar({
         }}
       >
         <div className="nia-slot">
-          <NIAChatTrigger setOpen={setNiaOpen} />
+          <NIAChatTrigger setOpen={setNiaOpen} unreadCount={niaUnreadCount} />
         </div>
 
         {/* small indicator (compact, subtle, non-ugly) */}
@@ -380,6 +382,28 @@ export default function TopControlsBar({
             },
           }}
         >
+          {niaUnreadCount > 0 && (
+            <Box
+              component="span"
+              aria-label={`${niaUnreadCount} unread NIA answers`}
+              sx={{
+                minWidth: 18,
+                height: 18,
+                px: 0.7,
+                borderRadius: 999,
+                background: color_secondary,
+                color: color_white,
+                fontSize: 10,
+                fontWeight: 900,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {niaUnreadCount > 9 ? "9+" : niaUnreadCount}
+            </Box>
+          )}
           <Box
             sx={{
               width: 6,

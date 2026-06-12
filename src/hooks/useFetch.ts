@@ -134,17 +134,18 @@ export async function apiRequest<T = any>(
   }
 ): Promise<T> {
   const refreshUrl = opts?.refreshUrl || API_REFRESH_URL;
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
 
   const doFetch = async (accessToken?: string) => {
     const res = await fetch(url, {
       method,
       credentials: "include", // ✅ sends refresh cookie like axios { withCredentials:true }
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     });
 
     return res;

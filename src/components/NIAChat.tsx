@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Mic, Send, X, Bot } from "lucide-react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import useFetch from "../hooks/useFetch";
 
 import ReactMarkdown from "react-markdown";
@@ -15,7 +15,6 @@ import PauseIcon from "@mui/icons-material/Pause";
 import { marked } from "marked";
 import { decode } from "he";
 
-import Loader from "./Loader";
 import {
   color_primary,
   color_secondary,
@@ -29,17 +28,16 @@ import {
   color_text_light,
 } from "../constants/colors";
 import { apiUrl } from "../config/api";
-import toast from "react-hot-toast";
+import {
+  markThreadRead,
+  selectHasAnyPendingNia,
+  selectNiaThreadByFileName,
+  setThreadVisibility,
+  submitNiaQuestion,
+} from "../store/niaChatSlice";
+import type { AppDispatch, RootState } from "../store/store";
 
 export { default as NIAChatTrigger } from "./NIAChatTrigger";
-
-
-type Message = {
-  from: "user" | "nia";
-  text?: string;
-  audio?: Blob; // voice input (existing)
-  ttsUrl?: string; // cached object URL for replay
-};
 
 interface NIAChatProps {
   open: boolean;
@@ -60,43 +58,33 @@ async function markdownToPlainText(md: string) {
   return decodedAsString.replace(/<[^>]+>/g, "").replace(/\r/g, "");
 }
 
-
-/** Prefer user's locale English (e.g., en-CA / en-US) */
 function getPreferredSpeechLang() {
   return "en-CA";
 }
 
-/** Detect audio mime from first bytes so playback works even if backend sets octet-stream */
 function detectAudioMime(buf: ArrayBuffer): string {
   const u = new Uint8Array(buf);
   const s4 = (i: number) =>
     String.fromCharCode(u[i] || 0, u[i + 1] || 0, u[i + 2] || 0, u[i + 3] || 0);
 
-  // WAV: "RIFF" .... "WAVE"
   if (u.byteLength >= 12 && s4(0) === "RIFF" && s4(8) === "WAVE") return "audio/wav";
-
-  // OGG: "OggS"
   if (u.byteLength >= 4 && s4(0) === "OggS") return "audio/ogg";
-
-  // FLAC: "fLaC"
   if (u.byteLength >= 4 && s4(0) === "fLaC") return "audio/flac";
 
-  // MP3: "ID3" or frame sync 0xFFEx
   if (
     u.byteLength >= 3 &&
-    u[0] === 0x49 && // I
-    u[1] === 0x44 && // D
-    u[2] === 0x33 // 3
-  )
+    u[0] === 0x49 &&
+    u[1] === 0x44 &&
+    u[2] === 0x33
+  ) {
     return "audio/mpeg";
+  }
 
   if (u.byteLength >= 2 && u[0] === 0xff && (u[1] & 0xe0) === 0xe0) return "audio/mpeg";
 
-  // Fallback (most common)
   return "audio/mpeg";
 }
 
-// Small inline spinner (shown while generating audio)
 function TinySpinner() {
   return (
     <div
@@ -113,67 +101,74 @@ function TinySpinner() {
   );
 }
 
+function ThinkingBubble() {
+  return (
+    <div
+      aria-label="NIA is thinking"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 14px",
+        borderRadius: 14,
+        background: color_white,
+        color: color_black_light,
+        border: `1px solid ${color_border}`,
+        boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
+        lineHeight: 1.35,
+        fontWeight: 700,
+      }}
+    >
+      <TinySpinner />
+      <span>NIA is thinking...</span>
+    </div>
+  );
+}
+
 const MAX_LINES = 4;
 const LINE_HEIGHT_PX = 22;
 const VERTICAL_PADDING_PX = 24;
 const MAX_TEXTAREA_HEIGHT = MAX_LINES * LINE_HEIGHT_PX + VERTICAL_PADDING_PX;
 
 export default function NIAChat({ open, setOpen }: NIAChatProps) {
+  const dispatch = useDispatch<AppDispatch>();
   const finalTranscriptRef = useRef<string>("");
   const recognitionRef = useRef<any>(null);
 
   const [fullscreen, setFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [minimized, setMinimized] = useState(false);
-
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-
   const [recordingState, setRecordingState] = useState<"idle" | "recording">("idle");
+  const [ttsCache, setTtsCache] = useState<Record<string, string>>({});
+  const ttsCacheRef = useRef<Record<string, string>>({});
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
-
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const preferredLangRef = useRef<string>(getPreferredSpeechLang());
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const ttsRequestExchangeIdRef = useRef<string | null>(null);
 
-  // Chat endpoint (existing)
-  const { loading, fetchData, data, error } = useFetch(
-    apiUrl("chat"),
-    "POST"
+  const { selectedFile, selectedCommunities } = useSelector((state: RootState) => state.file);
+  const currentThread = useSelector((state: RootState) =>
+    selectNiaThreadByFileName(state, selectedFile?.filename)
   );
+  const hasPendingExchange = useSelector((state: RootState) => selectHasAnyPendingNia(state));
 
-  // TTS endpoint (binary)
+  const exchanges = currentThread?.exchanges || [];
+  const unreadCount = currentThread?.unreadCount || 0;
+  const currentFileName = String(selectedFile?.filename || "").trim();
+
   const {
     data: ttsData,
-    loading: ttsReqLoading,
     error: ttsError,
     fetchData: fetchTTS,
-  } = useFetch<ArrayBuffer>(
-    apiUrl("chat/tts"),
-    "POST"
-  );
+  } = useFetch<ArrayBuffer>(apiUrl("chat/tts"), "POST");
 
-  useEffect(()=>{
-    if(!data && error){
-      toast.error("Something went wrong. Please try again later!");
-    }
-  }, [error])
-
-  const { selectedFile, selectedCommunities } = useSelector((state: any) => state.file);
-
-  const preferredLangRef = useRef<string>(getPreferredSpeechLang());
-
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
-  const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-
-  // --- TTS play + cache state ---
-  const [ttsPlayingIndex, setTtsPlayingIndex] = useState<number | null>(null);
-  const [ttsLoadingIndex, setTtsLoadingIndex] = useState<number | null>(null);
-
-  const audioElRef = useRef<HTMLAudioElement | null>(null);
-
-  // track which message requested TTS
-  const ttsRequestIndexRef = useRef<number | null>(null);
+  const [ttsPlayingExchangeId, setTtsPlayingExchangeId] = useState<string | null>(null);
+  const [ttsLoadingExchangeId, setTtsLoadingExchangeId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
@@ -191,25 +186,48 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     el.style.height = `${next}px`;
   }, [input]);
 
-  const scrollLastUserToTop = () => {
-    if (!messagesContainerRef.current) return;
+  useEffect(() => {
+    const fileName = currentFileName;
+    if (!fileName || !open) return;
+
+    dispatch(
+      setThreadVisibility({
+        fileName,
+        isOpen: open,
+        isMinimized: open ? minimized : false,
+      })
+    );
+
+    return () => {
+      if (!fileName) return;
+      dispatch(
+        setThreadVisibility({
+          fileName,
+          isOpen: false,
+          isMinimized: false,
+        })
+      );
+    };
+  }, [currentFileName, dispatch, minimized, open]);
+
+  useEffect(() => {
+    if (!open || minimized || !currentFileName || unreadCount === 0) return;
+    dispatch(markThreadRead({ fileName: currentFileName }));
+  }, [currentFileName, dispatch, minimized, open, unreadCount]);
+
+  useEffect(() => {
+    if (!open || minimized || !messagesContainerRef.current) return;
+
     const container = messagesContainerRef.current;
+    const timer = window.setTimeout(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 50);
 
-    const lastUserIndex = [...messages]
-      .map((m, i) => (m.from === "user" ? i : -1))
-      .filter((i) => i !== -1)
-      .pop();
-
-    if (lastUserIndex !== undefined) {
-      const el = messageRefs.current.get(lastUserIndex);
-      if (el) {
-        container.scrollTo({
-          top: el.offsetTop,
-          behavior: "smooth",
-        });
-      }
-    }
-  };
+    return () => window.clearTimeout(timer);
+  }, [currentThread?.lastCompletedExchangeId, exchanges.length, minimized, open]);
 
   const startAudioRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -270,112 +288,115 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   };
 
   const stopTTS = useCallback(() => {
-    const a = audioElRef.current;
-    if (a) {
+    const audio = audioElRef.current;
+    if (audio) {
       try {
-        a.pause();
-        a.currentTime = 0;
-      } catch { }
+        audio.pause();
+        audio.currentTime = 0;
+      } catch {
+        // no-op
+      }
     }
-    setTtsPlayingIndex(null);
+    setTtsPlayingExchangeId(null);
   }, []);
 
-  const playUrl = useCallback(
-    async (url: string, idx: number) => {
-      // stop other audio first
-      if (ttsPlayingIndex !== null && ttsPlayingIndex !== idx) stopTTS();
+  const revokeAllTtsUrls = useCallback((cache: Record<string, string>) => {
+    Object.values(cache).forEach((url) => {
+      if (!url) return;
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // no-op
+      }
+    });
+  }, []);
 
-      let a = audioElRef.current;
-      if (!a) {
-        a = new Audio();
-        a.preload = "auto";
-        audioElRef.current = a;
+  const clearTtsCache = useCallback(() => {
+    revokeAllTtsUrls(ttsCacheRef.current);
+    ttsCacheRef.current = {};
+    setTtsCache({});
+  }, [revokeAllTtsUrls]);
+
+  const playUrl = useCallback(
+    async (url: string, exchangeId: string) => {
+      if (ttsPlayingExchangeId !== null && ttsPlayingExchangeId !== exchangeId) {
+        stopTTS();
       }
 
-      // toggle stop if already playing this one
-      if (ttsPlayingIndex === idx && a && !a.paused) {
+      let audio = audioElRef.current;
+      if (!audio) {
+        audio = new Audio();
+        audio.preload = "auto";
+        audioElRef.current = audio;
+      }
+
+      if (ttsPlayingExchangeId === exchangeId && audio && !audio.paused) {
         stopTTS();
         return false;
       }
 
-      a.src = url;
+      audio.src = url;
       try {
-        a.load(); // helps some browsers
-      } catch { }
+        audio.load();
+      } catch {
+        // no-op
+      }
 
-      a.onended = () => setTtsPlayingIndex(null);
-      a.onerror = () => setTtsPlayingIndex(null);
+      audio.onended = () => setTtsPlayingExchangeId(null);
+      audio.onerror = () => setTtsPlayingExchangeId(null);
 
-      setTtsPlayingIndex(idx);
+      setTtsPlayingExchangeId(exchangeId);
 
       try {
-        await a.play();
+        await audio.play();
         return true;
-      } catch (e) {
-        // Autoplay blocked or mime decode failed
-        console.warn("Audio play failed:", e);
-        setTtsPlayingIndex(null);
+      } catch (err) {
+        console.warn("Audio play failed:", err);
+        setTtsPlayingExchangeId(null);
         return false;
       }
     },
-    [stopTTS, ttsPlayingIndex]
+    [stopTTS, ttsPlayingExchangeId]
   );
 
-  // Chat send (existing)
-  const addUserAndNIAResponse = (msg: Message) => {
-    setMessages((msgs) => [...msgs, msg]);
-    setTimeout(() => scrollLastUserToTop(), 50);
-
-    const formData = new FormData();
-    formData.append("filename", selectedFile?.filename);
-
-    if (msg.text) formData.append("question", msg.text);
-
-    if (selectedFile?.community_filter) {
-      formData.append("communities", selectedCommunities as any);
-    }
-
-    if (msg.audio) formData.append("audio", new File([msg.audio], "audio.webm"));
-
-    fetchData(formData);
-  };
-
-  useEffect(() => {
-    if (data) {
-      setMessages((msgs) => [...msgs, { from: "nia", text: (data as any).answer }]);
-      setTimeout(() => scrollLastUserToTop(), 50);
-    }
-  }, [data]);
-
   const sendMessage = () => {
-    if (!input.trim()) return;
-    addUserAndNIAResponse({ from: "user", text: input });
+    const trimmedInput = input.trim();
+    if (!trimmedInput || hasPendingExchange || !currentFileName) return;
+
+    dispatch(
+      submitNiaQuestion({
+        fileName: currentFileName,
+        question: trimmedInput,
+        selectedCommunitiesSnapshot: selectedCommunities || [],
+        communityFilter: !!selectedFile?.community_filter,
+      }) as any
+    );
+
     setInput("");
   };
 
-  // Request TTS once, cache, then replay
   const handleAudio = useCallback(
-    async (answer: string, idx: number) => {
+    async (answer: string, exchangeId: string) => {
       if (!answer) return;
 
-      const cachedUrl = messages[idx]?.ttsUrl;
+      const cachedUrl = ttsCache[exchangeId];
       if (cachedUrl) {
-        await playUrl(cachedUrl, idx);
+        await playUrl(cachedUrl, exchangeId);
         return;
       }
 
-      if (ttsLoadingIndex !== null) return;
+      if (ttsLoadingExchangeId !== null) return;
 
-      setTtsLoadingIndex(idx);
-      ttsRequestIndexRef.current = idx;
+      setTtsLoadingExchangeId(exchangeId);
+      ttsRequestExchangeIdRef.current = exchangeId;
 
       let plain = "";
       try {
         plain = await markdownToPlainText(answer);
-      } catch (e) {
-        console.error("markdownToPlainText failed:", e);
-        setTtsLoadingIndex(null);
-        ttsRequestIndexRef.current = null;
+      } catch (err) {
+        console.error("markdownToPlainText failed:", err);
+        setTtsLoadingExchangeId(null);
+        ttsRequestExchangeIdRef.current = null;
         return;
       }
 
@@ -388,124 +409,100 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
 
       fetchTTS(fd, undefined, false, { responseType: "arraybuffer" });
     },
-    [fetchTTS, messages, playUrl, ttsLoadingIndex]
+    [fetchTTS, playUrl, ttsCache, ttsLoadingExchangeId]
   );
 
-
-  // When TTS returns, detect mime, cache, and try autoplay (if blocked, user can click again)
   useEffect(() => {
     if (!ttsData) return;
 
-    const idx = ttsRequestIndexRef.current;
-    if (idx === null || idx === undefined) return;
+    const exchangeId = ttsRequestExchangeIdRef.current;
+    if (!exchangeId) return;
 
-    const buf = ttsData;
-
-    if (!(buf instanceof ArrayBuffer) || buf.byteLength === 0) {
+    if (!(ttsData instanceof ArrayBuffer) || ttsData.byteLength === 0) {
       console.warn("TTS returned empty audio buffer");
-      setTtsLoadingIndex(null);
-      ttsRequestIndexRef.current = null;
+      setTtsLoadingExchangeId(null);
+      ttsRequestExchangeIdRef.current = null;
       return;
     }
 
-    const mime = detectAudioMime(buf);
-    const blob = new Blob([buf], { type: mime });
+    const mime = detectAudioMime(ttsData);
+    const blob = new Blob([ttsData], { type: mime });
     const url = URL.createObjectURL(blob);
 
-    // Cache into the message
-    setMessages((prev) =>
-      prev.map((m, i) => (i === idx ? { ...m, ttsUrl: url } : m))
-    );
+    setTtsCache((prev) => {
+      const next = { ...prev, [exchangeId]: url };
+      ttsCacheRef.current = next;
+      return next;
+    });
 
-    // Try autoplay; if blocked, user clicks again to play (now cached)
-    (async () => {
-      await playUrl(url, idx);
-    })();
+    void playUrl(url, exchangeId);
 
-    setTtsLoadingIndex(null);
-    ttsRequestIndexRef.current = null;
-  }, [ttsData, playUrl]);
+    setTtsLoadingExchangeId(null);
+    ttsRequestExchangeIdRef.current = null;
+  }, [playUrl, ttsData]);
 
   useEffect(() => {
     if (!ttsError) return;
     console.error("TTS error:", ttsError);
-    setTtsLoadingIndex(null);
-    ttsRequestIndexRef.current = null;
+    setTtsLoadingExchangeId(null);
+    ttsRequestExchangeIdRef.current = null;
   }, [ttsError]);
-
-  // Cleanup object URLs on close/unmount
-  const revokeAllTtsUrls = useCallback((list: Message[]) => {
-    list.forEach((m) => {
-      if (m.ttsUrl) {
-        try {
-          URL.revokeObjectURL(m.ttsUrl);
-        } catch { }
-      }
-    });
-  }, []);
 
   useEffect(() => {
     return () => {
       stopTTS();
-      revokeAllTtsUrls(messages);
+      revokeAllTtsUrls(ttsCacheRef.current);
+      ttsCacheRef.current = {};
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [revokeAllTtsUrls, stopTTS]);
 
   const renderedMessages = useMemo(
     () =>
-      messages.map((msg, idx) => {
-        const isUser = msg.from === "user";
-        const showAudioControls = !!msg.text && !isUser;
-
-        const isThisLoading = ttsLoadingIndex === idx;
-        const isThisPlaying = ttsPlayingIndex === idx;
+      exchanges.map((exchange) => {
+        const showAudioControls = exchange.status === "completed" && !!exchange.answer;
+        const isThisLoading = ttsLoadingExchangeId === exchange.id;
+        const isThisPlaying = ttsPlayingExchangeId === exchange.id;
 
         return (
           <div
-            key={idx}
-            ref={(el) => {
-              if (el) messageRefs.current.set(idx, el);
-            }}
+            key={exchange.id}
             style={{
               display: "flex",
               flexDirection: "column",
-              alignItems: isUser ? "flex-end" : "flex-start",
-              gap: 6,
+              gap: 14,
               maxWidth: "100%",
             }}
           >
             <div
               style={{
-                fontSize: 12,
-                fontWeight: 900,
-                color: isUser ? color_text_light : color_secondary,
-                paddingLeft: isUser ? 0 : 4,
-                paddingRight: isUser ? 4 : 0,
-                textTransform: "uppercase",
-                letterSpacing: 0.6,
-              }}
-            >
-              {isUser ? "YOU" : "NIA ASSISTANT"}
-            </div>
-
-            <div
-              style={{
                 display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-                maxWidth: isUser ? "78%" : "82%",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: 6,
+                maxWidth: "100%",
               }}
             >
               <div
                 style={{
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: color_text_light,
+                  paddingRight: 4,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                }}
+              >
+                YOU
+              </div>
+
+              <div
+                style={{
+                  maxWidth: "78%",
                   padding: "12px 14px",
                   borderRadius: 14,
-                  background: isUser ? color_secondary : color_white,
-                  color: isUser ? color_white : color_black_light,
-                  border: isUser
-                    ? `1px solid ${color_secondary_dark}`
-                    : `1px solid ${color_border}`,
+                  background: color_secondary,
+                  color: color_white,
+                  border: `1px solid ${color_secondary_dark}`,
                   boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
                   lineHeight: 1.35,
                   fontWeight: 700,
@@ -513,30 +510,96 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
                 }}
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                  {msg.text || ""}
+                  {exchange.question || ""}
                 </ReactMarkdown>
               </div>
+            </div>
 
-              {showAudioControls && (
-                <div style={{ display: "flex", alignItems: "center", paddingTop: 6 }}>
-                  {isThisLoading ? (
-                    <TinySpinner />
-                  ) : isThisPlaying ? (
-                    <PauseIcon style={{ cursor: "pointer" }} onClick={stopTTS} />
-                  ) : (
-                    <VolumeUpIcon
-                      style={{ cursor: "pointer" }}
-                      onClick={() => handleAudio(msg.text || "", idx)}
-                    />
-                  )}
-                </div>
-              )}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: 6,
+                maxWidth: "100%",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: color_secondary,
+                  paddingLeft: 4,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                }}
+              >
+                NIA ASSISTANT
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  maxWidth: "82%",
+                }}
+              >
+                {exchange.status === "pending" ? (
+                  <ThinkingBubble />
+                ) : (
+                  <div
+                    role={exchange.status === "error" ? "alert" : undefined}
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 14,
+                      background:
+                        exchange.status === "error" ? "#fff1f1" : color_white,
+                      color:
+                        exchange.status === "error" ? color_primary_dark : color_black_light,
+                      border:
+                        exchange.status === "error"
+                          ? `1px solid rgba(185, 28, 28, 0.22)`
+                          : `1px solid ${color_border}`,
+                      boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
+                      lineHeight: 1.35,
+                      fontWeight: 700,
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                      {exchange.status === "error"
+                        ? exchange.errorMessage || "Something went wrong. Please try again later!"
+                        : exchange.answer || ""}
+                    </ReactMarkdown>
+                  </div>
+                )}
+
+                {showAudioControls && (
+                  <div style={{ display: "flex", alignItems: "center", paddingTop: 6 }}>
+                    {isThisLoading ? (
+                      <TinySpinner />
+                    ) : isThisPlaying ? (
+                      <PauseIcon style={{ cursor: "pointer" }} onClick={stopTTS} />
+                    ) : (
+                      <VolumeUpIcon
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleAudio(exchange.answer || "", exchange.id)}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
       }),
-    [messages, ttsLoadingIndex, ttsPlayingIndex, handleAudio, stopTTS]
+    [exchanges, handleAudio, stopTTS, ttsLoadingExchangeId, ttsPlayingExchangeId]
   );
+
+  if (!open) {
+    return null;
+  }
 
   return (
     <>
@@ -544,254 +607,276 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
         @keyframes niaSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
 
-      {open && (
+      <div
+        style={{
+          position: "fixed",
+          top: minimized ? "auto" : isMobile ? "0" : fullscreen ? "0" : "8px",
+          right: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
+          left: minimized ? "auto" : isMobile ? "0" : fullscreen ? "0" : "auto",
+          bottom: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
+          width: minimized ? "100px" : isMobile ? "100%" : fullscreen ? "100%" : "50%",
+          height: minimized ? "60px" : isMobile ? "100%" : fullscreen ? "100%" : "auto",
+          borderRadius: 14,
+          background: color_white_smoke,
+          border: `1px solid ${color_border}`,
+          display: "flex",
+          flexDirection: "column",
+          zIndex: 10000,
+          overflow: "hidden",
+          boxShadow: "0 18px 50px rgba(0,0,0,0.18)",
+        }}
+      >
         <div
           style={{
-            position: "fixed",
-            top: minimized ? "auto" : isMobile ? "0" : fullscreen ? "0" : "8px",
-            right: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
-            left: minimized ? "auto" : isMobile ? "0" : fullscreen ? "0" : "auto",
-            bottom: minimized ? "20px" : isMobile ? "0" : fullscreen ? "0" : "8px",
-            width: minimized ? "100px" : isMobile ? "100%" : fullscreen ? "100%" : "50%",
-            height: minimized ? "60px" : isMobile ? "100%" : fullscreen ? "100%" : "auto",
-            borderRadius: 14,
-            background: color_white_smoke,
-            border: `1px solid ${color_border}`,
+            padding: minimized ? "10px 12px" : "14px 16px",
+            background: color_secondary,
+            color: color_white,
             display: "flex",
-            flexDirection: "column",
-            zIndex: 10000,
-            overflow: "hidden",
-            boxShadow: "0 18px 50px rgba(0,0,0,0.18)",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontWeight: 900,
+            borderBottom: `1px solid ${color_secondary_dark}`,
           }}
         >
-          <Loader loading={loading} />
-
-          <div
-            style={{
-              padding: minimized ? "10px 12px" : "14px 16px",
-              background: color_secondary,
-              color: color_white,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontWeight: 900,
-              borderBottom: `1px solid ${color_secondary_dark}`,
-            }}
-          >
-            {!minimized && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
-                      background: color_white,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: color_secondary,
-                      border: `1px solid ${color_border}`,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Bot size={18} />
-                  </div>
-                  <div style={{ fontSize: 18, letterSpacing: 0.2 }}>NIA ASSISTANT</div>
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {!isMobile && !minimized && (
-                <button
-                  onClick={() => setFullscreen((prev) => !prev)}
+          {!minimized && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div
                   style={{
-                    background: "transparent",
-                    border: "none",
-                    color: color_white,
-                    cursor: "pointer",
-                    fontSize: "1.2rem",
-                    fontWeight: 900,
-                    lineHeight: 1,
-                    padding: 6,
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: color_white,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: color_secondary,
+                    border: `1px solid ${color_border}`,
+                    flexShrink: 0,
                   }}
-                  aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
                 >
-                  {fullscreen ? "🗗" : "🗖"}
-                </button>
-              )}
+                  <Bot size={18} />
+                </div>
+                <div style={{ fontSize: 18, letterSpacing: 0.2 }}>NIA ASSISTANT</div>
+              </div>
+            </div>
+          )}
 
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {!isMobile && !minimized && (
               <button
-                onClick={() => setMinimized((prev) => !prev)}
+                onClick={() => setFullscreen((prev) => !prev)}
                 style={{
                   background: "transparent",
                   border: "none",
                   color: color_white,
                   cursor: "pointer",
-                  fontSize: "1.2rem",
+                  fontSize: "0.85rem",
                   fontWeight: 900,
                   lineHeight: 1,
                   padding: 6,
                 }}
-                aria-label={minimized ? "Restore" : "Minimize"}
+                aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
               >
-                {minimized ? "🔼" : "—"}
+                {fullscreen ? "FS-" : "FS+"}
               </button>
+            )}
 
-              <X
-                onClick={() => {
-                  stopTTS();
-                  setMessages((prev) => {
-                    revokeAllTtsUrls(prev);
-                    return prev.map((m) => ({ ...m, ttsUrl: undefined }));
-                  });
-                  setOpen(false);
-                }}
-                style={{ cursor: "pointer" }}
-              />
+            <button
+              onClick={() => setMinimized((prev) => !prev)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: color_white,
+                cursor: "pointer",
+                fontSize: "1rem",
+                fontWeight: 900,
+                lineHeight: 1,
+                padding: 6,
+              }}
+              aria-label={minimized ? "Restore" : "Minimize"}
+            >
+              {minimized ? "^" : "_"}
+            </button>
+
+            <X
+              onClick={() => {
+                stopTTS();
+                clearTtsCache();
+                setOpen(false);
+              }}
+              style={{ cursor: "pointer" }}
+            />
+          </div>
+        </div>
+
+        <div
+          ref={messagesContainerRef}
+          style={{
+            flex: 1,
+            padding: "16px",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+            background: color_white_smoke,
+          }}
+        >
+          {renderedMessages.length > 0 ? (
+            renderedMessages
+          ) : (
+            <div
+              style={{
+                padding: "14px 16px",
+                borderRadius: 14,
+                border: `1px solid ${color_border}`,
+                background: color_white,
+                color: color_text_light,
+                fontWeight: 700,
+              }}
+            >
+              Ask NIA a question about the selected file to start the conversation.
             </div>
-          </div>
+          )}
+        </div>
 
-          <div
-            ref={messagesContainerRef}
-            style={{
-              flex: 1,
-              padding: "16px",
-              overflowY: "auto",
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-              background: color_white_smoke,
-            }}
-          >
-            {renderedMessages}
-          </div>
+        <div
+          style={{
+            padding: "14px 14px 12px",
+            background: color_white,
+            borderTop: `2px solid ${color_secondary}`,
+          }}
+        >
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={recordingState === "recording" ? "Listening..." : "Type your message here..."}
+              rows={1}
+              style={{
+                flex: 1,
+                minHeight: 56,
+                maxHeight: MAX_TEXTAREA_HEIGHT,
+                padding: "12px 16px",
+                borderRadius: 12,
+                border: `2px solid ${color_border}`,
+                outline: "none",
+                fontSize: 16,
+                lineHeight: `${LINE_HEIGHT_PX}px`,
+                background: color_white,
+                color: color_black_light,
+                fontWeight: 800,
+                resize: "none",
+                overflowY: "auto",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+            />
 
-          <div
-            style={{
-              padding: "14px 14px 12px",
-              background: color_white,
-              borderTop: `2px solid ${color_secondary}`,
-            }}
-          >
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={recordingState === "recording" ? "🎙️ Listening..." : "Type your message here..."}
-                rows={1}
-                style={{
-                  flex: 1,
-                  minHeight: 56,
-                  maxHeight: MAX_TEXTAREA_HEIGHT,
-                  padding: "12px 16px",
-                  borderRadius: 12,
-                  border: `2px solid ${color_border}`,
-                  outline: "none",
-                  fontSize: 16,
-                  lineHeight: `${LINE_HEIGHT_PX}px`,
-                  background: color_white,
-                  color: color_black_light,
-                  fontWeight: 800,
-                  resize: "none",
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-              />
+            <button
+              onClick={sendMessage}
+              disabled={hasPendingExchange || !input.trim() || !currentFileName}
+              style={{
+                width: 52,
+                height: 48,
+                borderRadius: 10,
+                background: color_secondary,
+                border: `1px solid ${color_secondary_dark}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: color_white,
+                cursor:
+                  hasPendingExchange || !input.trim() || !currentFileName
+                    ? "not-allowed"
+                    : "pointer",
+                opacity:
+                  hasPendingExchange || !input.trim() || !currentFileName
+                    ? 0.6
+                    : 1,
+              }}
+              aria-label="Send message"
+            >
+              <Send size={18} />
+            </button>
 
-
+            {recordingState === "idle" ? (
               <button
-                onClick={sendMessage}
+                onClick={startAudioRecording}
+                disabled={hasPendingExchange}
                 style={{
                   width: 52,
                   height: 48,
                   borderRadius: 10,
-                  background: color_secondary,
-                  border: `1px solid ${color_secondary_dark}`,
+                  background: color_black_light,
+                  border: `1px solid ${color_black}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: color_white,
+                  cursor: hasPendingExchange ? "not-allowed" : "pointer",
+                  opacity: hasPendingExchange ? 0.6 : 1,
+                }}
+                aria-label="Start voice input"
+              >
+                <Mic size={18} />
+              </button>
+            ) : (
+              <button
+                onClick={stopAudioRecording}
+                style={{
+                  width: 52,
+                  height: 48,
+                  borderRadius: 10,
+                  background: color_primary,
+                  border: `1px solid ${color_primary_dark}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   color: color_white,
                   cursor: "pointer",
-                }}
-                aria-label="Send message"
-              >
-                <Send size={18} />
-              </button>
-
-              {recordingState === "idle" ? (
-                <button
-                  onClick={startAudioRecording}
-                  style={{
-                    width: 52,
-                    height: 48,
-                    borderRadius: 10,
-                    background: color_black_light,
-                    border: `1px solid ${color_black}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: color_white,
-                    cursor: "pointer",
-                  }}
-                  aria-label="Start voice input"
-                >
-                  <Mic size={18} />
-                </button>
-              ) : (
-                <button
-                  onClick={stopAudioRecording}
-                  style={{
-                    width: 52,
-                    height: 48,
-                    borderRadius: 10,
-                    background: color_primary,
-                    border: `1px solid ${color_primary_dark}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: color_white,
-                    cursor: "pointer",
-                    fontWeight: 900,
-                  }}
-                  aria-label="Stop voice input"
-                >
-                  ⏹
-                </button>
-              )}
-            </div>
-
-            {!minimized && (
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
+                  fontWeight: 900,
                   fontSize: 12,
-                  color: color_text_light,
-                  fontWeight: 800,
                 }}
+                aria-label="Stop voice input"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: color_secondary, fontWeight: 900 }}>i</span>
-                  <span>Tip: Tap the microphone to talk to NIA</span>
-                </div>
-              </div>
+                STOP
+              </button>
             )}
           </div>
+
+          {!minimized && (
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                fontSize: 12,
+                color: color_text_light,
+                fontWeight: 800,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: color_secondary, fontWeight: 900 }}>i</span>
+                <span>
+                  {hasPendingExchange
+                    ? "NIA is preparing your answer. You can keep using the page."
+                    : "Tip: Tap the microphone to talk to NIA"}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </>
   );
 }
