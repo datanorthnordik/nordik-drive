@@ -87,6 +87,7 @@ describe("TopControlsBar", () => {
     fontSize: 16,
     onZoomChange: jest.fn(),
     setNiaOpen: jest.fn(),
+    niaUnreadCount: 0,
     ...overrides,
   });
 

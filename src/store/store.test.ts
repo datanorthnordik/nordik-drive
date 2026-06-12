@@ -6,12 +6,13 @@ import { setSelectedFile, clearSelectedFile } from "./auth/fileSlice";
 import { setRoles, clearRoles } from "./auth/roleSlice";
 
 describe("Redux store", () => {
-  test("store should have auth/file/role keys mounted", () => {
+  test("store should have auth/file/role/niaChat keys mounted", () => {
     const state = store.getState();
 
     expect(state).toHaveProperty("auth");
     expect(state).toHaveProperty("file");
     expect(state).toHaveProperty("role");
+    expect(state).toHaveProperty("niaChat");
   });
 
   test("dispatch auth actions updates auth state", () => {

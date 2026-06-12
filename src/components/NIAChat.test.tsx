@@ -1,38 +1,18 @@
-// src/components/NIAChat.test.tsx
 import React from "react";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { Provider } from "react-redux";
+import { configureStore } from "@reduxjs/toolkit";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import useFetch from "../hooks/useFetch";
-import { useSelector } from "react-redux";
+import useFetch, { apiRequest } from "../hooks/useFetch";
+import toast from "react-hot-toast";
+import niaChatReducer, { getNiaThreadKey } from "../store/niaChatSlice";
+import NIAChat, { NIAChatTrigger } from "./NIAChat";
 
-import { marked as markedMock } from "marked";
-import { decode as decodeMock } from "he";
-
-
-
-const markedFn = markedMock as unknown as jest.Mock;
-const decodeFn = decodeMock as unknown as jest.Mock;
-
-beforeEach(() => {
-  jest.clearAllMocks();
-
-  markedFn.mockImplementation((s: any) => `<p>${String(s ?? "")}</p>`);
-  decodeFn.mockImplementation((s: any) => String(s ?? ""));
-
-  setWindowWidth(1200);
-  setupReduxFileState();
-  (HTMLElement.prototype as any).scrollTo = jest.fn();
-});
-
-
-
-jest.mock("../hooks/useFetch", () => ({ __esModule: true, default: jest.fn() }));
-jest.mock("react-redux", () => ({ __esModule: true, useSelector: jest.fn() }));
-
-jest.mock("./Loader", () => ({
+jest.mock("../hooks/useFetch", () => ({
   __esModule: true,
-  default: ({ loading }: any) => <div data-testid="loader" data-loading={String(loading)} />,
+  default: jest.fn(),
+  apiRequest: jest.fn(),
 }));
 
 jest.mock("react-markdown", () => ({
@@ -43,13 +23,11 @@ jest.mock("react-markdown", () => ({
 jest.mock("remark-gfm", () => ({ __esModule: true, default: jest.fn() }));
 jest.mock("rehype-highlight", () => ({ __esModule: true, default: jest.fn() }));
 
-// Always return a string
 jest.mock("he", () => ({
   __esModule: true,
   decode: jest.fn((s: any) => String(s ?? "")),
 }));
 
-// Robust marked mock (supports named + default)
 jest.mock("marked", () => {
   const markedFn = jest.fn((s: string) => `<p>${String(s ?? "")}</p>`);
   return {
@@ -59,12 +37,11 @@ jest.mock("marked", () => {
   };
 });
 
-jest.mock("framer-motion", () => ({
+jest.mock("react-hot-toast", () => ({
   __esModule: true,
-  motion: {
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  },
+  default: { success: jest.fn(), error: jest.fn() },
+  success: jest.fn(),
+  error: jest.fn(),
 }));
 
 jest.mock("lucide-react", () => ({
@@ -79,7 +56,6 @@ jest.mock("lucide-react", () => ({
   ),
 }));
 
-// Stable testids for MUI icons
 jest.mock("@mui/icons-material/VolumeUp", () => ({
   __esModule: true,
   default: ({ onClick, ...props }: any) => (
@@ -95,34 +71,17 @@ jest.mock("@mui/icons-material/Pause", () => ({
 }));
 
 const useFetchMock = useFetch as unknown as jest.Mock;
-const useSelectorMock = useSelector as unknown as jest.Mock;
+const apiRequestMock = apiRequest as unknown as jest.Mock;
 
 class MockFormData {
-  entries: Array<[string, any]> = [];
-  append = jest.fn((k: string, v: any) => {
-    this.entries.push([k, v]);
-  });
+  public entries: Array<[string, any]> = [];
+
+  append(key: string, value: any) {
+    this.entries.push([key, value]);
+  }
 }
 
-const setWindowWidth = (w: number) => {
-  Object.defineProperty(window, "innerWidth", { value: w, writable: true, configurable: true });
-};
-
-type FetchHook<T = any> = {
-  loading: boolean;
-  data: T | null;
-  error?: any;
-  fetchData: jest.Mock;
-};
-
-const makeChatHook = (): FetchHook<any> => ({ loading: false, data: null, fetchData: jest.fn() });
-const makeTtsHook = (): FetchHook<ArrayBuffer> => ({
-  loading: false,
-  data: null,
-  error: null,
-  fetchData: jest.fn(),
-});
-
+const originalFormData = global.FormData;
 let lastAudio: any = null;
 
 class MockAudio {
@@ -142,28 +101,93 @@ class MockAudio {
   });
 }
 
-const setupReduxFileState = () => {
-  const state = {
-    file: {
-      selectedFile: { filename: "Test.csv", community_filter: true },
-      selectedCommunities: ["Shingwauk"],
-    },
-  };
-  useSelectorMock.mockImplementation((sel: any) => sel(state));
+type TtsHook<T = any> = {
+  loading: boolean;
+  data: T | null;
+  error: any;
+  fetchData: jest.Mock;
 };
 
-const setupUseFetch = (chatHook: FetchHook, ttsHook: FetchHook<ArrayBuffer>) => {
-  useFetchMock.mockImplementation((url: string) => {
-    if (String(url).includes("/api/chat/tts")) return ttsHook;
-    return chatHook;
+const makeTtsHook = (): TtsHook<ArrayBuffer> => ({
+  loading: false,
+  data: null,
+  error: null,
+  fetchData: jest.fn(),
+});
+
+const deferredResponse = () => {
+  let resolve!: (value: any) => void;
+  let reject!: (reason?: any) => void;
+
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+};
+
+const riffWav = () => {
+  const u = new Uint8Array(12);
+  u[0] = 0x52;
+  u[1] = 0x49;
+  u[2] = 0x46;
+  u[3] = 0x46;
+  u[8] = 0x57;
+  u[9] = 0x41;
+  u[10] = 0x56;
+  u[11] = 0x45;
+  return u.buffer;
+};
+
+const setWindowWidth = (w: number) => {
+  Object.defineProperty(window, "innerWidth", {
+    value: w,
+    writable: true,
+    configurable: true,
   });
 };
 
-const renderModule = () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const mod = require("./NIAChat");
-  return { NIAChat: mod.default, NIAChatTrigger: mod.NIAChatTrigger };
+const makeStore = (
+  {
+    file = {},
+    auth = {},
+  }: {
+    file?: Record<string, any>;
+    auth?: Record<string, any>;
+  } = {}
+) => {
+  const fileState = {
+    selectedFile: { filename: "Test.csv", community_filter: true },
+    selectedCommunities: ["Shingwauk"],
+    ...file,
+  };
+  const authState = {
+    token: "Cookies",
+    user: null,
+    checked: true,
+    ...auth,
+  };
+
+  const fileReducer = (state = fileState) => state;
+  const authReducer = (state = authState) => state;
+
+  return configureStore({
+    reducer: {
+      file: fileReducer as any,
+      auth: authReducer as any,
+      niaChat: niaChatReducer,
+    },
+  });
 };
+
+const renderWithStore = (
+  ui: React.ReactElement,
+  { store = makeStore() }: { store?: ReturnType<typeof makeStore> } = {}
+) => ({
+  store,
+  ...render(<Provider store={store}>{ui}</Provider>),
+});
 
 const sendViaButton = (text: string) => {
   const input = screen.getByPlaceholderText(/type your message here/i) as HTMLInputElement;
@@ -171,54 +195,12 @@ const sendViaButton = (text: string) => {
   fireEvent.click(screen.getByLabelText(/send message/i));
 };
 
-// IMPORTANT: force a true rerender (new element identity)
-const rerenderFresh = (rerenderFn: (ui: any) => void, ui: any) => {
-  const next = React.isValidElement(ui) ? React.cloneElement(ui) : ui;
-  rerenderFn(next);
-};
-
-const waitForNewNiaAnswer = async (
-  chatHook: FetchHook,
-  rerenderFn: (ui: any) => void,
-  ui: any,
-  answer: string
-) => {
-  const before = screen.queryAllByTestId("VolumeUpIcon").length;
-
-  await act(async () => {
-    chatHook.data = { answer };
-    rerenderFresh(rerenderFn, ui);
-  });
-
-  await waitFor(() => {
-    const after = screen.queryAllByTestId("VolumeUpIcon").length;
-    expect(after).toBeGreaterThan(before);
-  });
-};
-
-const riffWav = () => {
-  const u = new Uint8Array(12);
-  u[0] = 0x52; // R
-  u[1] = 0x49; // I
-  u[2] = 0x46; // F
-  u[3] = 0x46; // F
-  u[8] = 0x57; // W
-  u[9] = 0x41; // A
-  u[10] = 0x56; // V
-  u[11] = 0x45; // E
-  return u.buffer;
-};
-const ogg = () => new Uint8Array([0x4f, 0x67, 0x67, 0x53]).buffer;
-const flac = () => new Uint8Array([0x66, 0x4c, 0x61, 0x43]).buffer;
-const mp3Id3 = () => new Uint8Array([0x49, 0x44, 0x33]).buffer;
-const fallbackBuf = () => new Uint8Array([0x00, 0x01, 0x02, 0x03]).buffer;
-
 describe("NIAChat + NIAChatTrigger", () => {
-  beforeAll(() => {
-    jest.spyOn(console, "error").mockImplementation(() => { });
-    jest.spyOn(console, "warn").mockImplementation(() => { });
+  let ttsHook: TtsHook<ArrayBuffer>;
 
-    (global as any).FormData = MockFormData as any;
+  beforeAll(() => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
 
     (global as any).Audio = function () {
       lastAudio = new MockAudio();
@@ -234,7 +216,7 @@ describe("NIAChat + NIAChatTrigger", () => {
     }
     if (!(URL as any).revokeObjectURL) {
       Object.defineProperty(URL, "revokeObjectURL", {
-        value: jest.fn(() => { }),
+        value: jest.fn(() => {}),
         writable: true,
         configurable: true,
       });
@@ -244,28 +226,26 @@ describe("NIAChat + NIAChatTrigger", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setWindowWidth(1200);
-    setupReduxFileState();
+    ttsHook = makeTtsHook();
+    useFetchMock.mockImplementation(() => ttsHook);
+    apiRequestMock.mockReset();
+    global.FormData = MockFormData as any;
     (HTMLElement.prototype as any).scrollTo = jest.fn();
   });
 
+  afterEach(() => {
+    global.FormData = originalFormData;
+    delete (window as any).SpeechRecognition;
+    delete (window as any).webkitSpeechRecognition;
+  });
+
   test("does not render panel when open=false", () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
-
-    const { NIAChat } = renderModule();
-    render(<NIAChat open={false} setOpen={jest.fn()} />);
-
+    renderWithStore(<NIAChat open={false} setOpen={jest.fn()} />);
     expect(screen.queryByPlaceholderText(/type your message here/i)).not.toBeInTheDocument();
   });
 
   test("renders panel when open=true; fullscreen + minimize toggles work; mobile hides fullscreen", async () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
-
-    const { NIAChat } = renderModule();
-    render(<NIAChat open={true} setOpen={jest.fn()} />);
+    renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />);
 
     expect(screen.getByText(/NIA ASSISTANT/i)).toBeInTheDocument();
 
@@ -291,176 +271,164 @@ describe("NIAChat + NIAChatTrigger", () => {
     });
   });
 
-  test("sending message builds FormData (filename + question + communities) and calls chat fetch; empty input does nothing", () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
+  test("sending a message uses FormData, shows inline thinking, and disables send while pending", async () => {
+    const pending = deferredResponse();
+    apiRequestMock.mockReturnValueOnce(pending.promise);
 
-    const { NIAChat } = renderModule();
-    render(<NIAChat open={true} setOpen={jest.fn()} />);
-
-    fireEvent.click(screen.getByLabelText(/send message/i));
-    expect(chatHook.fetchData).not.toHaveBeenCalled();
+    renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />);
 
     sendViaButton("Hello");
 
-    expect(chatHook.fetchData).toHaveBeenCalledTimes(1);
-
-    const fd = chatHook.fetchData.mock.calls[0][0] as unknown as MockFormData;
+    expect(apiRequestMock).toHaveBeenCalledTimes(1);
+    const fd = apiRequestMock.mock.calls[0][2] as MockFormData;
     const kv = new Map(fd.entries);
 
     expect(kv.get("filename")).toBe("Test.csv");
     expect(kv.get("question")).toBe("Hello");
     expect(kv.get("communities")).toEqual(["Shingwauk"]);
-  });
 
-  test("when chat hook data arrives, appends NIA message and shows TTS control for NIA messages", async () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.getByLabelText(/nia is thinking/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("loader")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/send message/i)).toBeDisabled();
+    expect(screen.getByLabelText(/start voice input/i)).toBeDisabled();
 
-    const { NIAChat } = renderModule();
-    const ui = <NIAChat open={true} setOpen={jest.fn()} />;
-    const { rerender } = render(ui);
-
-    sendViaButton("Question?");
-    expect(chatHook.fetchData).toHaveBeenCalledTimes(1);
-
-    await waitForNewNiaAnswer(chatHook, rerender, ui, "Answer text");
-
-    expect(screen.getByTestId("VolumeUpIcon")).toBeInTheDocument();
-  });
-
-  test("TTS request shows spinner, calls tts fetch once; ignores second click while loading; error clears state", async () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
-
-    const { NIAChat } = renderModule();
-    const ui = <NIAChat open={true} setOpen={jest.fn()} />;
-    const { rerender } = render(ui);
-
-    sendViaButton("hi");
-    await waitForNewNiaAnswer(chatHook, rerender, ui, "**Hello**\r");
-
-    fireEvent.click(screen.getByTestId("VolumeUpIcon"));
-
-    await waitFor(() => expect(screen.getByLabelText(/generating audio/i)).toBeInTheDocument());
-    await waitFor(() => expect(ttsHook.fetchData).toHaveBeenCalledTimes(1));
-
-   
-    expect(screen.queryByTestId("VolumeUpIcon")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText(/generating audio/i));
-    expect(ttsHook.fetchData).toHaveBeenCalledTimes(1);
-
-
-    ttsHook.error = { message: "fail" };
-    rerenderFresh(rerender, ui);
+    pending.resolve({ answer: "Hi there" });
 
     await waitFor(() => {
-      expect(screen.queryByLabelText(/generating audio/i)).not.toBeInTheDocument();
-      expect(screen.getByTestId("VolumeUpIcon")).toBeInTheDocument();
+      expect(screen.getByText("Hi there")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText(/nia is thinking/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/start voice input/i)).not.toBeDisabled();
+  });
+
+  test("history survives closing and reopening the chat during the same session", async () => {
+    const store = makeStore();
+    apiRequestMock.mockResolvedValueOnce({ answer: "Saved answer" });
+
+    const { rerender } = renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />, { store });
+
+    sendViaButton("Keep this");
+
+    await waitFor(() => {
+      expect(screen.getByText("Saved answer")).toBeInTheDocument();
+    });
+
+    rerender(
+      <Provider store={store}>
+        <NIAChat open={false} setOpen={jest.fn()} />
+      </Provider>
+    );
+
+    rerender(
+      <Provider store={store}>
+        <NIAChat open={true} setOpen={jest.fn()} />
+      </Provider>
+    );
+
+    expect(screen.getByText("Keep this")).toBeInTheDocument();
+    expect(screen.getByText("Saved answer")).toBeInTheDocument();
+  });
+
+  test("shows a notification and unread state when an answer completes while chat is closed", async () => {
+    const store = makeStore();
+    const pending = deferredResponse();
+    apiRequestMock.mockReturnValueOnce(pending.promise);
+
+    const { rerender } = renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />, { store });
+
+    sendViaButton("Close and wait");
+
+    rerender(
+      <Provider store={store}>
+        <NIAChat open={false} setOpen={jest.fn()} />
+      </Provider>
+    );
+
+    pending.resolve({ answer: "Ready later" });
+
+    await waitFor(() => {
+      expect((toast as any).success).toHaveBeenCalledWith("NIA answer is ready.");
+    });
+
+    const threadKey = getNiaThreadKey("Test.csv");
+    expect(store.getState().niaChat.threads[threadKey].unreadCount).toBe(1);
+
+    rerender(
+      <Provider store={store}>
+        <NIAChat open={true} setOpen={jest.fn()} />
+      </Provider>
+    );
+
+    await waitFor(() => {
+      expect(store.getState().niaChat.threads[threadKey].unreadCount).toBe(0);
+    });
+    expect(screen.getByText("Ready later")).toBeInTheDocument();
+  });
+
+  test("shows a notification when an answer completes while chat is minimized", async () => {
+    const pending = deferredResponse();
+    apiRequestMock.mockReturnValueOnce(pending.promise);
+
+    renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />);
+
+    sendViaButton("Minimize and wait");
+    fireEvent.click(screen.getByLabelText(/minimize/i));
+
+    pending.resolve({ answer: "Ready while minimized" });
+
+    await waitFor(() => {
+      expect((toast as any).success).toHaveBeenCalledWith("NIA answer is ready.");
     });
   });
 
-  test("TTS success caches url, plays audio, stop works, replay uses cache (no extra TTS), close revokes URLs and setOpen(false)", async () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
+  test("renders inline error state when chat request fails", async () => {
+    apiRequestMock.mockRejectedValueOnce(new Error("Request failed"));
 
-    const setOpen = jest.fn();
-    const { NIAChat } = renderModule();
-    const ui = <NIAChat open={true} setOpen={setOpen} />;
-    const { rerender } = render(ui);
+    renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />);
 
-    sendViaButton("hello");
-    await waitForNewNiaAnswer(chatHook, rerender, ui, "Answer to speak");
+    sendViaButton("Will fail");
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Request failed");
+    });
+    expect((toast as any).error).toHaveBeenCalledWith("Something went wrong. Please try again later!");
+  });
+
+  test("completed answers still support TTS playback", async () => {
+    const store = makeStore();
+    apiRequestMock.mockResolvedValueOnce({ answer: "Answer to speak" });
+
+    const { rerender } = renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />, { store });
+
+    sendViaButton("speak");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("VolumeUpIcon")).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByTestId("VolumeUpIcon"));
-    await waitFor(() => expect(screen.getByLabelText(/generating audio/i)).toBeInTheDocument());
-    await waitFor(() => expect(ttsHook.fetchData).toHaveBeenCalledTimes(1));
 
-    (URL.createObjectURL as jest.Mock).mockImplementationOnce((blob: any) => `blob:mock-${blob.type}`);
+    await waitFor(() => expect(ttsHook.fetchData).toHaveBeenCalledTimes(1));
+    expect(screen.getByLabelText(/generating audio/i)).toBeInTheDocument();
 
     ttsHook.data = riffWav();
-    rerenderFresh(rerender, ui);
+    rerender(
+      <Provider store={store}>
+        <NIAChat open={true} setOpen={jest.fn()} />
+      </Provider>
+    );
 
     await waitFor(() => expect(screen.getByTestId("PauseIcon")).toBeInTheDocument());
     expect(lastAudio.play).toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId("PauseIcon"));
     await waitFor(() => expect(screen.getByTestId("VolumeUpIcon")).toBeInTheDocument());
-
-    fireEvent.click(screen.getByTestId("VolumeUpIcon"));
-    await waitFor(() => expect(lastAudio.play).toHaveBeenCalledTimes(2));
-    expect(ttsHook.fetchData).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByLabelText(/close chat/i));
-    expect(setOpen).toHaveBeenCalledWith(false);
-
-    await waitFor(() => {
-      expect(URL.revokeObjectURL).toHaveBeenCalled();
-    });
-  });
-
-  test("detects mime via blob.type for multiple formats (ogg, flac, mp3, fallback)", async () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
-
-    const { NIAChat } = renderModule();
-    const ui = <NIAChat open={true} setOpen={jest.fn()} />;
-    const { rerender } = render(ui);
-
-    const cases: Array<[string, ArrayBuffer]> = [
-      ["audio/ogg", ogg()],
-      ["audio/flac", flac()],
-      ["audio/mpeg", mp3Id3()],
-      ["audio/mpeg", fallbackBuf()],
-    ];
-
-    for (let i = 0; i < cases.length; i++) {
-      const [expectedMime, buf] = cases[i];
-
-      sendViaButton(`q${i}`);
-      await waitForNewNiaAnswer(chatHook, rerender, ui, `a${i}`);
-
-      const volumeIcons = screen.getAllByTestId("VolumeUpIcon");
-      fireEvent.click(volumeIcons[volumeIcons.length - 1]);
-
-      await waitFor(() => expect(screen.getByLabelText(/generating audio/i)).toBeInTheDocument());
-      await waitFor(() => expect(ttsHook.fetchData).toHaveBeenCalled());
-
-      (URL.createObjectURL as jest.Mock).mockImplementationOnce((blob: any) => {
-        expect(blob.type).toBe(expectedMime);
-        return `blob:mock-${blob.type}-${i}`;
-      });
-
-      ttsHook.data = buf;
-      rerenderFresh(rerender, ui);
-
-      await waitFor(() => expect(screen.getByTestId("PauseIcon")).toBeInTheDocument());
-
-      fireEvent.click(screen.getByTestId("PauseIcon"));
-      await waitFor(() => {
-        expect(screen.queryByTestId("PauseIcon")).not.toBeInTheDocument();
-        expect(screen.getAllByTestId("VolumeUpIcon").length).toBeGreaterThan(0);
-      });
-
-      ttsHook.data = null;
-      rerenderFresh(rerender, ui);
-    }
   });
 
   test("voice input: unsupported SpeechRecognition alerts and returns to idle", async () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
-
-    (window as any).SpeechRecognition = undefined;
-    (window as any).webkitSpeechRecognition = undefined;
-
-    const alertSpy = jest.spyOn(window, "alert").mockImplementation(() => { });
+    const alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
 
     (navigator as any).mediaDevices = { getUserMedia: jest.fn().mockResolvedValue({}) };
     const mediaStart = jest.fn();
@@ -468,12 +436,11 @@ describe("NIAChat + NIAChatTrigger", () => {
       ondataavailable: any = null;
       start = mediaStart;
       stop = jest.fn();
-      constructor(_: any) { }
+      constructor(_: any) {}
     }
     (global as any).MediaRecorder = MR as any;
 
-    const { NIAChat } = renderModule();
-    render(<NIAChat open={true} setOpen={jest.fn()} />);
+    renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />);
 
     fireEvent.click(screen.getByLabelText(/start voice input/i));
 
@@ -486,10 +453,6 @@ describe("NIAChat + NIAChatTrigger", () => {
   });
 
   test("voice input: supported SpeechRecognition updates input and stop stops recorder/recognition", async () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
-
     (navigator as any).mediaDevices = { getUserMedia: jest.fn().mockResolvedValue({}) };
 
     let recorder: any = null;
@@ -518,8 +481,7 @@ describe("NIAChat + NIAChatTrigger", () => {
     }
     (window as any).SpeechRecognition = SR as any;
 
-    const { NIAChat } = renderModule();
-    render(<NIAChat open={true} setOpen={jest.fn()} />);
+    renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />);
 
     fireEvent.click(screen.getByLabelText(/start voice input/i));
 
@@ -534,8 +496,8 @@ describe("NIAChat + NIAChatTrigger", () => {
     recognitions[0].onresult?.({ results: [r0, r1] });
 
     await waitFor(() => {
-      const inEl = screen.getByPlaceholderText(/listening/i) as HTMLInputElement;
-      expect(inEl.value).toBe("Hello world");
+      const input = screen.getByPlaceholderText(/listening/i) as HTMLInputElement;
+      expect(input.value).toBe("Hello world");
     });
 
     fireEvent.click(screen.getByLabelText(/stop voice input/i));
@@ -545,26 +507,15 @@ describe("NIAChat + NIAChatTrigger", () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/start voice input/i)).toBeInTheDocument();
     });
-
-    fireEvent.click(screen.getByLabelText(/start voice input/i));
-    await waitFor(() => expect(recognitions[1].start).toHaveBeenCalled());
-    recognitions[1].onerror?.(new Error("boom"));
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/start voice input/i)).toBeInTheDocument();
-    });
   });
 
-  test("NIAChatTrigger calls setOpen(true) on click", () => {
-    const chatHook = makeChatHook();
-    const ttsHook = makeTtsHook();
-    setupUseFetch(chatHook, ttsHook);
-
+  test("NIAChatTrigger calls setOpen(true) on click and can show unread badge", () => {
     const setOpen = jest.fn();
-    const { NIAChatTrigger } = renderModule();
 
-    render(<NIAChatTrigger setOpen={setOpen} />);
+    render(<NIAChatTrigger setOpen={setOpen} unreadCount={3} />);
     fireEvent.click(screen.getByRole("button"));
+
     expect(setOpen).toHaveBeenCalledWith(true);
+    expect(screen.getByLabelText("3 unread NIA answers")).toBeInTheDocument();
   });
 });

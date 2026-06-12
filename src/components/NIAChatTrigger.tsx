@@ -31,7 +31,13 @@ const triggerGlow = keyframes`
   }
 `;
 
-export default function NIAChatTrigger({ setOpen }: { setOpen: (v: boolean) => void }) {
+export default function NIAChatTrigger({
+  setOpen,
+  unreadCount = 0,
+}: {
+  setOpen: (v: boolean) => void;
+  unreadCount?: number;
+}) {
   return (
     <Box
       component="button"
@@ -97,6 +103,32 @@ export default function NIAChatTrigger({ setOpen }: { setOpen: (v: boolean) => v
           opacity: 0.9,
         }}
       />
+      {unreadCount > 0 && (
+        <Box
+          component="span"
+          aria-label={`${unreadCount} unread NIA answers`}
+          sx={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            minWidth: 20,
+            height: 20,
+            px: 0.75,
+            borderRadius: 999,
+            background: color_white,
+            color: color_secondary_dark,
+            fontSize: 11,
+            fontWeight: 900,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1,
+            border: `1px solid ${color_secondary_dark}`,
+          }}
+        >
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </Box>
+      )}
     </Box>
   );
 }
