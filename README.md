@@ -44,3 +44,10 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+## API Origin Configuration
+
+The frontend reads the backend origin from a single shared `API_ORIGIN` value.
+
+- Cloud Run / Docker: set `API_ORIGIN` on the service. The container startup script injects it into both Nginx and the React runtime config.
+- Local `npm start`: set `REACT_APP_API_ORIGIN` if you want the dev server to talk to a non-default backend.

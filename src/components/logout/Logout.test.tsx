@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import useFetch from "../../hooks/useFetch";
+import { apiUrl } from "../../config/api";
 import { clearAuth, setChecked } from "../../store/auth/authSlics";
 import { color_secondary } from "../../constants/colors";
 
@@ -115,7 +116,7 @@ describe("Logout", () => {
     render(<Logout />);
 
     expect(useFetchMock).toHaveBeenCalledWith(
-      "https://nordikdriveapi-724838782318.us-west1.run.app/api/user/logout",
+      apiUrl("user/logout"),
       "POST",
       false
     );
