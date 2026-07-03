@@ -343,6 +343,7 @@ jest.mock("lucide-react", () => ({
 
 import { useDispatch, useSelector } from "react-redux";
 import useFetch from "../../hooks/useFetch";
+import { apiUrl } from "../../config/api";
 import { useDescribeEntry } from "../models/DescribeEntry";
 import DataGrid from "./DataTable";
 
@@ -574,8 +575,7 @@ describe("DataGrid", () => {
 
         expect(mockApiEnsure).toHaveBeenCalledWith({
             key: "config_students.csv",
-            url:
-                "https://nordikdriveapi-724838782318.us-west1.run.app/api/config?file_name=students.csv",
+            url: apiUrl("config?file_name=students.csv"),
             method: "GET",
         });
 

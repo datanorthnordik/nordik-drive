@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import useFetch from "../../../hooks/useFetch";
 import toast from "react-hot-toast";
+import { apiUrl } from "../../../config/api";
 
 // ------------------ MUI mocks ------------------
 jest.mock("@mui/material", () => {
@@ -152,10 +153,8 @@ const AccessModal = require("./AccessManagementModal").default;
 
 const useFetchMock = useFetch as unknown as jest.Mock;
 
-const USER_URL =
-  "https://nordikdriveapi-724838782318.us-west1.run.app/api/user";
-const ACCESS_URL =
-  "https://nordikdriveapi-724838782318.us-west1.run.app/api/file/access";
+const USER_URL = apiUrl("user");
+const ACCESS_URL = apiUrl("file/access");
 
 function setupUseFetch(opts?: {
   userData?: any;
