@@ -36,11 +36,7 @@ import Loader from "./Loader";
 import toast from "react-hot-toast";
 import { apiUrl } from "../config/api";
 
-interface UploadedFilesProps {
-  newFile: string;
-}
-
-const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
+const UploadedFiles: React.FC = () => {
   const { files: rows } = useSelector((state: any) => state.file);
   const dispatch = useDispatch<AppDispatch>();
 
@@ -84,13 +80,13 @@ const UploadedFiles: React.FC<UploadedFilesProps> = ({ newFile }) => {
   }, [updatedFiles]);
 
   useEffect(() => {
-    if (deletedFile || updatedFiles || newFile) {
+    if (deletedFile || updatedFiles) {
       closeOpenDeleteModal();
       closeRestoreConfirmModal();
       getFile();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deletedFile, updatedFiles, newFile]);
+  }, [deletedFile, updatedFiles]);
 
   useEffect(() => {
     if (newFiles) dispatch(setFiles({ files: (newFiles as any).files }));
