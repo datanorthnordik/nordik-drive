@@ -169,7 +169,16 @@ const makeStore = (
     ...auth,
   };
 
-  const fileReducer = (state = fileState) => state;
+  const fileReducer = (state = fileState, action: any) => {
+    if (action.type === "file/setSelectedCommunities") {
+      return {
+        ...state,
+        selectedCommunities: action.payload?.selected ?? [],
+      };
+    }
+
+    return state;
+  };
   const authReducer = (state = authState) => state;
 
   return configureStore({
@@ -381,6 +390,31 @@ describe("NIAChat + NIAChatTrigger", () => {
     await waitFor(() => {
       expect((toast as any).success).toHaveBeenCalledWith("NIA answer is ready.");
     });
+  });
+
+  test("shows active community filters and lets the user clear them from chat", async () => {
+    const store = makeStore({
+      file: {
+        selectedFile: { filename: "Test.csv", community_filter: true },
+        selectedCommunities: ["Shingwauk", "Garden River"],
+      },
+    });
+
+    renderWithStore(<NIAChat open={true} setOpen={jest.fn()} />, { store });
+
+    expect(screen.getByText("Community Filter")).toBeInTheDocument();
+    expect(screen.getByText("Shingwauk, Garden River")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear community filters" }));
+
+    await waitFor(() => {
+      expect(store.getState().file.selectedCommunities).toEqual([]);
+    });
+
+    expect(screen.getByText("All communities")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clear community filters" })
+    ).not.toBeInTheDocument();
   });
 
   test("renders inline error state when chat request fails", async () => {

@@ -44,7 +44,6 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
     if (firstRenderRef.current) firstRenderRef.current = false;
   }, [communities]);
 
-  // sanitize selected when communities list changes
   useEffect(() => {
     if (!selected?.length) return;
     const setComm = new Set(communities);
@@ -75,6 +74,7 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
   }, [filtered, selected, updateSelected]);
 
   const clearSelection = useCallback(() => updateSelected([]), [updateSelected]);
+  const clearQuery = useCallback(() => setQuery(""), []);
 
   return (
     <div
@@ -92,7 +92,6 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
         color: color_text_primary,
       }}
     >
-      {/* Sticky compact header */}
       <div
         style={{
           position: "sticky",
@@ -103,7 +102,6 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
           padding: "8px 10px",
         }}
       >
-        {/* title row */}
         <div
           style={{
             display: "flex",
@@ -140,33 +138,62 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
                 justifyContent: "center",
               }}
             >
-              ✕
+              x
             </button>
           )}
         </div>
 
-        {/* search */}
         <div style={{ marginTop: 8 }}>
-          <input
-            aria-label={COMMUNITY_FILTER_MESSAGES.searchAriaLabel}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search…"
-            style={{
-              width: "100%",
-              height: COMMUNITY_FILTER_LAYOUT.searchInputHeight,
-              padding: "0 10px",
-              borderRadius: COMMUNITY_FILTER_LAYOUT.actionButtonBorderRadius,
-              border: `1px solid ${color_border}`,
-              fontSize: COMMUNITY_FILTER_LAYOUT.searchInputFontSize,
-              outline: "none",
-              boxSizing: "border-box",
-              background: COMMUNITY_FILTER_COLORS.surface,
-            }}
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              aria-label={COMMUNITY_FILTER_MESSAGES.searchAriaLabel}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={COMMUNITY_FILTER_MESSAGES.searchPlaceholder}
+              style={{
+                width: "100%",
+                height: COMMUNITY_FILTER_LAYOUT.searchInputHeight,
+                padding: query.trim() ? "0 42px 0 10px" : "0 10px",
+                borderRadius: COMMUNITY_FILTER_LAYOUT.actionButtonBorderRadius,
+                border: `1px solid ${color_border}`,
+                fontSize: COMMUNITY_FILTER_LAYOUT.searchInputFontSize,
+                outline: "none",
+                boxSizing: "border-box",
+                background: COMMUNITY_FILTER_COLORS.surface,
+              }}
+            />
+
+            {query.trim() && (
+              <button
+                type="button"
+                aria-label={COMMUNITY_FILTER_MESSAGES.clearSearchAriaLabel}
+                onClick={clearQuery}
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  right: 8,
+                  transform: "translateY(-50%)",
+                  width: 26,
+                  height: 26,
+                  borderRadius: 999,
+                  border: `1px solid ${color_border}`,
+                  background: COMMUNITY_FILTER_COLORS.surface,
+                  color: COMMUNITY_FILTER_ACCENT,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                x
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* actions */}
         <div
           style={{
             display: "flex",
@@ -237,7 +264,6 @@ const CommunityFilter: React.FC<CommunityFilterProps> = ({ onClose, showClose })
         </div>
       </div>
 
-      {/* List area */}
       <div
         role="listbox"
         aria-label={COMMUNITY_FILTER_MESSAGES.listboxAriaLabel}

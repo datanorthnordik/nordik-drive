@@ -142,6 +142,27 @@ describe("CommunityFilter", () => {
     expect(screen.getByText("No communities found.")).toBeInTheDocument();
   });
 
+  test("clear search button resets the query and restores the full list", async () => {
+    const user = userEvent.setup();
+
+    renderWithStore(<CommunityFilter />, {
+      communities: ["Batchewana", "Garden River"],
+      selectedCommunities: [],
+    });
+
+    const input = screen.getByLabelText("Search communities");
+    await user.type(input, "garden");
+
+    expect(screen.getByRole("button", { name: "Clear community search" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Batchewana" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear community search" }));
+
+    expect(input).toHaveValue("");
+    expect(getOption("Batchewana")).toBeInTheDocument();
+    expect(getOption("Garden River")).toBeInTheDocument();
+  });
+
   test("toggle selection via checkbox click (select + unselect) updates selected count and checkbox", async () => {
     const user = userEvent.setup();
 

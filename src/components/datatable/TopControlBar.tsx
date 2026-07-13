@@ -105,6 +105,11 @@ export default function TopControlsBar({
     return `TOTAL: ${formatted} RECORDS`;
   }, [totalRecords]);
 
+  const clearSearch = useCallback(() => {
+    setSearchText("");
+    onSearch("");
+  }, [onSearch, setSearchText]);
+
 
   const startVoice = () => {
     const SpeechRecognition =
@@ -221,6 +226,26 @@ export default function TopControlsBar({
           endAdornment: (
             <InputAdornment position="end">
               <Box sx={{ display: "flex", gap: 0.75 }}>
+                {searchText.trim() && (
+                  <IconButton
+                    onClick={clearSearch}
+                    size="small"
+                    aria-label="Clear search"
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      border: `1px solid ${color_border}`,
+                      background: color_white,
+                      color: dark_grey,
+                      fontSize: 16,
+                      fontWeight: 900,
+                    }}
+                  >
+                    x
+                  </IconButton>
+                )}
+
                 <IconButton
                   onClick={() => onSearch()}
                   size="small"
