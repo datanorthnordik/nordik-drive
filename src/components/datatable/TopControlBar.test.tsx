@@ -197,6 +197,26 @@ describe("TopControlsBar", () => {
     expect(onSearch).toHaveBeenCalledTimes(2);
   });
 
+  it("shows a clear search button and resets the search immediately", () => {
+    const setSearchText = jest.fn();
+    const onSearch = jest.fn();
+
+    render(
+      <TopControlsBar
+        {...defaultProps({
+          searchText: "survivor",
+          setSearchText,
+          onSearch,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(setSearchText).toHaveBeenCalledWith("");
+    expect(onSearch).toHaveBeenCalledWith("");
+  });
+
   it("disables result navigation when there are no matches", () => {
     render(<TopControlsBar {...defaultProps({ matchesCount: 0 })} />);
 

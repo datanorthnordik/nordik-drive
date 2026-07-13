@@ -35,6 +35,7 @@ import {
   setThreadVisibility,
   submitNiaQuestion,
 } from "../store/niaChatSlice";
+import { setSelectedCommunities } from "../store/auth/fileSlice";
 import type { AppDispatch, RootState } from "../store/store";
 
 export { default as NIAChatTrigger } from "./NIAChatTrigger";
@@ -160,6 +161,11 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
   const exchanges = currentThread?.exchanges || [];
   const unreadCount = currentThread?.unreadCount || 0;
   const currentFileName = String(selectedFile?.filename || "").trim();
+  const hasCommunityFilter = !!selectedFile?.community_filter;
+  const hasActiveCommunityFilters = hasCommunityFilter && (selectedCommunities?.length || 0) > 0;
+  const communityFilterSummary = hasActiveCommunityFilters
+    ? selectedCommunities.join(", ")
+    : "All communities";
 
   const {
     data: ttsData,
@@ -286,6 +292,10 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
     recognitionRef.current?.stop();
     setRecordingState("idle");
   };
+
+  const clearCommunityFilters = useCallback(() => {
+    dispatch(setSelectedCommunities({ selected: [] }));
+  }, [dispatch]);
 
   const stopTTS = useCallback(() => {
     const audio = audioElRef.current;
@@ -709,6 +719,78 @@ export default function NIAChat({ open, setOpen }: NIAChatProps) {
             />
           </div>
         </div>
+
+        {!minimized && hasCommunityFilter && (
+          <div
+            style={{
+              padding: "10px 16px",
+              background: color_white,
+              borderBottom: `1px solid ${color_border}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+                minWidth: 0,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  color: color_secondary,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                }}
+              >
+                Community Filter
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: color_black_light,
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {communityFilterSummary}
+              </div>
+            </div>
+
+            {hasActiveCommunityFilters && (
+              <button
+                type="button"
+                aria-label="Clear community filters"
+                onClick={clearCommunityFilters}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  border: `1px solid ${color_border}`,
+                  background: color_white_smoke,
+                  color: color_secondary,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+                title="Clear community filters"
+              >
+                x
+              </button>
+            )}
+          </div>
+        )}
 
         <div
           ref={messagesContainerRef}

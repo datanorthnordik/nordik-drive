@@ -5,6 +5,7 @@ export const COMMUNITY_FILTER_MESSAGES = {
   closeButtonText: "X",
   searchAriaLabel: "Search communities",
   searchPlaceholder: "Search...",
+  clearSearchAriaLabel: "Clear community search",
   clearLabel: "Clear",
   clearAriaLabel: "Clear selected communities",
   selectedLabel: "Selected:",
