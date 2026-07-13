@@ -4,6 +4,7 @@ import fileReducer from "./auth/fileSlice";
 import roleReducer from "./auth/roleSlice";
 import apiReducer from "./api/apiSlice";
 import niaChatReducer from "./niaChatSlice";
+import backgroundTasksReducer from "./backgroundTasksSlice";
 import { apiMiddleware } from "./middleware/apiMiddleware";
 
 export const store = configureStore({
@@ -13,6 +14,7 @@ export const store = configureStore({
     role: roleReducer,
     api: apiReducer,
     niaChat: niaChatReducer,
+    backgroundTasks: backgroundTasksReducer,
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(apiMiddleware),
 });

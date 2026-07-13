@@ -75,7 +75,7 @@ describe("UploadedFiles", () => {
   test("dispatches setFiles when GET hook has data", async () => {
     mockNewFilesData = { files: [{ id: 10, filename: "FromAPI.csv" }] };
 
-    render(<UploadedFiles newFile="" />);
+    render(<UploadedFiles />);
 
     await waitFor(() => {
       expect(mockSetFiles).toHaveBeenCalledWith({

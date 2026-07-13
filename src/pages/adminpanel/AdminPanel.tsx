@@ -18,7 +18,6 @@ import { apiUrl } from "../../config/api";
 import { AdminPanelWrapper } from "../../components/Wrappers";
 
 const AdminPanel = () => {
-  const [newFile, setNewFile] = useState("");
   const [tab, setTab] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -140,13 +139,13 @@ const AdminPanel = () => {
               <Box sx={{ flex: 1, minHeight: 0, overflow: "hidden", p: { xs: 1.5, md: 2.5 } }}>
                 {tab === 0 && (
                   <Box sx={{ height: "100%", minHeight: 0, overflow: "auto" }}>
-                    <FileUploader setNewFile={setNewFile} />
+                    <FileUploader />
                   </Box>
                 )}
 
                 {tab === 1 && (
                   <Box sx={{ height: "100%", minHeight: 0, overflow: "hidden" }}>
-                    <UploadedFiles newFile={newFile} />
+                    <UploadedFiles />
                   </Box>
                 )}
               </Box>
