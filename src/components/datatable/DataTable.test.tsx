@@ -31,6 +31,7 @@ let mockApiEntries: any;
 
 let mockPhotoFetchState: any;
 let mockDocFetchState: any;
+let mockHonourFetchState: any;
 
 let mockDescribeInFlight = false;
 
@@ -467,6 +468,13 @@ beforeEach(() => {
         fetchData: jest.fn(() => Promise.resolve()),
     };
 
+    mockHonourFetchState = {
+        data: null,
+        loading: false,
+        error: null,
+        fetchData: jest.fn(() => Promise.resolve()),
+    };
+
     mockDescribeInFlight = false;
 
     mockedUseDispatch.mockReturnValue(mockDispatch);
@@ -482,6 +490,7 @@ beforeEach(() => {
     mockedUseFetch.mockImplementation((url: string) => {
         if (url.includes("/file/photos")) return mockPhotoFetchState;
         if (url.includes("/file/docs")) return mockDocFetchState;
+        if (url.includes("/file/honour")) return mockHonourFetchState;
 
         return {
             data: null,
@@ -584,6 +593,57 @@ describe("DataGrid", () => {
                 type: "api/ensure",
             })
         );
+    });
+
+    it("fetches and renders the daily honour when the file config enables it", async () => {
+        mockApiEntries = {
+            "config_students.csv": {
+                data: {
+                    config: {
+                        honour: true,
+                        columns: [{ name: "Name", display_name: "Name", type: "input" }],
+                    },
+                },
+            },
+        };
+
+        mockHonourFetchState.data = {
+            available: true,
+            date: "2026-07-15",
+            honour_text: "Today we honour Alice for her strength and resilience.",
+        };
+
+        renderComponent();
+
+        await waitFor(() => {
+            expect(mockHonourFetchState.fetchData).toHaveBeenCalledWith(
+                undefined,
+                { filename: "students.csv" }
+            );
+        });
+
+        expect(screen.getByTestId("daily-honour-banner")).toBeInTheDocument();
+        expect(screen.getByTestId("daily-honour-text")).toHaveTextContent(
+            "Today we honour Alice for her strength and resilience."
+        );
+        expect(screen.getByText("2026-07-15")).toBeInTheDocument();
+    });
+
+    it("does not fetch or render the daily honour when the file config does not enable it", () => {
+        mockApiEntries = {
+            "config_students.csv": {
+                data: {
+                    config: {
+                        columns: [{ name: "Name", display_name: "Name", type: "input" }],
+                    },
+                },
+            },
+        };
+
+        renderComponent();
+
+        expect(mockHonourFetchState.fetchData).not.toHaveBeenCalled();
+        expect(screen.queryByTestId("daily-honour-banner")).not.toBeInTheDocument();
     });
 
     it("shows SourceFilterBar in fallback non-community mode and extracts only known sources", () => {

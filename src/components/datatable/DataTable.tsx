@@ -56,6 +56,7 @@ import DataGridStyles from "./DataGridStyles";
 /** utils / hooks */
 import { extractUrls, isDocumentUrl, linkLabel, normalizeUrl, openInNewTab } from "../../lib/urlUtils";
 import { applyQuickFilter, findMatches, scrollToMatch } from "../../lib/gridSearch";
+import { isHonourEnabledInConfig } from "../../lib/honourConfig";
 import { useViewerLoader } from "../../hooks/useViewerLoader";
 import { useExternalGridFilters } from "../../hooks/useExternalGridFilters";
 import { headerDisplay, headerMinWidthPx, MAX_HEADER_CHARS } from "./HelperComponents";
@@ -75,6 +76,12 @@ registerAgGridModules(readOnlyAgGridModules);
 
 interface DataGridProps {
   rowData: any[];
+}
+
+interface DailyHonourResponse {
+  available?: boolean;
+  date?: string;
+  honour_text?: string;
 }
 
 const AddInfoRenderer = React.memo((props: any) => {
@@ -258,6 +265,12 @@ export default function DataGrid({ rowData }: DataGridProps) {
     error: docsError,
   } = useFetch(`${API_BASE}/file/docs`, "GET", false);
 
+  const {
+    data: honourData,
+    fetchData: loadHonour,
+    loading: honourLoading,
+  } = useFetch<DailyHonourResponse>(`${API_BASE}/file/honour`, "GET", false);
+
 
   const configKey = useMemo(() => {
     const fname = (selectedFile?.filename || "").trim();
@@ -272,6 +285,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const configJson = (configEntry?.data as any)?.config || null;
 
   const hasConfig = !!configJson && Array.isArray(configJson?.columns);
+  const honourEnabled = !!configJson && isHonourEnabledInConfig(configJson);
 
   const addInfoEnabled = hasConfig
     ? !!configJson?.addInfo?.enabled
@@ -300,6 +314,18 @@ export default function DataGrid({ rowData }: DataGridProps) {
       })
     );
   }, [dispatch, configKey, selectedFile?.filename]);
+
+  useEffect(() => {
+    if (!selectedFile?.filename || !honourEnabled) return;
+    loadHonour(undefined, { filename: selectedFile.filename });
+  }, [honourEnabled, loadHonour, selectedFile?.filename]);
+
+  const honourText = useMemo(() => {
+    if (!honourEnabled || !honourData?.available) return "";
+    return String(honourData?.honour_text || "").trim();
+  }, [honourData, honourEnabled]);
+
+  const showHonourBanner = honourEnabled && (honourLoading || honourText.length > 0);
 
   /* -------- Describe -------- */
 
@@ -1001,6 +1027,69 @@ export default function DataGrid({ rowData }: DataGridProps) {
         <DataTableWrapper>
           {!editMode && (
             <>
+              {showHonourBanner && (
+                <div
+                  data-testid="daily-honour-banner"
+                  aria-live="polite"
+                  style={{
+                    marginBottom: "12px",
+                    padding: "16px 18px",
+                    borderRadius: "14px",
+                    borderLeft: `5px solid ${color_secondary}`,
+                    background: "linear-gradient(135deg, #fffaf3 0%, #ffffff 100%)",
+                    boxShadow: "0 8px 18px rgba(0, 0, 0, 0.08)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 800,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: color_primary,
+                      }}
+                    >
+                      Today's Honour
+                    </div>
+
+                    {honourData?.date ? (
+                      <div
+                        style={{
+                          fontSize: "0.82rem",
+                          color: color_black_light,
+                        }}
+                      >
+                        {honourData.date}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div
+                    data-testid={honourLoading ? "daily-honour-loading" : "daily-honour-text"}
+                    style={{
+                      fontSize: "1rem",
+                      lineHeight: 1.6,
+                      color: color_black_light,
+                      fontStyle: honourLoading ? "normal" : "italic",
+                    }}
+                  >
+                    {honourLoading ? "Loading today's honour..." : honourText}
+                  </div>
+                </div>
+              )}
+
               <div ref={topControlsRef}>
                 <TopControlsBar
                   isMobile={isMobile}
