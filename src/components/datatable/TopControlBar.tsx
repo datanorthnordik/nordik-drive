@@ -44,6 +44,8 @@ type Props = {
 
   setNiaOpen: (v: boolean) => void;
   niaUnreadCount: number;
+  showHonourButton: boolean;
+  onOpenHonour: () => void;
 };
 
 export default function TopControlsBar({
@@ -62,6 +64,8 @@ export default function TopControlsBar({
   onZoomChange,
   setNiaOpen,
   niaUnreadCount,
+  showHonourButton,
+  onOpenHonour,
 }: Props) {
   const resultsText = useMemo(() => {
     return matchesCount > 0 ? `${currentMatchIndex + 1} of ${matchesCount}` : "0 results";
@@ -207,6 +211,31 @@ export default function TopControlsBar({
       >
         Files
       </Button>
+
+      {showHonourButton && (
+        <Button
+          onClick={onOpenHonour}
+          aria-label="Open today's honour"
+          variant="outlined"
+          sx={{
+            height: 46,
+            px: 2,
+            borderRadius: 999,
+            borderColor: "rgba(166, 29, 51, 0.18)",
+            background: "linear-gradient(135deg, #fffaf3 0%, #ffffff 100%)",
+            color: color_primary,
+            fontWeight: 900,
+            textTransform: "none",
+            flexShrink: 0,
+            "&:hover": {
+              background: "#fff7ec",
+              borderColor: color_primary,
+            },
+          }}
+        >
+          {isMobile ? "Honour" : "Today's Honour"}
+        </Button>
+      )}
 
       {/* Search */}
       <TextField

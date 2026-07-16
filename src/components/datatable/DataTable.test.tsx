@@ -247,6 +247,9 @@ jest.mock("./TopControlBar", () => ({
                 <button onClick={() => props.onNavigateMatch("prev")}>prev-match</button>
                 <button onClick={() => props.onZoomChange(props.fontSize + 2)}>zoom-in</button>
                 <button onClick={() => props.setNiaOpen(true)}>open-nia</button>
+                {props.showHonourButton ? (
+                    <button onClick={props.onOpenHonour}>open-honour</button>
+                ) : null}
 
                 <button
                     onClick={() => {
@@ -259,6 +262,20 @@ jest.mock("./TopControlBar", () => ({
             </div>
         );
     },
+}));
+
+jest.mock("./DailyHonourDialog", () => ({
+    __esModule: true,
+    default: ({ open, loading, honourText, date, onClose }: any) =>
+        open ? (
+            <div data-testid="daily-honour-dialog">
+                <div data-testid={loading ? "daily-honour-loading" : "daily-honour-text"}>
+                    {loading ? "Loading today's honour..." : honourText}
+                </div>
+                <div data-testid="daily-honour-date">{date}</div>
+                <button onClick={onClose}>close-honour</button>
+            </div>
+        ) : null,
 }));
 
 jest.mock("./SourceFilterBar", () => ({
@@ -595,7 +612,7 @@ describe("DataGrid", () => {
         );
     });
 
-    it("fetches and renders the daily honour when the file config enables it", async () => {
+    it("fetches, opens, closes, and reopens the daily honour modal when enabled", async () => {
         mockApiEntries = {
             "config_students.csv": {
                 data: {
@@ -622,14 +639,29 @@ describe("DataGrid", () => {
             );
         });
 
-        expect(screen.getByTestId("daily-honour-banner")).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId("daily-honour-dialog")).toBeInTheDocument();
+        });
+
         expect(screen.getByTestId("daily-honour-text")).toHaveTextContent(
             "Today we honour Alice for her strength and resilience."
         );
-        expect(screen.getByText("2026-07-15")).toBeInTheDocument();
+        expect(screen.getByTestId("daily-honour-date")).toHaveTextContent("2026-07-15");
+
+        fireEvent.click(screen.getByText("close-honour"));
+
+        await waitFor(() => {
+            expect(screen.queryByTestId("daily-honour-dialog")).not.toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText("open-honour"));
+
+        await waitFor(() => {
+            expect(screen.getByTestId("daily-honour-dialog")).toBeInTheDocument();
+        });
     });
 
-    it("does not fetch or render the daily honour when the file config does not enable it", () => {
+    it("does not fetch or show the daily honour action when the file config does not enable it", () => {
         mockApiEntries = {
             "config_students.csv": {
                 data: {
@@ -643,7 +675,8 @@ describe("DataGrid", () => {
         renderComponent();
 
         expect(mockHonourFetchState.fetchData).not.toHaveBeenCalled();
-        expect(screen.queryByTestId("daily-honour-banner")).not.toBeInTheDocument();
+        expect(screen.queryByText("open-honour")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("daily-honour-dialog")).not.toBeInTheDocument();
     });
 
     it("shows SourceFilterBar in fallback non-community mode and extracts only known sources", () => {
