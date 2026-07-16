@@ -88,6 +88,8 @@ describe("TopControlsBar", () => {
     onZoomChange: jest.fn(),
     setNiaOpen: jest.fn(),
     niaUnreadCount: 0,
+    showHonourButton: false,
+    onOpenHonour: jest.fn(),
     ...overrides,
   });
 
@@ -266,6 +268,23 @@ describe("TopControlsBar", () => {
 
     fireEvent.keyDown(niaIndicator, { key: " ", code: "Space" });
     expect(setNiaOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("shows the honour action only when enabled and opens it on click", () => {
+    const onOpenHonour = jest.fn();
+
+    render(
+      <TopControlsBar
+        {...defaultProps({
+          showHonourButton: true,
+          onOpenHonour,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open today's honour" }));
+
+    expect(onOpenHonour).toHaveBeenCalledTimes(1);
   });
 
   it("zooms in and out with bounds applied", () => {

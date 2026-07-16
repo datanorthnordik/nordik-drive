@@ -52,6 +52,7 @@ import CommunityActionBar from "./CommunityActionBar";
 import CommunityFilterPanel from "./CommunityFilterPanel";
 import LinksDialog from "./LinksDialog";
 import DataGridStyles from "./DataGridStyles";
+import DailyHonourDialog from "./DailyHonourDialog";
 
 /** utils / hooks */
 import { extractUrls, isDocumentUrl, linkLabel, normalizeUrl, openInNewTab } from "../../lib/urlUtils";
@@ -250,6 +251,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const [docUrlOpen, setDocUrlOpen] = useState(false);
   const [docUrl, setDocUrl] = useState("");
   const [docUrlTitle, setDocUrlTitle] = useState<string>("");
+  const [honourModalOpen, setHonourModalOpen] = useState(false);
+  const [honourLoadedFileName, setHonourLoadedFileName] = useState("");
 
   const {
     data: photoData,
@@ -316,8 +319,16 @@ export default function DataGrid({ rowData }: DataGridProps) {
   }, [dispatch, configKey, selectedFile?.filename]);
 
   useEffect(() => {
-    if (!selectedFile?.filename || !honourEnabled) return;
-    loadHonour(undefined, { filename: selectedFile.filename });
+    const fileName = String(selectedFile?.filename || "").trim();
+
+    setHonourModalOpen(false);
+    setHonourLoadedFileName("");
+
+    if (!fileName || !honourEnabled) return;
+
+    void Promise.resolve(loadHonour(undefined, { filename: fileName })).finally(() => {
+      setHonourLoadedFileName(fileName);
+    });
   }, [honourEnabled, loadHonour, selectedFile?.filename]);
 
   const honourText = useMemo(() => {
@@ -325,7 +336,20 @@ export default function DataGrid({ rowData }: DataGridProps) {
     return String(honourData?.honour_text || "").trim();
   }, [honourData, honourEnabled]);
 
-  const showHonourBanner = honourEnabled && (honourLoading || honourText.length > 0);
+  const showHonourButton =
+    honourEnabled &&
+    (honourLoading ||
+      (honourLoadedFileName === String(selectedFile?.filename || "").trim() &&
+        honourText.length > 0));
+
+  useEffect(() => {
+    const fileName = String(selectedFile?.filename || "").trim();
+
+    if (!honourEnabled || !fileName || !honourText) return;
+    if (honourLoadedFileName !== fileName) return;
+
+    setHonourModalOpen(true);
+  }, [honourEnabled, honourLoadedFileName, honourText, selectedFile?.filename]);
 
   /* -------- Describe -------- */
 
@@ -1027,69 +1051,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
         <DataTableWrapper>
           {!editMode && (
             <>
-              {showHonourBanner && (
-                <div
-                  data-testid="daily-honour-banner"
-                  aria-live="polite"
-                  style={{
-                    marginBottom: "12px",
-                    padding: "16px 18px",
-                    borderRadius: "14px",
-                    borderLeft: `5px solid ${color_secondary}`,
-                    background: "linear-gradient(135deg, #fffaf3 0%, #ffffff 100%)",
-                    boxShadow: "0 8px 18px rgba(0, 0, 0, 0.08)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "baseline",
-                      gap: "12px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: "0.75rem",
-                        fontWeight: 800,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
-                        color: color_primary,
-                      }}
-                    >
-                      Today's Honour
-                    </div>
-
-                    {honourData?.date ? (
-                      <div
-                        style={{
-                          fontSize: "0.82rem",
-                          color: color_black_light,
-                        }}
-                      >
-                        {honourData.date}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div
-                    data-testid={honourLoading ? "daily-honour-loading" : "daily-honour-text"}
-                    style={{
-                      fontSize: "1rem",
-                      lineHeight: 1.6,
-                      color: color_black_light,
-                      fontStyle: honourLoading ? "normal" : "italic",
-                    }}
-                  >
-                    {honourLoading ? "Loading today's honour..." : honourText}
-                  </div>
-                </div>
-              )}
-
               <div ref={topControlsRef}>
                 <TopControlsBar
                   isMobile={isMobile}
@@ -1111,6 +1072,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
                   onZoomChange={onZoomChange}
                   setNiaOpen={setNiaOpen}
                   niaUnreadCount={niaUnreadCount}
+                  showHonourButton={showHonourButton}
+                  onOpenHonour={() => setHonourModalOpen(true)}
                 />
               </div>
 
@@ -1217,6 +1180,14 @@ export default function DataGrid({ rowData }: DataGridProps) {
                   />
                 </Suspense>
               )}
+
+              <DailyHonourDialog
+                open={honourModalOpen}
+                loading={honourLoading}
+                honourText={honourText}
+                date={honourData?.date}
+                onClose={() => setHonourModalOpen(false)}
+              />
             </>
           )}
 
