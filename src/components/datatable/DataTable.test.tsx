@@ -247,9 +247,6 @@ jest.mock("./TopControlBar", () => ({
                 <button onClick={() => props.onNavigateMatch("prev")}>prev-match</button>
                 <button onClick={() => props.onZoomChange(props.fontSize + 2)}>zoom-in</button>
                 <button onClick={() => props.setNiaOpen(true)}>open-nia</button>
-                {props.showHonourButton ? (
-                    <button onClick={props.onOpenHonour}>open-honour</button>
-                ) : null}
 
                 <button
                     onClick={() => {
@@ -612,7 +609,7 @@ describe("DataGrid", () => {
         );
     });
 
-    it("fetches, opens, closes, and reopens the daily honour modal when enabled", async () => {
+    it("fetches, opens, and closes the daily honour modal when enabled", async () => {
         mockApiEntries = {
             "config_students.csv": {
                 data: {
@@ -653,15 +650,9 @@ describe("DataGrid", () => {
         await waitFor(() => {
             expect(screen.queryByTestId("daily-honour-dialog")).not.toBeInTheDocument();
         });
-
-        fireEvent.click(screen.getByText("open-honour"));
-
-        await waitFor(() => {
-            expect(screen.getByTestId("daily-honour-dialog")).toBeInTheDocument();
-        });
     });
 
-    it("does not fetch or show the daily honour action when the file config does not enable it", () => {
+    it("does not fetch or show the daily honour modal when the file config does not enable it", () => {
         mockApiEntries = {
             "config_students.csv": {
                 data: {
@@ -675,7 +666,6 @@ describe("DataGrid", () => {
         renderComponent();
 
         expect(mockHonourFetchState.fetchData).not.toHaveBeenCalled();
-        expect(screen.queryByText("open-honour")).not.toBeInTheDocument();
         expect(screen.queryByTestId("daily-honour-dialog")).not.toBeInTheDocument();
     });
 

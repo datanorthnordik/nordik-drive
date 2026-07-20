@@ -40,12 +40,12 @@ export default function DailyHonourDialog({
       fullWidth
       maxWidth="md"
       aria-labelledby="daily-honour-dialog-title"
-      PaperProps={{
+  PaperProps={{
         sx: {
-          borderRadius: 3,
+          borderRadius: 3.5,
           overflow: "hidden",
           background: color_white,
-          boxShadow: "0 22px 60px rgba(0, 0, 0, 0.18)",
+          boxShadow: "0 28px 72px rgba(0, 0, 0, 0.22)",
           border: `1px solid ${color_border}`,
         },
       }}
@@ -53,8 +53,8 @@ export default function DailyHonourDialog({
       <DialogTitle sx={{ p: 0 }}>
         <Box
           sx={{
-            px: { xs: 2.25, sm: 3 },
-            py: { xs: 2, sm: 2.5 },
+            px: { xs: 2.5, sm: 3.25 },
+            py: { xs: 2.1, sm: 2.65 },
             background: "linear-gradient(135deg, #fffaf3 0%, #ffffff 100%)",
             borderBottom: `1px solid ${color_border}`,
           }}
@@ -83,8 +83,8 @@ export default function DailyHonourDialog({
 
               <Typography
                 sx={{
-                  fontSize: "0.92rem",
-                  fontWeight: 600,
+                  fontSize: "0.98rem",
+                  fontWeight: 700,
                   color: color_text_light,
                 }}
               >
@@ -97,8 +97,8 @@ export default function DailyHonourDialog({
                 <Typography
                   data-testid="daily-honour-date"
                   sx={{
-                    fontSize: "0.92rem",
-                    fontWeight: 600,
+                    fontSize: "0.95rem",
+                    fontWeight: 800,
                     color: color_black_light,
                     whiteSpace: "nowrap",
                   }}
@@ -121,11 +121,11 @@ export default function DailyHonourDialog({
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ px: { xs: 2.25, sm: 3 }, py: { xs: 2.5, sm: 3 } }}>
+      <DialogContent sx={{ px: { xs: 2.5, sm: 3.25 }, py: { xs: 2.75, sm: 3.25 } }}>
         <Box
           sx={{
-            borderLeft: `4px solid ${color_secondary}`,
-            pl: { xs: 2, sm: 2.5 },
+            borderLeft: `5px solid ${color_secondary}`,
+            pl: { xs: 2.25, sm: 2.75 },
           }}
         >
           <Typography
@@ -133,8 +133,8 @@ export default function DailyHonourDialog({
             sx={{
               color: color_black_light,
               fontFamily: 'Georgia, "Times New Roman", serif',
-              fontSize: { xs: "1.08rem", sm: "1.28rem" },
-              lineHeight: 1.8,
+              fontSize: { xs: "1.16rem", sm: "1.42rem" },
+              lineHeight: 1.9,
               fontStyle: loading ? "normal" : "italic",
             }}
           >
@@ -145,18 +145,20 @@ export default function DailyHonourDialog({
         <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
           <Button
             onClick={onClose}
-            variant="outlined"
+            variant="contained"
             sx={{
               borderRadius: 999,
-              px: 2.25,
-              py: 1,
-              borderColor: color_border,
-              color: color_black_light,
-              fontWeight: 800,
+              px: 3,
+              py: 1.15,
+              background: color_primary,
+              color: color_white,
+              boxShadow: "none",
+              fontWeight: 900,
+              fontSize: "0.98rem",
               textTransform: "none",
               "&:hover": {
-                borderColor: color_secondary,
-                background: "#f8fbff",
+                background: "#8f182c",
+                boxShadow: "none",
               },
             }}
           >

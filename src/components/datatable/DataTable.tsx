@@ -336,12 +336,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
     return String(honourData?.honour_text || "").trim();
   }, [honourData, honourEnabled]);
 
-  const showHonourButton =
-    honourEnabled &&
-    (honourLoading ||
-      (honourLoadedFileName === String(selectedFile?.filename || "").trim() &&
-        honourText.length > 0));
-
   useEffect(() => {
     const fileName = String(selectedFile?.filename || "").trim();
 
@@ -1072,8 +1066,6 @@ export default function DataGrid({ rowData }: DataGridProps) {
                   onZoomChange={onZoomChange}
                   setNiaOpen={setNiaOpen}
                   niaUnreadCount={niaUnreadCount}
-                  showHonourButton={showHonourButton}
-                  onOpenHonour={() => setHonourModalOpen(true)}
                 />
               </div>
 
