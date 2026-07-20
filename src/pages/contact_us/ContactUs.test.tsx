@@ -19,6 +19,11 @@ jest.mock("../../components/Links", () => ({
   ),
 }));
 
+jest.mock("./SupportRequestCard", () => ({
+  __esModule: true,
+  default: () => <div>Support Request Card</div>,
+}));
+
 jest.mock("./contactInfo", () => ({
   __esModule: true,
   CONTACT_INFO: {
@@ -58,6 +63,7 @@ describe("ContactUs", () => {
     render(<ContactUs />);
 
     expect(screen.getByText(/get in touch/i)).toBeInTheDocument();
+    expect(screen.getByText(/support request card/i)).toBeInTheDocument();
     expect(screen.getByText(/need help using the website\?/i)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /join here/i })).toHaveLength(2);
     expect(screen.getByRole("button", { name: /view faqs/i })).toBeInTheDocument();
