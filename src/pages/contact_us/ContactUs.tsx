@@ -7,14 +7,21 @@ import {
   Card,
   CardContent,
   Button,
+  Dialog,
+  DialogContent,
+  IconButton,
   Stack,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
+  CloseRounded,
   Email,
   Phone,
   LocationOn,
   Business,
   HelpOutline,
+  SupportAgentRounded,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { WebLink } from "../../components/Links";
@@ -36,9 +43,20 @@ import {
 
 const ContactUs = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [supportModalOpen, setSupportModalOpen] = React.useState(false);
 
   const onJoinHere = (link: string) => {
     window.open(link, "_blank", "noopener,noreferrer");
+  };
+
+  const openSupportModal = () => {
+    setSupportModalOpen(true);
+  };
+
+  const closeSupportModal = () => {
+    setSupportModalOpen(false);
   };
 
   // Single source of truth for the RIGHT side content width
@@ -273,7 +291,83 @@ const ContactUs = () => {
             <CardContent sx={{ px: { xs: 2.5, md: 3.5 }, py: { xs: 2.8, md: 3.2 } }}>
               {/*  ONE wrapper controls BOTH text + button width */}
               <Stack spacing={2.5} sx={{ width: "100%", maxWidth: RIGHT_BLOCK_MAX, mx: "auto" }}>
-                <SupportRequestCard />
+                <Box sx={{ width: "100%" }}>
+                  <Box
+                    sx={{
+                      p: { xs: 1.8, md: 2 },
+                      borderRadius: "18px",
+                      background: color_white_smoke,
+                      border: `1px solid ${color_border}`,
+                      boxShadow: "0 10px 18px rgba(0, 0, 0, 0.05)",
+                    }}
+                  >
+                    <Stack spacing={1.7}>
+                      <Box sx={{ display: "flex", gap: 1.4, alignItems: "flex-start" }}>
+                        <Box
+                          sx={{
+                            width: 48,
+                            height: 48,
+                            minWidth: 48,
+                            borderRadius: "16px",
+                            background: color_white,
+                            border: `1px solid ${color_border}`,
+                            display: "grid",
+                            placeItems: "center",
+                            boxShadow: "0 8px 16px rgba(0, 58, 122, 0.08)",
+                          }}
+                        >
+                          <SupportAgentRounded sx={{ color: color_secondary_dark, fontSize: 26 }} />
+                        </Box>
+
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              fontSize: { xs: 18, md: 19 },
+                              fontWeight: 900,
+                              color: color_text_primary,
+                              lineHeight: 1.3,
+                              mb: 0.45,
+                            }}
+                          >
+                            Need technical help or have a question?
+                          </Typography>
+
+                          <Typography
+                            sx={{
+                              fontSize: { xs: 13.8, md: 14.2 },
+                              lineHeight: 1.65,
+                              color: color_text_secondary,
+                              fontWeight: 700,
+                            }}
+                          >
+                            Contact support with your question, report an issue, and attach a
+                            screenshot if it helps explain what you&apos;re seeing.
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Button
+                        onClick={openSupportModal}
+                        startIcon={<SupportAgentRounded />}
+                        sx={{
+                          alignSelf: { xs: "stretch", sm: "flex-start" },
+                          textTransform: "none",
+                          borderRadius: "14px",
+                          px: 2.2,
+                          py: 1.05,
+                          fontWeight: 900,
+                          fontSize: 15.2,
+                          background: color_secondary_dark,
+                          color: color_white,
+                          boxShadow: "0 10px 18px rgba(0,0,0,0.12)",
+                          "&:hover": { background: color_secondary_dark },
+                        }}
+                      >
+                        Contact support
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Box>
 
                 <Box sx={{ width: "100%" }}>
                   <Box
@@ -418,6 +512,46 @@ const ContactUs = () => {
           </Card>
         </Box>
       </Container>
+
+      <Dialog
+        open={supportModalOpen}
+        onClose={closeSupportModal}
+        fullScreen={isMobile}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+        aria-labelledby="support-request-dialog-title"
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: 0, sm: 3 },
+            maxHeight: { xs: "100%", sm: "calc(100vh - 4rem)" },
+            background: color_white,
+          },
+        }}
+      >
+        <DialogContent sx={{ p: 0, position: "relative" }}>
+          <IconButton
+            aria-label="Close support request dialog"
+            onClick={closeSupportModal}
+            sx={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              zIndex: 1,
+              background: color_white,
+              border: `1px solid ${color_border}`,
+              color: color_text_secondary,
+              "&:hover": {
+                background: color_white,
+              },
+            }}
+          >
+            <CloseRounded />
+          </IconButton>
+
+          <SupportRequestCard surface="dialog" titleId="support-request-dialog-title" />
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
