@@ -19,6 +19,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { WebLink } from "../../components/Links";
 import { CONTACT_INFO } from "./contactInfo";
+import SupportRequestCard from "./SupportRequestCard";
 import {
   color_white,
   color_light_gray,
@@ -272,6 +273,8 @@ const ContactUs = () => {
             <CardContent sx={{ px: { xs: 2.5, md: 3.5 }, py: { xs: 2.8, md: 3.2 } }}>
               {/*  ONE wrapper controls BOTH text + button width */}
               <Stack spacing={2.5} sx={{ width: "100%", maxWidth: RIGHT_BLOCK_MAX, mx: "auto" }}>
+                <SupportRequestCard />
+
                 <Box sx={{ width: "100%" }}>
                   <Box
                     sx={{
