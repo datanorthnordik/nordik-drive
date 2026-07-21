@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom";
 
@@ -87,11 +87,14 @@ describe("SupportRequestCard", () => {
 
     render(<SupportRequestCard />);
 
-    await user.type(screen.getByLabelText(/^subject$/i), "Search page shows a blank result");
-    await user.type(
-      screen.getByLabelText(/how can we help\?/i),
-      "When I search by family name, the page loads but no rows are shown."
-    );
+    fireEvent.change(screen.getByLabelText(/^subject$/i), {
+      target: { value: "Search page shows a blank result" },
+    });
+    fireEvent.change(screen.getByLabelText(/how can we help\?/i), {
+      target: {
+        value: "When I search by family name, the page loads but no rows are shown.",
+      },
+    });
 
     const screenshot = new File(["image"], "search-issue.png", { type: "image/png" });
     await user.upload(screen.getByLabelText(/attach a screenshot/i), screenshot);
