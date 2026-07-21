@@ -63,8 +63,14 @@ describe("ContactUs", () => {
     render(<ContactUs />);
 
     expect(screen.getByText(/get in touch/i)).toBeInTheDocument();
-    expect(screen.getByText(/support request card/i)).toBeInTheDocument();
     expect(screen.getByText(/need help using the website\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/need technical help or have a question\?/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /contact support/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/support request card/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /join here/i })).toHaveLength(2);
     expect(screen.getByRole("button", { name: /view faqs/i })).toBeInTheDocument();
     expect(
@@ -121,6 +127,16 @@ describe("ContactUs", () => {
 
     const nordik = screen.getByRole("link", { name: /nordik institute\?/i });
     expect(nordik).toHaveAttribute("href", "https://nordikinstitute.com/");
+  });
+
+  test("opens the support request form in a modal", async () => {
+    const user = userEvent.setup();
+    render(<ContactUs />);
+
+    await user.click(screen.getByRole("button", { name: /contact support/i }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText(/support request card/i)).toBeInTheDocument();
   });
 
   test("opens the dedicated faq page from the faq callout", async () => {
