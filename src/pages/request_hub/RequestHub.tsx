@@ -17,6 +17,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import DescriptionIcon from "@mui/icons-material/Description";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 
 import { header_height, header_mobile_height } from "../../constants/colors";
 import {
@@ -30,16 +31,18 @@ import {
   color_background,
 } from "../../constants/colors";
 
-type RequestView = "ADD_INFO" | "FORM_SUBMISSION";
+type RequestView = "ADD_INFO" | "FORM_SUBMISSION" | "SUPPORT";
 
 type RequestsHubProps = {
   addInfoRequests: React.ReactNode;
   formSubmissionRequests?: React.ReactNode;
+  supportRequests?: React.ReactNode;
 };
 
 export default function RequestsHub({
   addInfoRequests,
   formSubmissionRequests,
+  supportRequests,
 }: RequestsHubProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [view, setView] = useState<RequestView>("ADD_INFO");
@@ -65,6 +68,11 @@ export default function RequestsHub({
         key: "FORM_SUBMISSION" as const,
         label: "Form Submission Requests",
         icon: <DescriptionIcon />,
+      },
+      {
+        key: "SUPPORT" as const,
+        label: "Support Requests",
+        icon: <SupportAgentIcon />,
       },
     ],
     []
@@ -117,6 +125,7 @@ export default function RequestsHub({
           {view === "ADD_INFO" && addInfoRequests}
           {view === "FORM_SUBMISSION" &&
             (formSubmissionRequests ?? <DefaultFormSubmissionPlaceholder />)}
+          {view === "SUPPORT" && (supportRequests ?? <DefaultSupportRequestsPlaceholder />)}
         </Box>
       </Box>
 
@@ -273,6 +282,47 @@ function DefaultFormSubmissionPlaceholder() {
           }}
         >
           This section is kept as a placeholder for now.
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function DefaultSupportRequestsPlaceholder() {
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 2,
+      }}
+    >
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 720,
+          border: `1px dashed ${color_border}`,
+          borderRadius: "20px",
+          background: color_white,
+          p: { xs: 3, md: 4 },
+          textAlign: "center",
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: { xs: 20, md: 24 },
+            fontWeight: 950,
+            color: color_text_primary,
+            mb: 1,
+          }}
+        >
+          Support Requests
+        </Typography>
+        <Typography sx={{ fontSize: 14, color: color_text_secondary, lineHeight: 1.7 }}>
+          Support requests will appear here.
         </Typography>
       </Box>
     </Box>
