@@ -46,6 +46,7 @@ import {
 interface SupportRequestCardProps {
   surface?: "card" | "dialog";
   titleId?: string;
+  onSubmitted?: () => void;
 }
 
 const buildUserDisplayName = (user: any) =>
@@ -62,6 +63,7 @@ const formatFileSize = (sizeInBytes: number) => {
 const SupportRequestCard = ({
   surface = "card",
   titleId,
+  onSubmitted,
 }: SupportRequestCardProps) => {
   const user = useSelector((state: any) => state.auth?.user ?? null);
   const defaultName = buildUserDisplayName(user);
@@ -191,6 +193,7 @@ const SupportRequestCard = ({
       setSelectedScreenshot(null);
       setSuccessMessage(nextSuccessMessage);
       toast.success(nextSuccessMessage);
+      onSubmitted?.();
     } catch (error: any) {
       toast.error(error?.message || "We couldn't send your request. Please try again.");
     } finally {
