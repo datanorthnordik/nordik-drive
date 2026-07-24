@@ -22,14 +22,16 @@ import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import { header_height, header_mobile_height } from "../../constants/colors";
 import {
   color_border,
-  color_secondary_dark,
-  color_white,
-  color_white_smoke,
   color_text_primary,
   color_text_secondary,
-  color_text_light,
+  color_white,
+  color_white_smoke,
   color_background,
 } from "../../constants/colors";
+import {
+  REQUEST_HUB_NAV_HEADER_SX,
+  REQUEST_HUB_NAV_ITEM_SX,
+} from "./styles";
 
 type RequestView = "ADD_INFO" | "FORM_SUBMISSION" | "SUPPORT";
 
@@ -143,9 +145,9 @@ export default function RequestsHub({
             top: topOffset,
             height: `calc(100vh - ${topOffset})`,
             width: 360,
-            background: color_white,
+            background: color_white_smoke,
             borderLeft: `1px solid ${color_border}`,
-            boxShadow: "0 10px 24px rgba(0,0,0,0.18)",
+            boxShadow: "0 18px 36px rgba(0,0,0,0.18)",
           },
         }}
       >
@@ -157,28 +159,35 @@ export default function RequestsHub({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              background: color_white,
+              ...REQUEST_HUB_NAV_HEADER_SX,
             }}
           >
             <Typography
               sx={{
                 fontWeight: 1000,
                 letterSpacing: 1,
-                color: color_text_light,
+                color: "rgba(255, 255, 255, 0.82)",
                 fontSize: 12,
               }}
             >
               NAVIGATION
             </Typography>
 
-            <IconButton onClick={() => setNavOpen(false)} aria-label="Close navigation">
+            <IconButton
+              onClick={() => setNavOpen(false)}
+              aria-label="Close navigation"
+              sx={{
+                color: color_white,
+                "&:hover": { background: "rgba(255, 255, 255, 0.12)" },
+              }}
+            >
               <CloseIcon />
             </IconButton>
           </Box>
 
           <Divider sx={{ borderColor: color_border }} />
 
-          <Box sx={{ p: 1.75 }}>
+          <Box sx={{ p: 1.75, flex: 1 }}>
             <List sx={{ display: "flex", flexDirection: "column", gap: 1.2 }}>
               {items.map((it) => {
                 const selected = view === it.key;
@@ -188,35 +197,12 @@ export default function RequestsHub({
                     key={it.key}
                     selected={selected}
                     onClick={() => handleSelect(it.key)}
-                    sx={{
-                      borderRadius: "16px",
-                      py: 1.35,
-                      border: `1px solid ${color_border}`,
-                      backgroundColor: color_white,
-                      color: color_text_primary,
-                      "&:hover": { backgroundColor: color_white_smoke },
-                      "& .MuiListItemIcon-root": { color: color_text_secondary },
-                      "& .MuiListItemText-primary": {
-                        color: "inherit",
-                        fontWeight: 950,
-                      },
-                      "&.Mui-selected": {
-                        backgroundColor: color_secondary_dark,
-                        borderColor: color_secondary_dark,
-                        color: color_white,
-                      },
-                      "&.Mui-selected:hover": {
-                        backgroundColor: color_secondary_dark,
-                      },
-                      "&.Mui-selected .MuiListItemIcon-root": {
-                        color: color_white,
-                      },
-                    }}
+                    sx={REQUEST_HUB_NAV_ITEM_SX}
                   >
                     <ListItemIcon
                       sx={{
                         minWidth: 44,
-                        color: selected ? color_white : color_text_secondary,
+                        color: selected ? color_white : undefined,
                       }}
                     >
                       {it.icon}

@@ -4,6 +4,7 @@ import {
   color_black_light,
   color_border,
   color_focus_ring,
+  color_light_gray,
   color_secondary,
   color_secondary_dark,
   color_warning,
@@ -11,6 +12,7 @@ import {
   color_text_light,
   color_text_primary,
   color_white,
+  color_white_smoke,
 } from "../../../constants/colors";
 
 type AddInfoSx = SxProps<Theme>;
@@ -20,6 +22,26 @@ export const ADD_INFO_CARD_SX: AddInfoSx = {
   background: color_white,
   borderRadius: "12px",
   p: 2,
+};
+
+export const ADD_INFO_DIALOG_PAPER_SX: AddInfoSx = {
+  borderRadius: "14px",
+  overflow: "hidden",
+  border: `1px solid ${color_border}`,
+};
+
+export const ADD_INFO_DIALOG_HEADER_SX: AddInfoSx = {
+  background: `linear-gradient(180deg, ${color_secondary} 0%, ${color_secondary_dark} 100%)`,
+  borderBottom: `1px solid ${color_border}`,
+};
+
+export const ADD_INFO_DIALOG_CONTENT_SX: AddInfoSx = {
+  background: color_white_smoke,
+};
+
+export const ADD_INFO_DIALOG_ACTIONS_SX: AddInfoSx = {
+  background: color_white,
+  borderTop: `1px solid ${color_border}`,
 };
 
 export const ADD_INFO_CARD_TITLE_SX: AddInfoSx = {
@@ -44,6 +66,20 @@ export const ADD_INFO_PRIMARY_ACTION_BUTTON_SX: AddInfoSx = {
   px: 2,
   py: 1.1,
   "&:hover": { background: color_secondary_dark },
+  "&:focus-visible": {
+    outline: `3px solid ${color_focus_ring}`,
+    outlineOffset: "2px",
+  },
+};
+
+export const ADD_INFO_SECONDARY_ACTION_BUTTON_SX: AddInfoSx = {
+  textTransform: "none",
+  fontWeight: 900,
+  borderRadius: "10px",
+  border: `1px solid ${color_border}`,
+  background: color_light_gray,
+  color: color_text_primary,
+  "&:hover": { background: color_white_smoke },
   "&:focus-visible": {
     outline: `3px solid ${color_focus_ring}`,
     outlineOffset: "2px",
