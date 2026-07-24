@@ -10,15 +10,19 @@ import useFetch from "../../../hooks/useFetch";
 import Loader from "../../Loader";
 
 import {
-  color_border,
-  color_light_gray,
   color_secondary,
-  color_secondary_dark,
-  color_text_primary,
   color_white,
   color_white_smoke,
   color_focus_ring,
 } from "../../../constants/colors";
+import {
+  ADD_INFO_DIALOG_ACTIONS_SX,
+  ADD_INFO_DIALOG_CONTENT_SX,
+  ADD_INFO_DIALOG_HEADER_SX,
+  ADD_INFO_DIALOG_PAPER_SX,
+  ADD_INFO_PRIMARY_ACTION_BUTTON_SX,
+  ADD_INFO_SECONDARY_ACTION_BUTTON_SX,
+} from "./styles";
 
 import FieldRow from "./FieldRow";
 import TextFieldRow from "./TextFieldRow";
@@ -688,18 +692,15 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
           sx: {
             width: isMobile ? "100%" : "62%",
             maxHeight: "92vh",
-            borderRadius: "14px",
-            overflow: "hidden",
-            border: `1px solid ${color_border}`,
+            ...ADD_INFO_DIALOG_PAPER_SX,
           },
         }}
       >
         <Box
           sx={{
-            background: `linear-gradient(180deg, ${color_secondary} 0%, ${color_secondary_dark} 100%)`,
+            ...ADD_INFO_DIALOG_HEADER_SX,
             px: 2.5,
             py: 1.6,
-            borderBottom: `1px solid ${color_border}`,
           }}
         >
           <Typography sx={{ color: color_white, fontWeight: 900, fontSize: "1.15rem" }}>{dialogTitle}</Typography>
@@ -707,7 +708,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
         <DialogContent
           sx={{
-            background: color_white_smoke,
+            ...ADD_INFO_DIALOG_CONTENT_SX,
             p: 2.5,
             display: "flex",
             flexDirection: "column",
@@ -830,8 +831,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
 
         <DialogActions
           sx={{
-            background: color_white,
-            borderTop: `1px solid ${color_border}`,
+            ...ADD_INFO_DIALOG_ACTIONS_SX,
             p: 2,
             display: "flex",
             justifyContent: "space-between",
@@ -858,13 +858,7 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
             <Button
               onClick={onClose}
               sx={{
-                textTransform: "none",
-                fontWeight: 900,
-                borderRadius: "10px",
-                border: `1px solid ${color_border}`,
-                background: color_light_gray,
-                color: color_text_primary,
-                "&:focus-visible": { outline: `3px solid ${color_focus_ring}`, outlineOffset: "2px" },
+                ...ADD_INFO_SECONDARY_ACTION_BUTTON_SX,
               }}
             >
               Cancel
@@ -874,13 +868,8 @@ export default function AddInfoForm({ row, file, onClose }: AddInfoFormProps) {
               variant="contained"
               onClick={handleSaveClick}
               sx={{
-                textTransform: "none",
-                fontWeight: 900,
-                borderRadius: "10px",
-                background: color_secondary,
-                "&:hover": { background: color_secondary_dark },
+                ...ADD_INFO_PRIMARY_ACTION_BUTTON_SX,
                 px: 3,
-                "&:focus-visible": { outline: `3px solid ${color_focus_ring}`, outlineOffset: "2px" },
               }}
             >
               Save

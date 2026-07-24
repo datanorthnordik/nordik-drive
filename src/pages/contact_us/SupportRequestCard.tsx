@@ -25,7 +25,7 @@ import { apiRequest } from "../../hooks/useFetch";
 import {
   color_border,
   color_error,
-  color_secondary_dark,
+  color_secondary,
   color_text_primary,
   color_text_secondary,
   color_white,
@@ -42,6 +42,15 @@ import {
   validateSupportRequestForm,
   validateSupportScreenshot,
 } from "./supportRequest";
+import {
+  REQUEST_HUB_HEADER_ICON_SX,
+  REQUEST_HUB_HEADER_SUBTITLE_SX,
+  REQUEST_HUB_HEADER_SX,
+  REQUEST_HUB_HEADER_TITLE_SX,
+  REQUEST_HUB_PANEL_SX,
+  REQUEST_HUB_PRIMARY_BUTTON_SX,
+  REQUEST_HUB_SECONDARY_BUTTON_SX,
+} from "../request_hub/styles";
 
 interface SupportRequestCardProps {
   surface?: "card" | "dialog";
@@ -205,36 +214,30 @@ const SupportRequestCard = ({
     <Stack spacing={2}>
       <Box
         sx={{
-          p: { xs: 1.6, md: 1.8 },
-          borderRadius: "18px",
-          background: color_white_smoke,
-          border: `1px solid ${color_border}`,
+          ...REQUEST_HUB_HEADER_SX,
+          borderBottom: "none",
+          borderRadius: "20px",
+          p: { xs: 1.7, md: 1.9 },
         }}
       >
         <Box sx={{ display: "flex", gap: 1.4, alignItems: "flex-start" }}>
           <Box
             sx={{
+              ...REQUEST_HUB_HEADER_ICON_SX,
               width: 48,
               height: 48,
               minWidth: 48,
-              borderRadius: "16px",
-              background: color_white,
-              border: `1px solid ${color_border}`,
-              display: "grid",
-              placeItems: "center",
-              boxShadow: "0 8px 16px rgba(0, 58, 122, 0.08)",
             }}
           >
-            <SupportAgentRounded sx={{ color: color_secondary_dark, fontSize: 26 }} />
+            <SupportAgentRounded sx={{ fontSize: 26 }} />
           </Box>
 
           <Box sx={{ minWidth: 0 }}>
             <Typography
               id={titleId}
               sx={{
+                ...REQUEST_HUB_HEADER_TITLE_SX,
                 fontSize: { xs: 20, md: 22 },
-                fontWeight: 900,
-                color: color_text_primary,
                 lineHeight: 1.25,
                 mb: 0.55,
               }}
@@ -244,14 +247,13 @@ const SupportRequestCard = ({
 
             <Typography
               sx={{
+                ...REQUEST_HUB_HEADER_SUBTITLE_SX,
                 fontSize: { xs: 13.8, md: 14.4 },
                 lineHeight: 1.7,
-                color: color_text_secondary,
-                fontWeight: 700,
               }}
             >
               Use this form to send product questions, technical issues, or a screenshot that
-              helps explain what you&apos;re seeing.
+              helps explain what you're seeing.
             </Typography>
           </Box>
         </Box>
@@ -281,7 +283,10 @@ const SupportRequestCard = ({
             label="Request type"
             value={formValues.requestType}
             onChange={(event) =>
-              updateField("requestType", event.target.value as SupportRequestFormValues["requestType"])
+              updateField(
+                "requestType",
+                event.target.value as SupportRequestFormValues["requestType"]
+              )
             }
             fullWidth
             size="small"
@@ -331,10 +336,7 @@ const SupportRequestCard = ({
             value={formValues.message}
             onChange={(event) => updateField("message", event.target.value)}
             error={Boolean(errors.message)}
-            helperText={
-              errors.message ||
-              `${formValues.message.trim().length}/2000 characters`
-            }
+            helperText={errors.message || `${formValues.message.trim().length}/2000 characters`}
             fullWidth
             multiline
             minRows={5}
@@ -343,6 +345,7 @@ const SupportRequestCard = ({
 
           <Box
             sx={{
+              ...REQUEST_HUB_PANEL_SX,
               p: 1.6,
               borderRadius: "18px",
               background: color_white_smoke,
@@ -382,16 +385,12 @@ const SupportRequestCard = ({
                 component="label"
                 startIcon={<ImageOutlined />}
                 sx={{
+                  ...REQUEST_HUB_SECONDARY_BUTTON_SX,
                   alignSelf: { xs: "stretch", sm: "center" },
-                  textTransform: "none",
                   borderRadius: "14px",
                   px: 2.1,
                   py: 1,
-                  fontWeight: 900,
-                  color: color_secondary_dark,
-                  border: `1px solid ${color_border}`,
-                  background: color_white,
-                  "&:hover": { background: color_white },
+                  color: color_secondary,
                 }}
               >
                 Attach screenshot
@@ -414,11 +413,10 @@ const SupportRequestCard = ({
             {selectedScreenshot ? (
               <Box
                 sx={{
+                  ...REQUEST_HUB_PANEL_SX,
                   mt: 1.4,
                   p: 1.2,
                   borderRadius: "16px",
-                  background: color_white,
-                  border: `1px solid ${color_border}`,
                   display: "flex",
                   gap: 1.2,
                   alignItems: "center",
@@ -489,7 +487,7 @@ const SupportRequestCard = ({
                 fontWeight: 700,
               }}
             >
-              We&apos;ll send your request to the support team and follow up by email.
+              We'll send your request to the support team and follow up by email.
             </Typography>
 
             <Button
@@ -503,18 +501,13 @@ const SupportRequestCard = ({
                 )
               }
               sx={{
+                ...REQUEST_HUB_PRIMARY_BUTTON_SX,
                 alignSelf: { xs: "stretch", sm: "center" },
                 minWidth: 170,
-                textTransform: "none",
                 borderRadius: "14px",
                 px: 2.4,
                 py: 1.05,
-                fontWeight: 900,
                 fontSize: 15.2,
-                background: color_secondary_dark,
-                color: color_white,
-                boxShadow: "0 10px 18px rgba(0,0,0,0.12)",
-                "&:hover": { background: color_secondary_dark },
                 "&.Mui-disabled": {
                   color: "rgba(255,255,255,0.82)",
                   background: "rgba(0, 58, 122, 0.68)",
@@ -530,17 +523,13 @@ const SupportRequestCard = ({
   );
 
   if (surface === "dialog") {
-    return (
-      <Box sx={{ px: { xs: 2.2, md: 2.6 }, py: { xs: 2.3, md: 2.7 } }}>
-        {content}
-      </Box>
-    );
+    return <Box sx={{ px: { xs: 2.2, md: 2.6 }, py: { xs: 2.3, md: 2.7 } }}>{content}</Box>;
   }
 
   return (
     <Card
       sx={{
-        borderRadius: 3,
+        borderRadius: "22px",
         background: color_white,
         border: `1px solid ${color_border}`,
         boxShadow: "0 16px 30px rgba(0,0,0,0.08)",
