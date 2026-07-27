@@ -12,7 +12,6 @@ import {
   Divider,
   InputAdornment,
   MenuItem,
-  Paper,
   Stack,
   TextField,
   Typography,
@@ -26,12 +25,14 @@ import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
 import toast from "react-hot-toast";
 
 import Loader from "../../components/Loader";
+import SupportRequestsTable, { SupportRequestsTableColumn } from "../../components/tables/SupportRequestsTable";
 import { apiUrl } from "../../config/api";
 import { apiRequest } from "../../hooks/useFetch";
 import {
   color_background,
   color_border,
   color_secondary,
+  color_secondary_dark,
   color_text_light,
   color_text_primary,
   color_text_secondary,
@@ -54,7 +55,6 @@ import {
   REQUEST_HUB_DIALOG_CONTENT_SX,
   REQUEST_HUB_DIALOG_HEADER_SX,
   REQUEST_HUB_DIALOG_PAPER_SX,
-  REQUEST_HUB_EMPTY_STATE_SX,
   REQUEST_HUB_HEADER_ICON_SX,
   REQUEST_HUB_HEADER_SUBTITLE_SX,
   REQUEST_HUB_HEADER_SX,
@@ -72,6 +72,8 @@ type ManagementDraft = {
   adminNote: string;
 };
 
+const PAGE_SIZE = 20;
+
 const createDraft = (request: SupportRequestItem): ManagementDraft => ({
   status: request.status || SUPPORT_REQUEST_STATUS.OPEN,
   assignedTeam: request.assigned_team || "",
@@ -85,17 +87,24 @@ export default function AdminSupportRequests() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | SupportRequestStatus>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [activeRequest, setActiveRequest] = useState<SupportRequestItem | null>(null);
   const [draft, setDraft] = useState<ManagementDraft | null>(null);
 
-  const fetchRequests = useCallback(async () => {
+  const fetchRequests = useCallback(async (page = 1) => {
     setLoading(true);
     try {
       const response = await apiRequest<SupportRequestListResponse>(
-        apiUrl("support-requests/admin?page=1&page_size=100"),
+        apiUrl(`support-requests/admin?page=${page}&page_size=${PAGE_SIZE}`),
         "GET"
       );
-      setRequests(Array.isArray(response?.items) ? response.items : []);
+      const items = Array.isArray(response?.items) ? response.items : [];
+      setRequests(items);
+      setCurrentPage(response?.page || page);
+      setTotalPages(Math.max(response?.total_pages || 1, 1));
+      setTotalItems(response?.total_items || items.length);
     } catch (error: any) {
       toast.error(error?.message || "Unable to load support requests.");
     } finally {
@@ -104,7 +113,7 @@ export default function AdminSupportRequests() {
   }, []);
 
   useEffect(() => {
-    void fetchRequests();
+    void fetchRequests(1);
   }, [fetchRequests]);
 
   const statusCounts = useMemo(
@@ -143,10 +152,10 @@ export default function AdminSupportRequests() {
     });
   }, [requests, search, statusFilter]);
 
-  const openManager = (request: SupportRequestItem) => {
+  const openManager = useCallback((request: SupportRequestItem) => {
     setActiveRequest(request);
     setDraft(createDraft(request));
-  };
+  }, []);
 
   const closeManager = () => {
     if (saving) return;
@@ -198,6 +207,129 @@ export default function AdminSupportRequests() {
     setDraft((current) => (current ? { ...current, [key]: value } : current));
   };
 
+  const columns = useMemo<SupportRequestsTableColumn[]>(
+    () => [
+      {
+        key: "subject",
+        label: "Subject",
+        cellSx: { minWidth: 220, whiteSpace: "normal" },
+        render: (request) => (
+          <Box>
+            <Typography sx={{ fontWeight: 900, color: color_text_primary, lineHeight: 1.35 }}>
+              {request.subject}
+            </Typography>
+            <Typography sx={{ mt: 0.4, fontSize: "0.76rem", color: color_text_light }}>
+              #{request.id}
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        key: "requester",
+        label: "Requester",
+        cellSx: { minWidth: 220, whiteSpace: "normal" },
+        render: (request) => (
+          <Box>
+            <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+              {request.requester_name}
+            </Typography>
+            <Typography sx={{ mt: 0.35, fontSize: "0.76rem", color: color_text_secondary }}>
+              {request.requester_email}
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        key: "type",
+        label: "Type",
+        cellSx: { minWidth: 150, whiteSpace: "normal" },
+        render: (request) => getSupportRequestTypeLabel(request.request_type),
+      },
+      {
+        key: "submitted",
+        label: "Submitted",
+        cellSx: { minWidth: 180, whiteSpace: "normal" },
+        render: (request) => formatSupportRequestDate(request.created_at),
+      },
+      {
+        key: "status",
+        label: "Status",
+        align: "center",
+        cellSx: { minWidth: 130 },
+        render: (request) => {
+          const status = getSupportRequestStatusChip(request.status);
+          return (
+            <Chip
+              label={status.label}
+              size="small"
+              sx={{ borderRadius: "999px", fontWeight: 900, ...status.sx }}
+            />
+          );
+        },
+      },
+      {
+        key: "assigned_team",
+        label: "Assigned Team",
+        cellSx: { minWidth: 180, whiteSpace: "normal" },
+        render: (request) =>
+          request.assigned_team ? (
+            <Box>
+              <Typography sx={{ fontWeight: 800, color: color_text_primary }}>
+                {request.assigned_team}
+              </Typography>
+              <Typography sx={{ mt: 0.35, fontSize: "0.76rem", color: color_text_light }}>
+                {request.status === SUPPORT_REQUEST_STATUS.CLOSED ? "Closed" : "Forwarded"}
+              </Typography>
+            </Box>
+          ) : (
+            "-"
+          ),
+      },
+      {
+        key: "message",
+        label: "Message",
+        cellSx: { minWidth: 280, maxWidth: 360, whiteSpace: "normal" },
+        render: (request) => (
+          <Typography
+            sx={{
+              color: color_text_secondary,
+              lineHeight: 1.55,
+              display: "-webkit-box",
+              overflow: "hidden",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
+            {request.message}
+          </Typography>
+        ),
+      },
+      {
+        key: "actions",
+        label: "Actions",
+        align: "center",
+        cellSx: { minWidth: 130 },
+        render: (request) => (
+          <Button
+            onClick={() => openManager(request)}
+            variant="contained"
+            sx={{
+              ...REQUEST_HUB_PRIMARY_BUTTON_SX,
+              minWidth: 96,
+              borderRadius: "10px",
+              fontWeight: 950,
+              px: 2.1,
+              py: 0.75,
+            }}
+          >
+            Manage
+          </Button>
+        ),
+      },
+    ],
+    [openManager]
+  );
+
   return (
     <Box
       sx={{
@@ -211,7 +343,14 @@ export default function AdminSupportRequests() {
     >
       <Loader loading={loading || saving} />
 
-      <Paper elevation={0} sx={REQUEST_HUB_SURFACE_SX}>
+      <Box
+        sx={{
+          ...REQUEST_HUB_SURFACE_SX,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100%",
+        }}
+      >
         <Box
           sx={{
             ...REQUEST_HUB_HEADER_SX,
@@ -241,7 +380,7 @@ export default function AdminSupportRequests() {
           </Box>
 
           <Button
-            onClick={() => void fetchRequests()}
+            onClick={() => void fetchRequests(currentPage)}
             startIcon={<RefreshRoundedIcon />}
             sx={{
               ...REQUEST_HUB_SECONDARY_BUTTON_SX,
@@ -252,8 +391,18 @@ export default function AdminSupportRequests() {
           </Button>
         </Box>
 
-        <Box sx={{ ...REQUEST_HUB_CONTENT_SX, p: { xs: 1.25, md: 2.25 } }}>
-          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25} sx={{ mb: 1.75 }}>
+        <Box
+          sx={{
+            ...REQUEST_HUB_CONTENT_SX,
+            p: { xs: 1.25, md: 2.25 },
+            display: "flex",
+            flexDirection: "column",
+            gap: 1.25,
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25}>
             {[
               {
                 status: SUPPORT_REQUEST_STATUS.OPEN,
@@ -280,27 +429,27 @@ export default function AdminSupportRequests() {
                   sx={{
                     flex: 1,
                     minWidth: 0,
-                    p: 1.5,
+                    p: 1.45,
                     borderRadius: "18px",
                     justifyContent: "flex-start",
                     textAlign: "left",
                     textTransform: "none",
                     background: selected
-                      ? `linear-gradient(180deg, ${color_secondary} 0%, ${color_white_smoke} 220%)`
+                      ? `linear-gradient(180deg, ${color_secondary} 0%, ${color_secondary_dark} 100%)`
                       : color_white,
-                    border: `1px solid ${selected ? color_secondary : color_border}`,
-                    color: selected ? color_secondary : color_text_primary,
-                    boxShadow: selected ? "0 12px 24px rgba(0, 75, 156, 0.14)" : "none",
+                    border: `1px solid ${selected ? color_secondary_dark : color_border}`,
+                    color: selected ? color_white : color_text_primary,
+                    boxShadow: selected ? "0 12px 24px rgba(0, 58, 122, 0.22)" : "none",
                     "&:hover": {
                       background: selected
-                        ? `linear-gradient(180deg, ${color_secondary} 0%, ${color_white_smoke} 220%)`
+                        ? `linear-gradient(180deg, ${color_secondary} 0%, ${color_secondary_dark} 100%)`
                         : color_white,
                     },
                   }}
                 >
                   <Box
                     sx={{
-                      mr: 1.2,
+                      mr: 1.15,
                       width: 42,
                       height: 42,
                       borderRadius: "14px",
@@ -314,14 +463,21 @@ export default function AdminSupportRequests() {
                     {icon}
                   </Box>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontWeight: 950, fontSize: 15 }}>
+                    <Typography
+                      sx={{
+                        fontWeight: 950,
+                        fontSize: 15,
+                        color: selected ? color_white : color_text_primary,
+                      }}
+                    >
                       {getSupportRequestStatusLabel(status)}
                     </Typography>
                     <Typography
                       sx={{
+                        mt: 0.2,
                         fontWeight: 700,
                         fontSize: 12.5,
-                        color: selected ? "rgba(255,255,255,0.85)" : color_text_light,
+                        color: selected ? "rgba(255,255,255,0.84)" : color_text_light,
                       }}
                     >
                       {helper}
@@ -352,7 +508,7 @@ export default function AdminSupportRequests() {
             })}
           </Stack>
 
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.1} sx={{ mb: 1.5 }}>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.1} sx={{ alignItems: "stretch" }}>
             <TextField
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -368,6 +524,7 @@ export default function AdminSupportRequests() {
               }}
               sx={{
                 "& .MuiOutlinedInput-root": {
+                  height: 40,
                   borderRadius: "12px",
                   background: color_white,
                   fontWeight: 700,
@@ -386,135 +543,35 @@ export default function AdminSupportRequests() {
               onClick={() => setStatusFilter("all")}
               sx={{
                 ...REQUEST_HUB_SECONDARY_BUTTON_SX,
+                minWidth: { xs: "100%", md: 110 },
+                height: 40,
+                px: 2,
                 color: color_text_secondary,
+                whiteSpace: "nowrap",
+                alignSelf: "stretch",
               }}
             >
-              All ({requests.length})
+              All ({totalItems})
             </Button>
           </Stack>
 
-          {filteredRequests.length === 0 ? (
-            <Paper
-              elevation={0}
-              sx={{
-                ...REQUEST_HUB_EMPTY_STATE_SX,
-                py: { xs: 4, md: 5 },
-                px: 2,
-                textAlign: "center",
-              }}
-            >
-              <Typography sx={{ color: color_text_primary, fontWeight: 950, fontSize: 17 }}>
-                No matching support requests
-              </Typography>
-              <Typography
-                sx={{ color: color_text_light, fontWeight: 700, mt: 0.5, fontSize: 13.5 }}
-              >
-                Try another search or select a different request status.
-              </Typography>
-            </Paper>
-          ) : (
-            <Stack spacing={1.15}>
-              {filteredRequests.map((request) => {
-                const status = getSupportRequestStatusChip(request.status);
-                return (
-                  <Paper
-                    key={request.id}
-                    elevation={0}
-                    sx={{
-                      ...REQUEST_HUB_PANEL_SX,
-                      p: { xs: 1.35, md: 1.65 },
-                      borderLeft: `5px solid ${status.accent}`,
-                      transition: "transform 140ms ease, box-shadow 140ms ease",
-                      "&:hover": {
-                        transform: "translateY(-1px)",
-                        boxShadow: "0 12px 24px rgba(0, 0, 0, 0.08)",
-                      },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 1.2,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography sx={{ color: color_text_primary, fontWeight: 950, fontSize: 16 }}>
-                          {request.subject}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            color: color_text_secondary,
-                            fontWeight: 800,
-                            fontSize: 13.2,
-                            mt: 0.25,
-                          }}
-                        >
-                          {request.requester_name} · {request.requester_email}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            color: color_text_light,
-                            fontWeight: 700,
-                            fontSize: 12.5,
-                            mt: 0.25,
-                          }}
-                        >
-                          #{request.id} - {getSupportRequestTypeLabel(request.request_type)} -{" "}
-                          {formatSupportRequestDate(request.created_at)}
-                        </Typography>
-                      </Box>
-                      <Stack direction="row" spacing={0.75} alignItems="center">
-                        <Chip
-                          label={status.label}
-                          size="small"
-                          sx={{ borderRadius: "999px", fontWeight: 950, ...status.sx }}
-                        />
-                        <Button
-                          onClick={() => openManager(request)}
-                          variant="contained"
-                          sx={{
-                            ...REQUEST_HUB_PRIMARY_BUTTON_SX,
-                            borderRadius: "10px",
-                            fontWeight: 950,
-                          }}
-                        >
-                          Manage
-                        </Button>
-                      </Stack>
-                    </Box>
-
-                    <Typography
-                      sx={{
-                        mt: 1.05,
-                        color: color_text_secondary,
-                        fontWeight: 700,
-                        fontSize: 13.4,
-                        lineHeight: 1.6,
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {request.message}
-                    </Typography>
-
-                    {request.assigned_team ? (
-                      <Typography
-                        sx={{ mt: 1, color: color_text_light, fontWeight: 850, fontSize: 12.8 }}
-                      >
-                        Assigned to {request.assigned_team} -{" "}
-                        {request.status === SUPPORT_REQUEST_STATUS.CLOSED ? "Closed" : "Forwarded"}{" "}
-                        {formatSupportRequestDate(request.closed_at || request.assigned_at)}
-                      </Typography>
-                    ) : null}
-                  </Paper>
-                );
-              })}
-            </Stack>
-          )}
+          <SupportRequestsTable
+            title="Support Tickets"
+            rows={filteredRequests}
+            totalItems={totalItems}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            emptyText={
+              search.trim() || statusFilter !== "all"
+                ? "No matching support requests on this page."
+                : "No support requests found."
+            }
+            columns={columns}
+            onPrev={() => void fetchRequests(currentPage - 1)}
+            onNext={() => void fetchRequests(currentPage + 1)}
+          />
         </Box>
-      </Paper>
+      </Box>
 
       <Dialog
         open={Boolean(activeRequest && draft)}
@@ -556,7 +613,7 @@ export default function AdminSupportRequests() {
                   <Typography
                     sx={{ color: color_text_secondary, fontWeight: 800, fontSize: 13.2, mt: 0.35 }}
                   >
-                    {activeRequest.requester_name} · {activeRequest.requester_email}
+                    {activeRequest.requester_name} - {activeRequest.requester_email}
                   </Typography>
                   <Typography
                     sx={{ color: color_text_light, fontWeight: 700, fontSize: 12.6, mt: 0.25 }}
@@ -631,7 +688,13 @@ export default function AdminSupportRequests() {
                     Forward to associated team
                   </Typography>
                   <Typography
-                    sx={{ color: color_text_light, fontWeight: 700, fontSize: 12.8, mt: 0.25, mb: 1.15 }}
+                    sx={{
+                      color: color_text_light,
+                      fontWeight: 700,
+                      fontSize: 12.8,
+                      mt: 0.25,
+                      mb: 1.15,
+                    }}
                   >
                     Required when moving a request to In Progress. Separate multiple email addresses with commas.
                   </Typography>
