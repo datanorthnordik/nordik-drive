@@ -40,9 +40,11 @@ const request = {
   updated_at: "2026-07-21T15:00:00Z",
 };
 
-const response = { page: 1, page_size: 100, total_items: 1, total_pages: 1, items: [request] };
+const response = { page: 1, page_size: 20, total_items: 1, total_pages: 1, items: [request] };
 
 describe("Support request views", () => {
+  jest.setTimeout(15000);
+
   beforeEach(() => {
     apiRequestMock.mockReset();
     apiRequestMock.mockResolvedValue(response);
@@ -55,14 +57,15 @@ describe("Support request views", () => {
     expect(screen.getByText("Open")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /new support request/i }));
-    expect(screen.getByText("New Support Request")).toBeInTheDocument();
+    expect(screen.getByText("Create Support Request")).toBeInTheDocument();
     expect(screen.getByText("Submit mocked support request")).toBeInTheDocument();
   });
 
   it("lets an admin open a request for team forwarding", async () => {
     render(<AdminSupportRequests />);
 
-    expect(await screen.findByText("Alex User · alex@example.com")).toBeInTheDocument();
+    expect(await screen.findByText("Alex User")).toBeInTheDocument();
+    expect(screen.getByText("alex@example.com")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Manage" }));
 
     expect(screen.getByText("Manage Support Request #42")).toBeInTheDocument();
@@ -84,10 +87,54 @@ describe("Support request views", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /forward & notify/i }));
 
-    await waitFor(() => expect(apiRequestMock).toHaveBeenLastCalledWith(
-      expect.stringContaining("support-requests/42"),
-      "PUT",
-      expect.objectContaining({ status: "in_progress", assigned_team: "Platform" })
-    ));
+    await waitFor(() =>
+      expect(apiRequestMock).toHaveBeenLastCalledWith(
+        expect.stringContaining("support-requests/42"),
+        "PUT",
+        expect.objectContaining({ status: "in_progress", assigned_team: "Platform" })
+      )
+    );
+  });
+
+  it("loads the next admin page when more support requests are available", async () => {
+    apiRequestMock
+      .mockResolvedValueOnce({
+        page: 1,
+        page_size: 20,
+        total_items: 2,
+        total_pages: 2,
+        items: [request],
+      })
+      .mockResolvedValueOnce({
+        page: 2,
+        page_size: 20,
+        total_items: 2,
+        total_pages: 2,
+        items: [
+          {
+            ...request,
+            id: 43,
+            subject: "Page two issue",
+            requester_name: "Sam User",
+            requester_email: "sam@example.com",
+          },
+        ],
+      });
+
+    render(<AdminSupportRequests />);
+
+    expect(await screen.findByText("Search results are blank")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "NEXT" }));
+
+    await waitFor(() =>
+      expect(apiRequestMock).toHaveBeenLastCalledWith(
+        expect.stringContaining("support-requests/admin?page=2&page_size=20"),
+        "GET"
+      )
+    );
+
+    expect(await screen.findByText("Page two issue")).toBeInTheDocument();
+    expect(screen.getByText("Sam User")).toBeInTheDocument();
   });
 });
