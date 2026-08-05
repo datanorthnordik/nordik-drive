@@ -7,9 +7,7 @@ import { AppDispatch } from "../../store/store";
 import { clearAuth, setChecked } from "../../store/auth/authSlics";
 import { color_secondary } from "../../constants/colors";
 import { apiUrl } from "../../config/api";
-import { Box, IconButton, Tooltip } from "@mui/material";
-import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
-import { Link as RouterLink } from "react-router-dom";
+import { Box, Button, Divider, Stack, Typography } from "@mui/material";
 
 const initialSession: Session = {
   user: { name: "", email: "", image: "" },
@@ -46,16 +44,37 @@ export default function Logout() {
     signOut: () => fetchData(),
   }), [session]);
 
+  const AccountMenuContent = (props: any) => {
+    return (
+      <Stack direction="column" {...props}>
+        <Box sx={{ px: 2.5, py: 2 }}>
+          <Typography fontWeight={800}>{session?.user?.name || "Account"}</Typography>
+          <Typography variant="body2" color="text.secondary">{session?.user?.email}</Typography>
+        </Box>
+        <Divider />
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <Button href="/profile" fullWidth variant="outlined">
+            Profile & availability
+          </Button>
+        </Box>
+        <Divider />
+        <Box sx={{ px: 1.5, py: 1.5 }}>
+          <Button fullWidth variant="outlined" color="inherit" onClick={authentication.signOut}>
+            Sign out
+          </Button>
+        </Box>
+      </Stack>
+    );
+  };
+
+  const isSupportAdmin = String(user?.role || "").toLowerCase() === "admin";
+
   return (
     <AppProvider session={session} authentication={authentication}>
       <Loader loading={loading} />
-      <Box sx={{ display: "flex", alignItems: "center", gap: .5 }}>
-        {String(user?.role || "").toLowerCase() === "admin" && <Tooltip title="Profile">
-          <IconButton component={RouterLink} to="/profile" color="primary" aria-label="Open profile">
-            <PersonOutlineRoundedIcon />
-          </IconButton>
-        </Tooltip>}
+      <Box sx={{ display: "flex", alignItems: "center" }}>
         <Account
+          slots={isSupportAdmin ? { popoverContent: AccountMenuContent } : undefined}
           slotProps={{
             signInButton: { sx: { display: "none" } },
             signOutButton: { sx: { color: color_secondary, borderColor: color_secondary } },

@@ -4,6 +4,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import ctheme from "./theme/theme";
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { useSelector } from "react-redux";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import Layout from "./components/Layout";
@@ -23,12 +24,15 @@ const Acknowledgement = lazy(() => import("./pages/Acknowledgement/Acknowledgeme
 const FileContentPage = lazy(() => import("./pages/FileContentPage/FileContentPage"));
 const ActivityLogs = lazy(() => import("./components/tables/ActivityLogs"));
 const AdminPanel = lazy(() => import("./pages/adminpanel/AdminPanel"));
+const AdminRequestsWrapper = lazy(() => import("./pages/request_hub/AdminRequestsWrapper"));
+const MyRequestsWrapper = lazy(() => import("./pages/request_hub/MyRequestsWrapper"));
 const SupportProfile = lazy(() => import("./pages/support_schedule/SupportProfile"));
-const SupportRequestsPage = lazy(() => import("./pages/support_schedule/SupportRequestsPage"));
 const SupportCallsPage = lazy(() => import("./pages/support_schedule/SupportCallsPage"));
 
 
 function App() {
+  const { user } = useSelector((state: any) => state.auth);
+  const isAdmin = String(user?.role || "").toLowerCase() === "admin";
   const renderProtectedRoute = (page: ReactNode) => (
     <ProtectedRoute>
       <Layout showHeader={true}>{page}</Layout>
@@ -112,7 +116,7 @@ function App() {
 
           <Route
             path="/requests"
-            element={renderProtectedRoute(<SupportRequestsPage />)}
+            element={renderProtectedRoute(isAdmin ? <AdminRequestsWrapper /> : <MyRequestsWrapper />)}
           />
           <Route
             path="/support-calls"

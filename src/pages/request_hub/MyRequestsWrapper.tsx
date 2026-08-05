@@ -6,6 +6,7 @@ import RequestsHub from "./RequestHub";
 import UserAddInfoRequests from "./MyRequests";
 import MyFormSubmissionRequests from "./MyFormSubmissionRequests";
 import MySupportRequests from "./MySupportRequests";
+import SupportCallsPage from "../support_schedule/SupportCallsPage";
 
 export default function MyRequests() {
   return (
@@ -13,6 +14,7 @@ export default function MyRequests() {
       addInfoRequests={<UserAddInfoRequests />}
       formSubmissionRequests={<MyFormSubmissionRequests />}
       supportRequests={<MySupportRequests />}
+      supportCalls={<SupportCallsPage embedded />}
     />
   );
 }

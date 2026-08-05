@@ -18,6 +18,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import DescriptionIcon from "@mui/icons-material/Description";
 import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 
 import { header_height, header_mobile_height } from "../../constants/colors";
 import {
@@ -33,18 +34,20 @@ import {
   REQUEST_HUB_NAV_ITEM_SX,
 } from "./styles";
 
-type RequestView = "ADD_INFO" | "FORM_SUBMISSION" | "SUPPORT";
+type RequestView = "ADD_INFO" | "FORM_SUBMISSION" | "SUPPORT" | "SUPPORT_CALLS";
 
 type RequestsHubProps = {
   addInfoRequests: React.ReactNode;
   formSubmissionRequests?: React.ReactNode;
   supportRequests?: React.ReactNode;
+  supportCalls?: React.ReactNode;
 };
 
 export default function RequestsHub({
   addInfoRequests,
   formSubmissionRequests,
   supportRequests,
+  supportCalls,
 }: RequestsHubProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [view, setView] = useState<RequestView>("ADD_INFO");
@@ -75,6 +78,11 @@ export default function RequestsHub({
         key: "SUPPORT" as const,
         label: "Support Requests",
         icon: <SupportAgentIcon />,
+      },
+      {
+        key: "SUPPORT_CALLS" as const,
+        label: "Support Calls",
+        icon: <EventAvailableRoundedIcon />,
       },
     ],
     []
@@ -128,6 +136,7 @@ export default function RequestsHub({
           {view === "FORM_SUBMISSION" &&
             (formSubmissionRequests ?? <DefaultFormSubmissionPlaceholder />)}
           {view === "SUPPORT" && (supportRequests ?? <DefaultSupportRequestsPlaceholder />)}
+          {view === "SUPPORT_CALLS" && (supportCalls ?? <DefaultSupportCallsPlaceholder />)}
         </Box>
       </Box>
 
@@ -309,6 +318,40 @@ function DefaultSupportRequestsPlaceholder() {
         </Typography>
         <Typography sx={{ fontSize: 14, color: color_text_secondary, lineHeight: 1.7 }}>
           Support requests will appear here.
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function DefaultSupportCallsPlaceholder() {
+  return (
+    <Box
+      sx={{
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 2,
+      }}
+    >
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 720,
+          border: `1px dashed ${color_border}`,
+          borderRadius: "20px",
+          background: color_white,
+          p: { xs: 3, md: 4 },
+          textAlign: "center",
+        }}
+      >
+        <Typography sx={{ fontSize: { xs: 20, md: 24 }, fontWeight: 950, color: color_text_primary, mb: 1 }}>
+          Support Calls
+        </Typography>
+        <Typography sx={{ fontSize: 14, color: color_text_secondary, lineHeight: 1.7 }}>
+          Your support-call schedule will appear here.
         </Typography>
       </Box>
     </Box>

@@ -156,6 +156,25 @@ describe("Logout", () => {
     });
   });
 
+  test("shows a text-only Profile & availability entry for admins", async () => {
+    mockUser = {
+      firstname: "Athul",
+      lastname: "Narayanan",
+      email: "athul@test.com",
+      role: "Admin",
+    };
+    mockUseFetchReturn({});
+
+    render(<Logout />);
+
+    await waitFor(() => expect(mockLastAccountProps?.slots?.popoverContent).toBeTruthy());
+    const AccountMenuContent = mockLastAccountProps.slots.popoverContent;
+    render(<AccountMenuContent />);
+
+    expect(screen.getByRole("link", { name: "Profile & availability" })).toHaveAttribute("href", "/profile");
+    expect(screen.queryByLabelText("Open profile")).not.toBeInTheDocument();
+  });
+
   test("shows loader when loading=true", () => {
     mockUseFetchReturn({ loading: true });
 

@@ -21,7 +21,9 @@ const localDateTime = (value: string) => {
 
 type ReassignTarget = { kind: "call"; call: SupportCall } | { kind: "assignment"; assignment: SupportAssignment } | null;
 
-export default function SupportCallsPage() {
+type SupportCallsPageProps = { embedded?: boolean };
+
+export default function SupportCallsPage({ embedded = false }: SupportCallsPageProps) {
   const { user } = useSelector((state: any) => state.auth);
   const userID = Number(user?.id || user?.ID || 0);
   const role = String(user?.role || "").toLowerCase();
@@ -108,10 +110,10 @@ export default function SupportCallsPage() {
     }
   };
 
-  if (loading) return <Box sx={{ minHeight: "50vh", display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
+  if (loading) return <Box sx={embedded ? { height: "100%", display: "grid", placeItems: "center" } : { minHeight: "50vh", display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
 
   return (
-    <Container maxWidth="lg" sx={{ pt: { xs: 11, md: 14 }, pb: 6 }}>
+    <Container maxWidth="lg" sx={embedded ? { height: "100%", overflowY: "auto", py: 2 } : { pt: { xs: 11, md: 14 }, pb: 6 }}>
       <Stack spacing={3}>
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} spacing={1.5}>
           <Box><Typography variant="h4" fontWeight={900}>Support Calls</Typography><Typography color="text.secondary">{isManager ? "All scheduled, completed, and cancelled support calls." : isSupportAdmin ? "Your upcoming calls and completed-call records." : "Your upcoming, pending, completed, cancelled, and rejected support calls."}</Typography></Box>
