@@ -218,6 +218,23 @@ describe("RequestsHub", () => {
     ).toHaveAttribute("data-selected", "true");
   });
 
+  it("keeps the existing request sections and exposes Support Calls in the right panel", () => {
+    render(
+      <RequestsHub
+        addInfoRequests={<div>Add Info Content</div>}
+        formSubmissionRequests={<div>Form Content</div>}
+        supportRequests={<div>Support Request Content</div>}
+        supportCalls={<div>Support Call Content</div>}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    fireEvent.click(screen.getByRole("button", { name: /Support Calls/i }));
+
+    expect(screen.getByText("Support Call Content")).toBeInTheDocument();
+    expect(screen.queryByText("Add Info Content")).not.toBeInTheDocument();
+  });
+
   it("registers resize listener on mount and removes it on unmount", () => {
     const { unmount } = render(
       <RequestsHub

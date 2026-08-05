@@ -97,7 +97,7 @@ describe("HeaderNav", () => {
     mockUseMediaQuery.mockReturnValue(false);
   });
 
-  test("desktop renders the shared Requests and Support Calls links without a legacy My Support tab", async () => {
+  test("desktop keeps Requests in the header without a Support Calls link", async () => {
     const user = userEvent.setup();
     mockRole = "Admin";
     mockUseMediaQuery.mockReturnValue(false); // desktop
@@ -114,7 +114,7 @@ describe("HeaderNav", () => {
     // Always visible
     expect(screen.getByTestId("header-link-/files")).toBeInTheDocument();
     expect(screen.getByTestId("header-link-/requests")).toBeInTheDocument();
-    expect(screen.getByTestId("header-link-/support-calls")).toBeInTheDocument();
+    expect(screen.queryByTestId("header-link-/support-calls")).not.toBeInTheDocument();
     expect(screen.queryByText("My Support")).not.toBeInTheDocument();
 
     // Admin-only visible
@@ -129,9 +129,8 @@ describe("HeaderNav", () => {
     await user.click(screen.getByTestId("header-link-/files"));
     await user.click(screen.getByTestId("header-link-/adminpanel"));
     await user.click(screen.getByTestId("header-link-/requests"));
-    await user.click(screen.getByTestId("header-link-/support-calls"));
 
-    expect(onLinkClick).toHaveBeenCalledTimes(4);
+    expect(onLinkClick).toHaveBeenCalledTimes(3);
   });
 
   test("mobile (isMobile=true): renders Files + Requests always; User role shows Contact/Acknowledgement; no Admin links; Stack layout is column/flex-start/spacing=1.5", async () => {
@@ -151,7 +150,7 @@ describe("HeaderNav", () => {
     // Always visible
     expect(screen.getByTestId("header-link-/files")).toBeInTheDocument();
     expect(screen.getByTestId("header-link-/requests")).toBeInTheDocument();
-    expect(screen.getByTestId("header-link-/support-calls")).toBeInTheDocument();
+    expect(screen.queryByTestId("header-link-/support-calls")).not.toBeInTheDocument();
 
     // User-only visible
     expect(screen.getByTestId("header-link-/contact-us")).toBeInTheDocument();
@@ -177,7 +176,7 @@ describe("HeaderNav", () => {
     // Only Files + Requests when role isn't Admin or User
     expect(screen.getByTestId("header-link-/files")).toBeInTheDocument();
     expect(screen.getByTestId("header-link-/requests")).toBeInTheDocument();
-    expect(screen.getByTestId("header-link-/support-calls")).toBeInTheDocument();
+    expect(screen.queryByTestId("header-link-/support-calls")).not.toBeInTheDocument();
     expect(screen.queryByTestId("header-link-/adminpanel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("header-link-/useractivity")).not.toBeInTheDocument();
     expect(screen.queryByTestId("header-link-/contact-us")).not.toBeInTheDocument();
@@ -186,6 +185,5 @@ describe("HeaderNav", () => {
     // Clicking should not throw
     await user.click(screen.getByTestId("header-link-/files"));
     await user.click(screen.getByTestId("header-link-/requests"));
-    await user.click(screen.getByTestId("header-link-/support-calls"));
   });
 });

@@ -8,7 +8,6 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import DoneIcon from '@mui/icons-material/Done';
 import { Stack, useMediaQuery, useTheme } from "@mui/material";
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined';
-import EventAvailableRoundedIcon from '@mui/icons-material/EventAvailableRounded';
 
 interface HeaderNavProps {
   onLinkClick?: () => void; // called when a nav link is clicked
@@ -61,10 +60,6 @@ function HeaderNav({ onLinkClick }: HeaderNavProps) {
         <HeaderLink to="/requests" onClick={onLinkClick}>
           <PendingActionsOutlinedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
           Requests
-        </HeaderLink>
-        <HeaderLink to="/support-calls" onClick={onLinkClick}>
-          <EventAvailableRoundedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-          Support Calls
         </HeaderLink>
       </Stack>
     </NavWrapper>
