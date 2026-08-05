@@ -581,7 +581,7 @@ const ContactUs = () => {
             <CloseRounded />
           </IconButton>
           <Box sx={{ pr: { xs: 3, sm: 4 } }}>
-            <SupportBookingForm onScheduled={closeScheduleModal} />
+            <SupportBookingForm onRequested={closeScheduleModal} />
           </Box>
         </DialogContent>
       </Dialog>

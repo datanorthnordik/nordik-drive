@@ -15,7 +15,6 @@ import NotFoundPage from "./components/NotFound";
 
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { useSelector } from "react-redux";
 
 const DataView = lazy(() => import("./pages/dataview/DataView"));
 const ContactUs = lazy(() => import("./pages/contact_us/ContactUs"));
@@ -24,14 +23,12 @@ const Acknowledgement = lazy(() => import("./pages/Acknowledgement/Acknowledgeme
 const FileContentPage = lazy(() => import("./pages/FileContentPage/FileContentPage"));
 const ActivityLogs = lazy(() => import("./components/tables/ActivityLogs"));
 const AdminPanel = lazy(() => import("./pages/adminpanel/AdminPanel"));
-const AdminRequestsWrapper = lazy(() => import("./pages/request_hub/AdminRequestsWrapper"));
-const MyRequestsWrapper = lazy(() => import("./pages/request_hub/MyRequestsWrapper"));
 const SupportProfile = lazy(() => import("./pages/support_schedule/SupportProfile"));
+const SupportRequestsPage = lazy(() => import("./pages/support_schedule/SupportRequestsPage"));
+const SupportCallsPage = lazy(() => import("./pages/support_schedule/SupportCallsPage"));
 
 
 function App() {
-  const {user} = useSelector((state:any)=> state.auth)
-
   const renderProtectedRoute = (page: ReactNode) => (
     <ProtectedRoute>
       <Layout showHeader={true}>{page}</Layout>
@@ -109,15 +106,17 @@ function App() {
             element={renderProtectedRoute(<AdminPanel />)}
           />
           <Route
-            path="/my-support"
+            path="/profile"
             element={renderProtectedRoute(<SupportProfile />)}
           />
 
           <Route
             path="/requests"
-            element={renderProtectedRoute(
-              user?.role === "Admin" ? <AdminRequestsWrapper /> : <MyRequestsWrapper />
-            )}
+            element={renderProtectedRoute(<SupportRequestsPage />)}
+          />
+          <Route
+            path="/support-calls"
+            element={renderProtectedRoute(<SupportCallsPage />)}
           />
 
           <Route path="*" element={<NotFoundPage />} />
