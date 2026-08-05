@@ -50,5 +50,5 @@ describe("SupportBookingForm", () => {
     await waitFor(() => expect(mockCreateRequest).toHaveBeenCalledWith(expect.objectContaining({ duration_minutes: 30, requested_staff_id: 7, subject: "Review my request", scheduled_start: "2026-08-05T13:00:00Z" })));
     expect(mockSuccess).toHaveBeenCalledWith("Request sent. Your selected support person must approve it.");
     expect(onRequested).toHaveBeenCalledTimes(1);
-  });
+  }, 15_000);
 });

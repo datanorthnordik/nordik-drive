@@ -131,14 +131,9 @@ jest.mock("./pages/adminpanel/AdminPanel", () => ({
   default: () => <div>Admin Panel Page</div>,
 }));
 
-jest.mock("./pages/request_hub/AdminRequestsWrapper", () => ({
+jest.mock("./pages/support_schedule/SupportRequestsPage", () => ({
   __esModule: true,
-  default: () => <div>Admin Requests Page</div>,
-}));
-
-jest.mock("./pages/request_hub/MyRequestsWrapper", () => ({
-  __esModule: true,
-  default: () => <div>My Requests Page</div>,
+  default: () => <div>Support Requests Page</div>,
 }));
 
 const renderAt = (pathname: string, role: string = "User") => {
@@ -204,18 +199,16 @@ describe("App", () => {
     expect(screen.getByTestId("layout")).toBeInTheDocument();
   });
 
-  it("renders the admin requests route for admin users", async () => {
+  it("renders the redesigned requests route for admin users", async () => {
     renderAt("/requests", "Admin");
 
-    expect(await screen.findByText("Admin Requests Page")).toBeInTheDocument();
-    expect(screen.queryByText("My Requests Page")).not.toBeInTheDocument();
+    expect(await screen.findByText("Support Requests Page")).toBeInTheDocument();
   });
 
-  it("renders the user requests route for non-admin users", async () => {
+  it("renders the redesigned requests route for regular users", async () => {
     renderAt("/requests", "User");
 
-    expect(await screen.findByText("My Requests Page")).toBeInTheDocument();
-    expect(screen.queryByText("Admin Requests Page")).not.toBeInTheDocument();
+    expect(await screen.findByText("Support Requests Page")).toBeInTheDocument();
   });
 
   it("renders the generic file content route inside protected wrappers", async () => {
