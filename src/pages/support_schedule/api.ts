@@ -10,49 +10,95 @@ export type SupportSettings = {
   booking_horizon_days: number;
 };
 
+export type SupportPerson = { id: number; firstname: string; lastname: string; email?: string };
 export type SupportStaff = { user_id: number; firstname: string; lastname: string };
 export type SupportSlot = { start_at: string; end_at: string };
 export type SupportAvailability = {
   date: string;
   duration_minutes: number;
-  assigned_staff?: { id: number; firstname: string; lastname: string };
+  assigned_staff?: SupportPerson;
   slots: SupportSlot[];
 };
 
 export type SupportCall = {
   id: number;
-  created_by_id: number;
-  requested_staff_id?: number;
-  assigned_user_id?: number;
-  schedule_date: string;
-  scheduled_start: string;
-  scheduled_end: string;
-  duration_minutes: number;
-  status: string;
-  subject: string;
-  message: string;
-  meeting_status: string;
-  actual_minutes: number;
-  created_by?: { id: number; firstname: string; lastname: string };
-  requested_staff?: { id: number; firstname: string; lastname: string };
-  assigned_user?: { id: number; firstname: string; lastname: string };
+  support_request_id: number;
+  assigned_staff_id?: number;
+  scheduled_start_time: string;
+  scheduled_end_time: string;
+  actual_start_time?: string;
+  actual_end_time?: string;
+  actual_duration_minutes: number;
+  status: SupportRequestStatus;
+  internal_notes: string;
+  assigned_staff?: SupportPerson;
 };
 
-export type DailyAssignment = {
+export type SupportRequestStatus =
+  | "pending"
+  | "awaiting_assignee_approval"
+  | "approved"
+  | "alternative_time_proposed"
+  | "rejected"
+  | "cancelled"
+  | "completed";
+
+export type SupportRequest = {
   id: number;
-  schedule_date: string;
-  status: string;
-  reason: string;
-  assigned_user_id?: number;
-  assigned_user?: { id: number; firstname: string; lastname: string };
+  requested_by_user_id: number;
+  request_type: "automatic_daily_assignee" | "specific_support_person";
+  requested_date: string;
+  preferred_start_time?: string;
+  preferred_end_time?: string;
+  requested_staff_id?: number;
+  assigned_staff_id?: number;
+  status: SupportRequestStatus;
+  subject: string;
+  description: string;
+  rejection_reason: string;
+  alternative_start_time?: string;
+  alternative_end_time?: string;
+  created_at: string;
+  requested_by?: SupportPerson;
+  requested_staff?: SupportPerson;
+  assigned_staff?: SupportPerson;
+  call?: SupportCall;
 };
 
-export type UnavailabilityInput = {
-  user_id?: number;
-  all_team: boolean;
-  starts_at: string;
-  ends_at: string;
+export type SupportAssignment = {
+  id: number;
+  assignment_date: string;
+  primary_assignee_id?: number;
+  assignment_source: string;
+  previous_assignee_id?: number;
+  reassignment_reason: string;
+  primary_assignee?: SupportPerson;
+};
+
+export type StaffAvailability = {
+  id: number;
+  staff_id: number;
+  availability_date: string;
+  full_day_unavailable: boolean;
+  unavailable_start_time?: string;
+  unavailable_end_time?: string;
   reason: string;
+  staff?: SupportPerson;
+};
+
+export type SupportProfile = {
+  assignments: SupportAssignment[];
+  upcoming_calls: SupportCall[];
+  direct_requests: SupportRequest[];
+  availability: StaffAvailability[];
+};
+
+export type FairnessStat = {
+  staff: SupportStaff;
+  actual_completed_minutes: number;
+  actual_completed_hours: number;
+  assigned_days: number;
+  last_assignment_date?: string;
 };
 
 const base = "support-schedule";
@@ -64,13 +110,20 @@ export const supportScheduleApi = {
     const staffParam = staffId ? `&staff_id=${staffId}` : "";
     return apiRequest<SupportAvailability>(apiUrl(`${base}/availability?date=${encodeURIComponent(date)}&duration_minutes=${duration}${staffParam}`), "GET");
   },
-  schedule: () => apiRequest<DailyAssignment[]>(apiUrl(`${base}/schedule`), "GET"),
+  requests: (scope = "mine") => apiRequest<SupportRequest[]>(apiUrl(`${base}/requests?scope=${scope}`), "GET"),
+  createRequest: (body: Record<string, unknown>) => apiRequest<SupportRequest>(apiUrl(`${base}/requests`), "POST", body),
+  decideRequest: (id: number, body: Record<string, unknown>) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/decision`), "PUT", body),
+  acceptAlternative: (id: number) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/accept-alternative`), "PUT"),
+  cancelRequest: (id: number) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/cancel`), "PUT"),
   calls: (scope = "mine") => apiRequest<SupportCall[]>(apiUrl(`${base}/calls?scope=${scope}`), "GET"),
-  createCall: (body: Record<string, unknown>) => apiRequest<SupportCall>(apiUrl(`${base}/calls`), "POST", body),
-  approve: (id: number, approved: boolean, note = "") => apiRequest<SupportCall>(apiUrl(`${base}/calls/${id}/approval`), "PUT", { approved, note }),
-  complete: (id: number, actualStart: string, actualEnd: string) => apiRequest<SupportCall>(apiUrl(`${base}/calls/${id}/complete`), "PUT", { actual_start: actualStart, actual_end: actualEnd }),
+  complete: (id: number, actualStart: string, actualEnd: string, internalNotes: string) => apiRequest<SupportCall>(apiUrl(`${base}/calls/${id}/complete`), "PUT", { actual_start: actualStart, actual_end: actualEnd, internal_notes: internalNotes }),
   reassignCall: (id: number, userId: number, reason: string) => apiRequest<SupportCall>(apiUrl(`${base}/calls/${id}/reassign`), "PUT", { user_id: userId, reason }),
-  reassignDay: (date: string, userId: number, reason: string) => apiRequest<DailyAssignment>(apiUrl(`${base}/schedule/${date}/reassign`), "PUT", { user_id: userId, reason }),
-  createUnavailability: (body: UnavailabilityInput) => apiRequest(apiUrl(`${base}/unavailability`), "POST", body),
-  runMaintenance: () => apiRequest<void>(apiUrl(`${base}/maintenance`), "POST"),
+  schedule: () => apiRequest<SupportAssignment[]>(apiUrl(`${base}/schedule`), "GET"),
+  reassignDay: (date: string, userId: number, reason: string) => apiRequest<SupportAssignment>(apiUrl(`${base}/schedule/${date}/reassign`), "PUT", { user_id: userId, reason }),
+  fairness: () => apiRequest<FairnessStat[]>(apiUrl(`${base}/fairness`), "GET"),
+  profile: () => apiRequest<SupportProfile>(apiUrl(`${base}/profile`), "GET"),
+  profileAvailability: () => apiRequest<StaffAvailability[]>(apiUrl(`${base}/profile/availability`), "GET"),
+  createAvailability: (body: Record<string, unknown>) => apiRequest<StaffAvailability>(apiUrl(`${base}/profile/availability`), "POST", body),
+  updateAvailability: (id: number, body: Record<string, unknown>) => apiRequest<StaffAvailability>(apiUrl(`${base}/profile/availability/${id}`), "PUT", body),
+  deleteAvailability: (id: number) => apiRequest<void>(apiUrl(`${base}/profile/availability/${id}`), "DELETE"),
 };

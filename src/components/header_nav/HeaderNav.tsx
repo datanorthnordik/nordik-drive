@@ -31,45 +31,41 @@ function HeaderNav({ onLinkClick }: HeaderNavProps) {
           Files
         </HeaderLink>
 
-        {user.role === 'Admin' && (
+        {user?.role === 'Admin' && (
           <HeaderLink to="/adminpanel" onClick={onLinkClick}>
             <AdminPanelSettingsIcon sx={{ verticalAlign: "middle", mr: 1 }} />
             Admin View
           </HeaderLink>
         )}
 
-        {user.role === 'Admin' && (
+        {user?.role === 'Admin' && (
           <HeaderLink to="/useractivity" onClick={onLinkClick}>
             <HistoryIcon sx={{ verticalAlign: "middle", mr: 1 }} />
             User Activity
           </HeaderLink>
         )}
 
-        {user.role === 'User' && (
+        {user?.role === 'User' && (
           <HeaderLink to="/contact-us" onClick={onLinkClick}>
             <PhoneIcon sx={{ verticalAlign: "middle", mr: 1 }} />
             Contact Us
           </HeaderLink>
         )}
-        {user.role === 'User' && (
+        {user?.role === 'User' && (
           <HeaderLink to="/acknowledgement" onClick={onLinkClick}>
             <DoneIcon sx={{ verticalAlign: "middle", mr: 1 }} />
             Acknowledgement
           </HeaderLink>
         )}
 
-        <HeaderLink to="/my-support" onClick={onLinkClick}>
-          <EventAvailableRoundedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-          My Support
+        <HeaderLink to="/requests" onClick={onLinkClick}>
+          <PendingActionsOutlinedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+          Requests
         </HeaderLink>
-
-        
-          <HeaderLink to="/requests" onClick={onLinkClick}>
-            <PendingActionsOutlinedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
-            {user.role === 'User' ? "My Requests" : "Requests"}
-          </HeaderLink>
-      
-        
+        <HeaderLink to="/support-calls" onClick={onLinkClick}>
+          <EventAvailableRoundedIcon sx={{ verticalAlign: "middle", mr: 1 }} />
+          Support Calls
+        </HeaderLink>
       </Stack>
     </NavWrapper>
   );

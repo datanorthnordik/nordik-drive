@@ -8,7 +8,7 @@ import { clearAuth, setChecked } from "../../store/auth/authSlics";
 import { color_secondary } from "../../constants/colors";
 import { apiUrl } from "../../config/api";
 import { Box, IconButton, Tooltip } from "@mui/material";
-import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
+import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import { Link as RouterLink } from "react-router-dom";
 
 const initialSession: Session = {
@@ -50,11 +50,11 @@ export default function Logout() {
     <AppProvider session={session} authentication={authentication}>
       <Loader loading={loading} />
       <Box sx={{ display: "flex", alignItems: "center", gap: .5 }}>
-        <Tooltip title="My support profile">
-          <IconButton component={RouterLink} to="/my-support" color="primary" aria-label="Open my support profile">
-            <EventAvailableRoundedIcon />
+        {String(user?.role || "").toLowerCase() === "admin" && <Tooltip title="Profile">
+          <IconButton component={RouterLink} to="/profile" color="primary" aria-label="Open profile">
+            <PersonOutlineRoundedIcon />
           </IconButton>
-        </Tooltip>
+        </Tooltip>}
         <Account
           slotProps={{
             signInButton: { sx: { display: "none" } },
