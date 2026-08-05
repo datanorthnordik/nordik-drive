@@ -22,11 +22,13 @@ import {
   Business,
   HelpOutline,
   SupportAgentRounded,
+  EventAvailableRounded,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { WebLink } from "../../components/Links";
 import { CONTACT_INFO } from "./contactInfo";
 import SupportRequestCard from "./SupportRequestCard";
+import SupportBookingForm from "../support_schedule/SupportBookingForm";
 import {
   color_white,
   color_light_gray,
@@ -46,6 +48,7 @@ const ContactUs = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [supportModalOpen, setSupportModalOpen] = React.useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = React.useState(false);
 
   const onJoinHere = (link: string) => {
     window.open(link, "_blank", "noopener,noreferrer");
@@ -58,6 +61,7 @@ const ContactUs = () => {
   const closeSupportModal = () => {
     setSupportModalOpen(false);
   };
+  const closeScheduleModal = () => setScheduleModalOpen(false);
 
   // Single source of truth for the RIGHT side content width
   // (text line width == button width)
@@ -370,6 +374,25 @@ const ContactUs = () => {
                 </Box>
 
                 <Box sx={{ width: "100%" }}>
+                  <Box sx={{ p: { xs: 1.8, md: 2 }, borderRadius: "18px", background: color_white_smoke, border: `1px solid ${color_border}`, boxShadow: "0 10px 18px rgba(0, 0, 0, 0.05)" }}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.6} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between">
+                      <Box sx={{ display: "flex", gap: 1.4, alignItems: "flex-start" }}>
+                        <Box sx={{ width: 48, height: 48, minWidth: 48, borderRadius: "16px", background: color_white, border: `1px solid ${color_border}`, display: "grid", placeItems: "center" }}>
+                          <EventAvailableRounded sx={{ color: color_secondary_dark, fontSize: 26 }} />
+                        </Box>
+                        <Box>
+                          <Typography sx={{ fontSize: { xs: 18, md: 19 }, fontWeight: 900, color: color_text_primary, lineHeight: 1.3 }}>Prefer to talk it through?</Typography>
+                          <Typography sx={{ fontSize: { xs: 13.8, md: 14.2 }, lineHeight: 1.65, color: color_text_secondary, fontWeight: 700, mt: .45 }}>Book a support call at a time that works for you.</Typography>
+                        </Box>
+                      </Box>
+                      <Button onClick={() => setScheduleModalOpen(true)} startIcon={<EventAvailableRounded />} sx={{ alignSelf: { xs: "stretch", sm: "center" }, flexShrink: 0, textTransform: "none", borderRadius: "14px", px: 2.2, py: 1.05, fontWeight: 900, fontSize: 15.2, background: color_secondary_dark, color: color_white, "&:hover": { background: color_secondary_dark } }}>
+                        Schedule a call
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Box>
+
+                <Box sx={{ width: "100%" }}>
                   <Box
                     sx={{
                       p: { xs: 1.6, md: 1.8 },
@@ -550,6 +573,16 @@ const ContactUs = () => {
           </IconButton>
 
           <SupportRequestCard surface="dialog" titleId="support-request-dialog-title" />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={scheduleModalOpen} onClose={closeScheduleModal} fullScreen={isMobile} fullWidth maxWidth="md" scroll="paper" PaperProps={{ sx: { borderRadius: { xs: 0, sm: 3 }, maxHeight: { xs: "100%", sm: "calc(100vh - 4rem)" }, background: color_white } }}>
+        <DialogContent sx={{ p: { xs: 2.5, sm: 4 }, position: "relative" }}>
+          <IconButton aria-label="Close support scheduling dialog" onClick={closeScheduleModal} sx={{ position: "absolute", top: 14, right: 14, zIndex: 1, background: color_white, border: `1px solid ${color_border}`, color: color_text_secondary }}>
+            <CloseRounded />
+          </IconButton>
+          <Box sx={{ pr: { xs: 3, sm: 4 } }}>
+            <SupportBookingForm onScheduled={closeScheduleModal} />
+          </Box>
         </DialogContent>
       </Dialog>
     </Box>

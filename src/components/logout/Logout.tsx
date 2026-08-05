@@ -7,6 +7,9 @@ import { AppDispatch } from "../../store/store";
 import { clearAuth, setChecked } from "../../store/auth/authSlics";
 import { color_secondary } from "../../constants/colors";
 import { apiUrl } from "../../config/api";
+import { Box, IconButton, Tooltip } from "@mui/material";
+import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
+import { Link as RouterLink } from "react-router-dom";
 
 const initialSession: Session = {
   user: { name: "", email: "", image: "" },
@@ -46,12 +49,19 @@ export default function Logout() {
   return (
     <AppProvider session={session} authentication={authentication}>
       <Loader loading={loading} />
-      <Account
-        slotProps={{
-          signInButton: { sx: { display: "none" } },
-          signOutButton: { sx: { color: color_secondary, borderColor: color_secondary } },
-        }}
-      />
+      <Box sx={{ display: "flex", alignItems: "center", gap: .5 }}>
+        <Tooltip title="My support profile">
+          <IconButton component={RouterLink} to="/my-support" color="primary" aria-label="Open my support profile">
+            <EventAvailableRoundedIcon />
+          </IconButton>
+        </Tooltip>
+        <Account
+          slotProps={{
+            signInButton: { sx: { display: "none" } },
+            signOutButton: { sx: { color: color_secondary, borderColor: color_secondary } },
+          }}
+        />
+      </Box>
     </AppProvider>
   );
 }
