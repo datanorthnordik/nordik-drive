@@ -24,6 +24,11 @@ jest.mock("./SupportRequestCard", () => ({
   default: () => <div>Support Request Card</div>,
 }));
 
+jest.mock("../support_schedule/SupportBookingForm", () => ({
+  __esModule: true,
+  default: () => <div>Support Booking Form</div>,
+}));
+
 jest.mock("./contactInfo", () => ({
   __esModule: true,
   CONTACT_INFO: {
@@ -137,6 +142,16 @@ describe("ContactUs", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText(/support request card/i)).toBeInTheDocument();
+  });
+
+  test("opens the support-call scheduler from Contact Us", async () => {
+    const user = userEvent.setup();
+    render(<ContactUs />);
+
+    await user.click(screen.getByRole("button", { name: /schedule a call/i }));
+
+    expect(screen.getByText(/support booking form/i)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   test("opens the dedicated faq page from the faq callout", async () => {

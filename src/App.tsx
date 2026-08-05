@@ -26,6 +26,7 @@ const ActivityLogs = lazy(() => import("./components/tables/ActivityLogs"));
 const AdminPanel = lazy(() => import("./pages/adminpanel/AdminPanel"));
 const AdminRequestsWrapper = lazy(() => import("./pages/request_hub/AdminRequestsWrapper"));
 const MyRequestsWrapper = lazy(() => import("./pages/request_hub/MyRequestsWrapper"));
+const SupportProfile = lazy(() => import("./pages/support_schedule/SupportProfile"));
 
 
 function App() {
@@ -106,6 +107,10 @@ function App() {
           <Route
             path="/adminpanel"
             element={renderProtectedRoute(<AdminPanel />)}
+          />
+          <Route
+            path="/my-support"
+            element={renderProtectedRoute(<SupportProfile />)}
           />
 
           <Route
