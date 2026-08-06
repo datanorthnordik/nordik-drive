@@ -8,6 +8,7 @@ import { clearAuth, setChecked } from "../../store/auth/authSlics";
 import { color_secondary } from "../../constants/colors";
 import { apiUrl } from "../../config/api";
 import { Box, Button, Divider, Stack, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 const initialSession: Session = {
   user: { name: "", email: "", image: "" },
@@ -15,6 +16,7 @@ const initialSession: Session = {
 
 export default function Logout() {
   const { user } = useSelector((state: any) => state.auth);
+  const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(initialSession);
   const { data, loading, fetchData } = useFetch(apiUrl("user/logout"), "POST", false);
   const dispatch = useDispatch<AppDispatch>();
@@ -53,7 +55,7 @@ export default function Logout() {
         </Box>
         <Divider />
         <Box sx={{ px: 1.5, py: 1 }}>
-          <Button href="/profile" fullWidth variant="outlined">
+          <Button onClick={() => navigate("/profile")} fullWidth variant="outlined">
             Profile & availability
           </Button>
         </Box>
