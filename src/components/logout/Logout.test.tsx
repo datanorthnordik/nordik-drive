@@ -171,7 +171,8 @@ describe("Logout", () => {
     const AccountMenuContent = mockLastAccountProps.slots.popoverContent;
     render(<AccountMenuContent />);
 
-    expect(screen.getByRole("link", { name: "Profile & availability" })).toHaveAttribute("href", "/profile");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Profile & availability" }));
+    expect(mockNavigate).toHaveBeenCalledWith("/profile");
     expect(screen.queryByLabelText("Open profile")).not.toBeInTheDocument();
   });
 
