@@ -8,7 +8,8 @@ import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlin
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
-import { FairnessStat, SupportAssignment, SupportCall, SupportStaff, supportScheduleApi } from "./api";
+import SupportCalendar from "./SupportCalendar";
+import { FairnessStat, SupportAssignment, SupportCalendarDay, SupportCall, SupportStaff, supportScheduleApi } from "./api";
 
 const personName = (person?: { firstname: string; lastname: string }) => person ? `${person.firstname} ${person.lastname}`.trim() : "Not assigned";
 const displayDateTime = (value: string) => new Intl.DateTimeFormat("en-CA", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Toronto" }).format(new Date(value));
@@ -32,6 +33,8 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
   const scope = isManager ? "manage" : isSupportAdmin ? "staff" : "mine";
   const [calls, setCalls] = useState<SupportCall[]>([]);
   const [schedule, setSchedule] = useState<SupportAssignment[]>([]);
+  const [calendar, setCalendar] = useState<SupportCalendarDay[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
   const [staff, setStaff] = useState<SupportStaff[]>([]);
   const [fairness, setFairness] = useState<FairnessStat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,19 +54,28 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
       setCalls(core[0]);
       setStaff(core[1]);
       if (isManager) {
-        const [loadedSchedule, loadedFairness] = await Promise.all([supportScheduleApi.schedule(), supportScheduleApi.fairness()]);
+        const [loadedSchedule, loadedFairness, loadedCalendar] = await Promise.all([supportScheduleApi.schedule(), supportScheduleApi.fairness(), supportScheduleApi.calendar(30)]);
         setSchedule(loadedSchedule);
         setFairness(loadedFairness);
+        setCalendar(loadedCalendar.days);
+        setSelectedDate((current) => loadedCalendar.days.some((day) => day.date === current && day.is_bookable) ? current : loadedCalendar.days.find((day) => day.is_bookable)?.date || "");
+      } else if (isSupportAdmin) {
+        const loadedCalendar = await supportScheduleApi.calendar(30);
+        setCalendar(loadedCalendar.days);
+        setSchedule([]);
+        setFairness([]);
+        setSelectedDate((current) => loadedCalendar.days.some((day) => day.date === current && day.is_bookable) ? current : loadedCalendar.days.find((day) => day.is_bookable)?.date || "");
       } else {
         setSchedule([]);
         setFairness([]);
+        setCalendar([]);
       }
     } catch (error: any) {
       toast.error(error?.message || "Unable to load support calls.");
     } finally {
       setLoading(false);
     }
-  }, [isManager, scope]);
+  }, [isManager, isSupportAdmin, scope]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -112,6 +124,9 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
 
   if (loading) return <Box sx={embedded ? { height: "100%", display: "grid", placeItems: "center" } : { minHeight: "50vh", display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
 
+  const selectedDay = calendar.find((day) => day.date === selectedDate);
+  const selectedAssignment = schedule.find((assignment) => assignment.assignment_date === selectedDate);
+
   return (
     <Container maxWidth="lg" sx={embedded ? { height: "100%", overflowY: "auto", py: 2 } : { pt: { xs: 11, md: 14 }, pb: 6 }}>
       <Stack spacing={3}>
@@ -119,6 +134,8 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
           <Box><Typography variant="h4" fontWeight={900}>Support Calls</Typography><Typography color="text.secondary">{isManager ? "All scheduled, completed, and cancelled support calls." : isSupportAdmin ? "Your upcoming calls and completed-call records." : "Your upcoming, pending, completed, cancelled, and rejected support calls."}</Typography></Box>
           <Button variant="outlined" onClick={reload} startIcon={<RefreshRoundedIcon />}>Refresh</Button>
         </Stack>
+
+        {(isManager || isSupportAdmin) && <Stack direction={{ xs: "column", xl: "row" }} spacing={2.25} alignItems="stretch"><Box sx={{ flex: 1, minWidth: 0 }}><SupportCalendar title="Support coverage calendar" days={calendar} selectedDate={selectedDate} onSelect={setSelectedDate} /></Box><Card variant="outlined" sx={{ width: { xl: 375 }, flexShrink: 0 }}><CardContent><Stack spacing={1.3}><Box><Typography variant="overline" color="text.secondary">Selected day details</Typography><Typography variant="h6" fontWeight={850}>{selectedDate ? displayDate(selectedDate) : "Select an available day"}</Typography></Box>{selectedDay ? <><Typography fontWeight={750}>{personName(selectedDay.assigned_staff)}</Typography>{selectedDay.is_assigned_to_viewer && <Chip size="small" color="info" label="Assigned to you" sx={{ alignSelf: "flex-start" }} />}<Alert severity={selectedDay.status === "partial_availability" ? "warning" : "success"} icon={false} sx={{ py: .6 }}>{selectedDay.status_message}</Alert><Typography variant="subtitle2" fontWeight={800}>Scheduled calls ({selectedDay.scheduled_call_count})</Typography>{selectedDay.scheduled_calls?.length ? <Stack spacing={.65}>{selectedDay.scheduled_calls.map((call) => <Typography key={call.id} variant="body2">{displayDateTime(call.scheduled_start_time)} · {call.status.replaceAll("_", " ")}</Typography>)}</Stack> : <Typography variant="body2" color="text.secondary">No scheduled calls for this day.</Typography>}<Typography variant="subtitle2" fontWeight={800}>Unavailable periods</Typography>{selectedDay.unavailable_periods?.length ? <Stack spacing={.65}>{selectedDay.unavailable_periods.map((period) => <Typography key={period.id} variant="body2">{period.full_day_unavailable ? "Unavailable all day" : `${displayDateTime(period.unavailable_start_time || "")} – ${displayDateTime(period.unavailable_end_time || "")}`}</Typography>)}</Stack> : <Typography variant="body2" color="text.secondary">No recorded unavailable periods.</Typography>}{isManager && selectedAssignment && <Button size="small" sx={{ alignSelf: "flex-start", px: 0 }} onClick={() => setReassignTarget({ kind: "assignment", assignment: selectedAssignment })}>Change assignee</Button>}{isSupportAdmin && <Typography variant="caption" color="text.secondary">Manage your availability from Profile & availability.</Typography>}</> : <Alert severity="info">Unavailable, booked, and out-of-range dates are muted and cannot be selected.</Alert>}</Stack></CardContent></Card></Stack>}
 
         {calls.length === 0 ? <Alert severity="info">No support calls match this view.</Alert> : <Stack spacing={1.5}>{calls.map((call) => {
           const canComplete = call.status === "approved" && (isManager || call.assigned_staff_id === userID);
@@ -136,7 +153,6 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
         })}</Stack>}
 
         {isManager && <>
-          <Card variant="outlined"><CardContent><Typography variant="h6" fontWeight={800}>Daily support schedule</Typography><Stack direction="row" flexWrap="wrap" gap={1.2} sx={{ mt: 1.5 }}>{schedule.map((assignment) => <Box key={assignment.id} sx={{ minWidth: 185, border: "1px solid", borderColor: "divider", borderRadius: 2, p: 1.3 }}><Typography fontWeight={800}>{displayDate(assignment.assignment_date)}</Typography><Typography variant="body2">{personName(assignment.primary_assignee)}</Typography><Chip size="small" sx={{ mt: .7 }} label={assignment.assignment_source.replaceAll("_", " ")} />{assignment.reassignment_reason && <Typography variant="caption" display="block" sx={{ mt: .5 }}>{assignment.reassignment_reason}</Typography>}<Button size="small" sx={{ display: "block", mt: .5, px: 0 }} onClick={() => setReassignTarget({ kind: "assignment", assignment })}>Change assignee</Button></Box>)}</Stack></CardContent></Card>
           <Card variant="outlined"><CardContent><Typography variant="h6" fontWeight={800}>Assignment fairness</Typography><Stack spacing={1} sx={{ mt: 1.5 }}>{fairness.map((entry) => <Stack key={entry.staff.user_id} direction="row" justifyContent="space-between" sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 1 }}><Typography>{entry.staff.firstname} {entry.staff.lastname}</Typography><Typography variant="body2" color="text.secondary">{entry.actual_completed_hours.toFixed(2)} actual hrs · {entry.assigned_days} assigned days</Typography></Stack>)}</Stack></CardContent></Card>
         </>}
       </Stack>

@@ -1,9 +1,10 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import SupportProfile from "./SupportProfile";
 
 const mockProfile = jest.fn();
+const mockError = jest.fn();
 
 jest.mock("react-redux", () => ({
   __esModule: true,
@@ -16,7 +17,7 @@ jest.mock("./api", () => ({
   supportScheduleApi: { profile: (...args: any[]) => mockProfile(...args) },
 }));
 
-jest.mock("react-hot-toast", () => ({ __esModule: true, default: { success: jest.fn(), error: jest.fn() } }));
+jest.mock("react-hot-toast", () => ({ __esModule: true, default: { success: jest.fn(), error: (...args: any[]) => mockError(...args) } }));
 
 describe("SupportProfile", () => {
   beforeEach(() => {
@@ -30,5 +31,18 @@ describe("SupportProfile", () => {
     expect(screen.getByText(/^availability$/i)).toBeInTheDocument();
     expect(screen.getByText(/unavailable all day/i)).toBeInTheDocument();
     await waitFor(() => expect(mockProfile).toHaveBeenCalledTimes(1));
+  });
+
+  test("does not allow a weekend availability date", async () => {
+    const { container } = render(<SupportProfile />);
+
+    await screen.findByText(/^availability$/i);
+    const date = container.querySelector('input[type="date"]') as HTMLInputElement;
+    expect(date).toBeInTheDocument();
+    const originalDate = (date as HTMLInputElement).value;
+    fireEvent.change(date, { target: { value: "2026-08-08" } });
+
+    expect((date as HTMLInputElement).value).toBe(originalDate);
+    expect(mockError).toHaveBeenCalledWith("Support availability can be updated Monday through Friday only.");
   });
 });

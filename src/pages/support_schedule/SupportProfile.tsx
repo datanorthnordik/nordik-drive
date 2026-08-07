@@ -15,10 +15,24 @@ const isoDate = (date: Date) => {
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 };
+const isWeekendDate = (value: string) => {
+  const day = new Date(`${value.slice(0, 10)}T12:00:00`).getDay();
+  return day === 0 || day === 6;
+};
+const nextSupportDate = (date: Date) => {
+  const next = new Date(date);
+  while (isWeekendDate(isoDate(next))) next.setDate(next.getDate() + 1);
+  return next;
+};
 const localDateTime = (value?: string) => {
   const date = value ? new Date(value) : new Date();
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+const defaultSupportDateTime = (minutesFromNow = 0) => {
+  const date = nextSupportDate(new Date());
+  date.setMinutes(date.getMinutes() + minutesFromNow);
+  return localDateTime(date.toISOString());
 };
 const displayDateTime = (value?: string) => value ? new Intl.DateTimeFormat("en-CA", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Toronto" }).format(new Date(value)) : "—";
 const displayDate = (value: string) => new Intl.DateTimeFormat("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Toronto" }).format(new Date(`${value.slice(0, 10)}T12:00:00`));
@@ -29,9 +43,9 @@ export default function SupportProfile() {
   const [profile, setProfile] = useState<SupportProfileData>();
   const [loading, setLoading] = useState(true);
   const [fullDay, setFullDay] = useState("yes");
-  const [date, setDate] = useState(isoDate(new Date()));
-  const [startsAt, setStartsAt] = useState(localDateTime());
-  const [endsAt, setEndsAt] = useState(localDateTime(new Date(Date.now() + 60 * 60 * 1000).toISOString()));
+  const [date, setDate] = useState(isoDate(nextSupportDate(new Date())));
+  const [startsAt, setStartsAt] = useState(defaultSupportDateTime());
+  const [endsAt, setEndsAt] = useState(defaultSupportDateTime(60));
   const [reason, setReason] = useState("");
   const [editing, setEditing] = useState<StaffAvailability | null>(null);
   const [working, setWorking] = useState(false);
@@ -52,14 +66,19 @@ export default function SupportProfile() {
   const resetForm = () => {
     setEditing(null);
     setFullDay("yes");
-    setDate(isoDate(new Date()));
-    setStartsAt(localDateTime());
-    setEndsAt(localDateTime(new Date(Date.now() + 60 * 60 * 1000).toISOString()));
+    setDate(isoDate(nextSupportDate(new Date())));
+    setStartsAt(defaultSupportDateTime());
+    setEndsAt(defaultSupportDateTime(60));
     setReason("");
   };
 
   const submitAvailability = async (event: React.FormEvent) => {
     event.preventDefault();
+    const availabilityDate = fullDay === "yes" ? date : startsAt.slice(0, 10);
+    if (isWeekendDate(availabilityDate)) {
+      toast.error("Support availability can be updated Monday through Friday only.");
+      return;
+    }
     if (!reason.trim()) {
       toast.error("Please include a reason.");
       return;
@@ -101,7 +120,13 @@ export default function SupportProfile() {
 
         <Card variant="outlined"><CardContent><Typography variant="h6" fontWeight={800}>{editing ? "Edit unavailability" : "Availability"}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: .5, mb: 2 }}>A full-day unavailability immediately removes you from that day’s primary assignment. Partial periods are excluded from future booking slots.</Typography><Box component="form" onSubmit={submitAvailability}><Stack spacing={1.5}>
           <RadioGroup row value={fullDay} onChange={(event) => setFullDay(event.target.value)}><FormControlLabel value="yes" control={<Radio />} label="Unavailable all day" /><FormControlLabel value="no" control={<Radio />} label="Unavailable during a time range" /></RadioGroup>
-          {fullDay === "yes" ? <TextField label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} InputLabelProps={{ shrink: true }} required sx={{ maxWidth: 280 }} /> : <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}><TextField label="From" type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth required /><TextField label="To" type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth required /></Stack>}
+          {fullDay === "yes" ? <TextField label="Date" type="date" value={date} onChange={(event) => {
+            if (isWeekendDate(event.target.value)) {
+              toast.error("Support availability can be updated Monday through Friday only.");
+              return;
+            }
+            setDate(event.target.value);
+          }} InputLabelProps={{ shrink: true }} helperText="Availability is managed Monday through Friday." required sx={{ maxWidth: 330 }} /> : <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}><TextField label="From" type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} InputLabelProps={{ shrink: true }} helperText="Monday through Friday only" fullWidth required /><TextField label="To" type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} InputLabelProps={{ shrink: true }} fullWidth required /></Stack>}
           <TextField label="Reason" value={reason} onChange={(event) => setReason(event.target.value)} inputProps={{ maxLength: 1000 }} required fullWidth />
           <Stack direction="row" spacing={1}><Button type="submit" variant="contained" disabled={working}>{editing ? "Update availability" : "Save availability"}</Button>{editing && <Button onClick={resetForm}>Cancel edit</Button>}</Stack>
         </Stack></Box></CardContent></Card>
