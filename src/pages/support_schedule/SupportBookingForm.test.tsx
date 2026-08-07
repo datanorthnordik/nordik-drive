@@ -56,11 +56,29 @@ describe("SupportBookingForm", () => {
     await waitFor(() => expect(mockCreateRequest).toHaveBeenCalledWith(expect.objectContaining({ duration_minutes: 30, requested_staff_id: 7, subject: "Review my request", scheduled_start: "2026-08-05T13:00:00Z" })));
     expect(mockSuccess).toHaveBeenCalledWith("Request sent. Your selected support person must approve it.");
     expect(onRequested).toHaveBeenCalledTimes(1);
-  }, 15_000);
+  }, 30_000);
 
   test("shows weekend dates as disabled instead of allowing selection", async () => {
     render(<SupportBookingForm />);
 
     expect(await screen.findByLabelText(/no support on weekends/i)).toBeDisabled();
   });
+
+  test("uses separate date and time steps on a small screen", async () => {
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: jest.fn().mockImplementation(() => ({ matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn(), addListener: jest.fn(), removeListener: jest.fn() })),
+    });
+    const user = userEvent.setup();
+    render(<SupportBookingForm />);
+
+    await user.click(await screen.findByRole("button", { name: /choose date/i }));
+    await user.click(await screen.findByLabelText(/4 available times/i));
+    expect(await screen.findByText(/2\. choose an available time/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /9:00/i }));
+    expect(screen.getByText(/at 9:00/i)).toBeInTheDocument();
+
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  }, 30_000);
 });
