@@ -575,7 +575,7 @@ const ContactUs = () => {
           <SupportRequestCard surface="dialog" titleId="support-request-dialog-title" />
         </DialogContent>
       </Dialog>
-      <Dialog open={scheduleModalOpen} onClose={closeScheduleModal} fullScreen={isMobile} fullWidth maxWidth="md" scroll="paper" PaperProps={{ sx: { borderRadius: { xs: 0, sm: 3 }, maxHeight: { xs: "100%", sm: "calc(100vh - 4rem)" }, background: color_white } }}>
+      <Dialog open={scheduleModalOpen} onClose={closeScheduleModal} fullScreen={isMobile} fullWidth maxWidth="xl" scroll="paper" PaperProps={{ sx: { borderRadius: { xs: 0, sm: 3 }, maxHeight: { xs: "100%", sm: "calc(100vh - 4rem)" }, minHeight: { lg: "min(760px, calc(100vh - 5rem))" }, background: color_white } }}>
         <DialogContent sx={{ p: { xs: 2.5, sm: 4 }, position: "relative" }}>
           <IconButton aria-label="Close support scheduling dialog" onClick={closeScheduleModal} sx={{ position: "absolute", top: 14, right: 14, zIndex: 1, background: color_white, border: `1px solid ${color_border}`, color: color_text_secondary }}>
             <CloseRounded />
