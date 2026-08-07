@@ -12,12 +12,32 @@ export type SupportSettings = {
 
 export type SupportPerson = { id: number; firstname: string; lastname: string; email?: string };
 export type SupportStaff = { user_id: number; firstname: string; lastname: string };
-export type SupportSlot = { start_at: string; end_at: string };
+export type SupportSlot = { start_at: string; end_at: string; unavailable_reason?: string };
 export type SupportAvailability = {
   date: string;
   duration_minutes: number;
   assigned_staff?: SupportPerson;
   slots: SupportSlot[];
+  unavailable_slots: SupportSlot[];
+};
+
+export type SupportCalendarDay = {
+  date: string;
+  assigned_staff?: SupportPerson;
+  status: "available" | "partial_availability" | "fully_unavailable" | "fully_booked" | "uncovered" | "weekend";
+  status_message: string;
+  is_bookable: boolean;
+  available_slot_count: number;
+  scheduled_call_count: number;
+  is_assigned_to_viewer: boolean;
+  unavailable_periods?: StaffAvailability[];
+  scheduled_calls?: SupportCall[];
+};
+
+export type SupportCalendar = {
+  time_zone: string;
+  duration_minutes: number;
+  days: SupportCalendarDay[];
 };
 
 export type SupportCall = {
@@ -109,6 +129,10 @@ export const supportScheduleApi = {
   availability: (date: string, duration: number, staffId?: number) => {
     const staffParam = staffId ? `&staff_id=${staffId}` : "";
     return apiRequest<SupportAvailability>(apiUrl(`${base}/availability?date=${encodeURIComponent(date)}&duration_minutes=${duration}${staffParam}`), "GET");
+  },
+  calendar: (duration: number, staffId?: number) => {
+    const staffParam = staffId ? `&staff_id=${staffId}` : "";
+    return apiRequest<SupportCalendar>(apiUrl(`${base}/calendar?duration_minutes=${duration}${staffParam}`), "GET");
   },
   requests: (scope = "mine") => apiRequest<SupportRequest[]>(apiUrl(`${base}/requests?scope=${scope}`), "GET"),
   createRequest: (body: Record<string, unknown>) => apiRequest<SupportRequest>(apiUrl(`${base}/requests`), "POST", body),
