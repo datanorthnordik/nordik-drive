@@ -46,6 +46,7 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
   const [replacement, setReplacement] = useState("");
   const [reason, setReason] = useState("");
   const [working, setWorking] = useState(false);
+  const [startingCallID, setStartingCallID] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -122,6 +123,27 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
     }
   };
 
+  const startZoomMeeting = async (call: SupportCall) => {
+    const meetingWindow = window.open("about:blank", "_blank");
+    if (meetingWindow) meetingWindow.opener = null;
+    setStartingCallID(call.id);
+    try {
+      const result = await supportScheduleApi.startZoomMeeting(call.id);
+      if (meetingWindow) {
+        meetingWindow.location.href = result.start_url;
+        toast.success("Opening the host meeting in Zoom.");
+      } else {
+        toast.error("Your browser blocked the Zoom window. Allow pop-ups for this site and try again.");
+      }
+      reload();
+    } catch (error: any) {
+      meetingWindow?.close();
+      toast.error(error?.message || "The Zoom meeting is not ready yet. Please try again.");
+    } finally {
+      setStartingCallID(null);
+    }
+  };
+
   if (loading) return <Box sx={embedded ? { height: "100%", display: "grid", placeItems: "center" } : { minHeight: "50vh", display: "grid", placeItems: "center" }}><CircularProgress /></Box>;
 
   const selectedDay = calendar.find((day) => day.date === selectedDate);
@@ -139,13 +161,22 @@ export default function SupportCallsPage({ embedded = false }: SupportCallsPageP
 
         {calls.length === 0 ? <Alert severity="info">No support calls match this view.</Alert> : <Stack spacing={1.5}>{calls.map((call) => {
           const canComplete = call.status === "approved" && (isManager || call.assigned_staff_id === userID);
+          const isAssignedHost = isSupportAdmin && call.assigned_staff_id === userID;
+          const canStartZoom = call.status === "approved" && isAssignedHost;
+          const canJoinZoom = call.status === "approved" && !isAssignedHost && Boolean(call.zoom_join_url);
+          const zoomPending = call.status === "approved" && !call.zoom_join_url && ["pending", "failed"].includes(call.zoom_sync_status);
           return <Card key={call.id} variant="outlined"><CardContent><Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={2}>
             <Box><Stack direction="row" spacing={1} alignItems="center"><Typography fontWeight={800}>{displayDateTime(call.scheduled_start_time)}</Typography><Chip size="small" label={call.status.replaceAll("_", " ")} color={call.status === "completed" ? "success" : call.status === "cancelled" || call.status === "rejected" ? "error" : "default"} /></Stack>
               <Typography variant="body2" color="text.secondary">Assigned support person: {personName(call.assigned_staff)}</Typography>
+              {call.zoom_meeting_id && <Typography variant="body2" color="text.secondary">Zoom meeting ID: {call.zoom_meeting_id}</Typography>}
+              {call.zoom_passcode && <Typography variant="body2" color="text.secondary">Zoom passcode: {call.zoom_passcode}</Typography>}
+              {zoomPending && <Alert severity={call.zoom_sync_status === "failed" && (isManager || isAssignedHost) ? "warning" : "info"} icon={false} sx={{ mt: 1, py: .4 }}>{call.zoom_sync_status === "failed" && (isManager || isAssignedHost) ? "Zoom could not prepare the meeting. It will retry automatically; the assigned host can also select Start Zoom meeting to retry now." : "The Zoom participant link is being prepared."}</Alert>}
               {call.status === "completed" && <Typography variant="body2" color="text.secondary">Actual duration: {call.actual_duration_minutes} minutes</Typography>}
               {call.internal_notes && <Typography variant="body2" sx={{ mt: .8 }}>Internal notes: {call.internal_notes}</Typography>}
             </Box>
             <Stack direction="row" flexWrap="wrap" gap={1} alignContent="flex-start">
+              {canStartZoom && <Button size="small" variant="contained" disabled={startingCallID === call.id} onClick={() => startZoomMeeting(call)}>{startingCallID === call.id ? "Preparing Zoom..." : "Start Zoom meeting"}</Button>}
+              {canJoinZoom && <Button size="small" variant="contained" component="a" href={call.zoom_join_url} target="_blank" rel="noopener noreferrer">Join Zoom meeting</Button>}
               {canComplete && <Button size="small" startIcon={<CheckCircleOutlineRoundedIcon />} onClick={() => openCompletion(call)}>Record actual duration</Button>}
               {isManager && !["completed", "cancelled", "rejected"].includes(call.status) && <Button size="small" onClick={() => setReassignTarget({ kind: "call", call })}>Reassign call</Button>}
             </Stack>

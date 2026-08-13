@@ -51,6 +51,12 @@ export type SupportCall = {
   actual_duration_minutes: number;
   status: SupportRequestStatus;
   internal_notes: string;
+  zoom_meeting_id?: string;
+  zoom_join_url?: string;
+  zoom_passcode?: string;
+  zoom_host_email?: string;
+  zoom_sync_status: "not_requested" | "pending" | "synced" | "failed" | "deleted";
+  zoom_synced_at?: string;
   assigned_staff?: SupportPerson;
 };
 
@@ -140,6 +146,7 @@ export const supportScheduleApi = {
   acceptAlternative: (id: number) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/accept-alternative`), "PUT"),
   cancelRequest: (id: number) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/cancel`), "PUT"),
   calls: (scope = "mine") => apiRequest<SupportCall[]>(apiUrl(`${base}/calls?scope=${scope}`), "GET"),
+  startZoomMeeting: (id: number) => apiRequest<{ start_url: string }>(apiUrl(`${base}/calls/${id}/zoom/start`), "POST"),
   complete: (id: number, actualStart: string, actualEnd: string, internalNotes: string) => apiRequest<SupportCall>(apiUrl(`${base}/calls/${id}/complete`), "PUT", { actual_start: actualStart, actual_end: actualEnd, internal_notes: internalNotes }),
   reassignCall: (id: number, userId: number, reason: string) => apiRequest<SupportCall>(apiUrl(`${base}/calls/${id}/reassign`), "PUT", { user_id: userId, reason }),
   schedule: () => apiRequest<SupportAssignment[]>(apiUrl(`${base}/schedule`), "GET"),
