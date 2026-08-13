@@ -5,7 +5,7 @@ import RequestsHub from "./RequestHub";
 import PendingEditRequestsTable from "./PendingRequests";
 import FormSubmissionRequests from "./FormSubmissionRequest";
 import AdminSupportRequests from "./AdminSupportRequests";
-import SupportCallsPage from "../support_schedule/SupportCallsPage";
+import SupportRequestsPage from "../support_schedule/SupportRequestsPage";
 
 export default function AdminRequestsWrapper() {
   return (
@@ -13,7 +13,7 @@ export default function AdminRequestsWrapper() {
       addInfoRequests={<PendingEditRequestsTable />}
       formSubmissionRequests={<FormSubmissionRequests />}
       supportRequests={<AdminSupportRequests />}
-      supportCalls={<SupportCallsPage embedded />}
+      supportCalls={<SupportRequestsPage embedded />}
     />
   );
 }
