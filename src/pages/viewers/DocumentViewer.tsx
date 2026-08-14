@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   Divider,
+  Link,
   TextField,
   Typography,
 } from "@mui/material";
@@ -78,6 +79,18 @@ export interface ViewerDoc {
 
   reviewed_by?: string;
   reviewed_at?: string;
+
+  // Achiever stories reuse this viewer. Unlike submitted documents, a story
+  // can be stored as text or linked video as well as a document.
+  story_type?: "document" | "text" | "video" | string;
+  story_text?: string;
+  video_url?: string;
+  original_story_url?: string;
+  achiever_story_identified?: string;
+  google_details?: string;
+  newspapers_details?: string;
+  ancestry_details?: string;
+  derivation_sources?: string[];
 }
 
 function safeFilename(name: string) {
@@ -176,6 +189,39 @@ const readBlobAsText = (blob: Blob) =>
     reader.onerror = reject;
     reader.readAsText(blob);
   });
+
+const storyTypeOf = (doc?: ViewerDoc) => String(doc?.story_type || "document").trim().toLowerCase();
+const isInlineStory = (doc?: ViewerDoc) => storyTypeOf(doc) === "text" || storyTypeOf(doc) === "video";
+
+const storyFallbackTitle = (doc?: ViewerDoc) => {
+  if (storyTypeOf(doc) === "text") return "Achiever Story (Text)";
+  if (storyTypeOf(doc) === "video") return "Achiever Story (Video)";
+  return "Achiever Story";
+};
+
+const toEmbeddableVideoURL = (raw?: string) => {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") return `https://www.youtube.com/embed/${url.pathname.slice(1)}`;
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch" && url.searchParams.get("v")) {
+        return `https://www.youtube.com/embed/${url.searchParams.get("v")}`;
+      }
+      if (url.pathname.startsWith("/embed/")) return value;
+    }
+    if (host === "vimeo.com") return `https://player.vimeo.com/video/${url.pathname.split("/").filter(Boolean)[0] || ""}`;
+    if (host === "player.vimeo.com" && url.pathname.startsWith("/video/")) return value;
+  } catch {
+    return "";
+  }
+  return "";
+};
+
+const isDirectVideoURL = (raw?: string) => /\.(mp4|webm|ogg)(?:$|[?#])/i.test(String(raw || ""));
 
 export type DocumentViewerMode = "view" | "review";
 
@@ -281,12 +327,18 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
   const currentDoc: ViewerDoc | undefined = docs[index];
   const hasDocs = docs.length > 0;
+  const currentStoryType = storyTypeOf(currentDoc);
+  const isTextStory = currentStoryType === "text";
+  const isVideoStory = currentStoryType === "video";
+  const hasInlineStoryContent = isInlineStory(currentDoc);
+  const embeddedVideoURL = useMemo(() => toEmbeddableVideoURL(currentDoc?.video_url), [currentDoc?.video_url]);
 
   const currentDocMime = useMemo(() => {
     if (!currentDoc) return "";
     if (resolveMime) return resolveMime(currentDoc) || "";
+    if (isTextStory) return "text/plain";
     return currentDoc.mime_type || guessMimeFromFilename(currentDoc.file_name) || "";
-  }, [currentDoc, resolveMime]);
+  }, [currentDoc, isTextStory, resolveMime]);
 
   const activeDocMime = useMemo(
     () => pickPreviewMime(currentDocMime, blobMime),
@@ -347,6 +399,8 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
       const doc = docs[idx];
       if (!doc) return;
 
+      if (isInlineStory(doc)) return;
+
       await fetchFileBlob(undefined, undefined, false, {
         path: doc.id,
         responseType: "blob",
@@ -401,6 +455,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     if (!open) return;
     if (!fileBlobData) return;
     if (!currentDoc) return;
+    if (hasInlineStoryContent) return;
 
     const rawBlob = normalizeBlob(fileBlobData);
 
@@ -428,7 +483,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
     } else {
       setDocTextPreview("");
     }
-  }, [fileBlobData, open, currentDoc, currentDocMime, maxTextChars]);
+  }, [fileBlobData, open, currentDoc, currentDocMime, maxTextChars, hasInlineStoryContent]);
 
   useEffect(() => {
     const container = docxPreviewRef.current;
@@ -457,9 +512,9 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   const canGoPrev = hasDocs && index > 0 && !fileBlobLoading;
   const canGoNext = hasDocs && index < docs.length - 1 && !fileBlobLoading;
   const viewerTitle =
-    currentDoc?.file_name || (hasDocs ? DOCUMENT_FALLBACK_TITLE : DOCUMENT_EMPTY_TEXT);
+    currentDoc?.file_name || (hasDocs ? storyFallbackTitle(currentDoc) : DOCUMENT_EMPTY_TEXT);
   const viewerMeta = currentDoc
-    ? `${activeDocMime || currentDoc.mime_type || "unknown"} | ID: ${currentDoc.id} | ${index + 1}/${docs.length}${
+    ? `${isTextStory ? "text story" : isVideoStory ? "video story" : activeDocMime || currentDoc.mime_type || "unknown"} | ID: ${currentDoc.id} | ${index + 1}/${docs.length}${
         inferredRequestIds.length === 1 ? ` | ${getViewerRequestSummary(inferredRequestIds)}` : ""
       }`
     : DOCUMENT_EMPTY_TEXT;
@@ -699,7 +754,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             }}
             data-testid="viewer-preview-shell"
           >
-            {fileBlobLoading && (
+            {!hasInlineStoryContent && fileBlobLoading && (
               <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }} data-testid="viewer-loading">
                 <CircularProgress size={24} />
                 <Typography sx={{ fontWeight: 700, color: color_text_primary }}>
@@ -708,7 +763,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </Box>
             )}
 
-            {!fileBlobLoading && fileBlobError && (
+            {!hasInlineStoryContent && !fileBlobLoading && fileBlobError && (
               <Box sx={{ p: 3 }} data-testid="viewer-error">
                 <Typography sx={{ fontWeight: 900, mb: 1, color: color_text_primary }}>
                   {DOCUMENT_LOAD_ERROR_TITLE}
@@ -717,7 +772,45 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </Box>
             )}
 
-            {!fileBlobLoading && docBlobUrl && (
+            {isTextStory && currentDoc && (
+              <Box sx={{ height: "100%", overflow: "auto", p: { xs: 2, sm: 3 } }} data-testid="viewer-story-text">
+                <Typography component="div" sx={{ whiteSpace: "pre-wrap", color: color_text_primary, lineHeight: 1.7 }}>
+                  {currentDoc.story_text || "No written story has been added yet."}
+                </Typography>
+              </Box>
+            )}
+
+            {isVideoStory && currentDoc && (
+              <Box
+                sx={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 2, p: { xs: 2, sm: 3 } }}
+                data-testid="viewer-story-video"
+              >
+                {embeddedVideoURL ? (
+                  <iframe
+                    title="achiever-story-video"
+                    src={embeddedVideoURL}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ width: "100%", minHeight: 360, border: 0, background: "#000" }}
+                  />
+                ) : isDirectVideoURL(currentDoc.video_url) ? (
+                  <video controls style={{ width: "100%", maxHeight: "100%", background: "#000" }}>
+                    <source src={currentDoc.video_url} />
+                    Your browser does not support this video format.
+                  </video>
+                ) : currentDoc.video_url ? (
+                  <Typography>
+                    <Link href={currentDoc.video_url} target="_blank" rel="noopener noreferrer">
+                      Open this story video
+                    </Link>
+                  </Typography>
+                ) : (
+                  <Typography color="text.secondary">No video link has been added yet.</Typography>
+                )}
+              </Box>
+            )}
+
+            {!hasInlineStoryContent && !fileBlobLoading && docBlobUrl && (
               <>
                 {isPdfMime(activeDocMime) && (
                   <iframe
@@ -927,7 +1020,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </>
             )}
 
-            {!fileBlobLoading && !fileBlobError && !docBlobUrl && !currentDoc && (
+            {!hasInlineStoryContent && !fileBlobLoading && !fileBlobError && !docBlobUrl && !currentDoc && (
               <Box
                 sx={{
                   height: "100%",
@@ -944,7 +1037,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </Box>
             )}
 
-            {!fileBlobLoading && !fileBlobError && !docBlobUrl && currentDoc && (
+            {!hasInlineStoryContent && !fileBlobLoading && !fileBlobError && !docBlobUrl && currentDoc && (
               <Box
                 sx={{
                   height: "100%",
@@ -961,6 +1054,58 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </Box>
             )}
           </Box>
+
+          {!!currentDoc?.story_type && currentDoc && (
+            <Box
+              sx={{
+                width: { xs: "100%", md: 340 },
+                flexShrink: 0,
+                borderRadius: 2,
+                border: `1px solid ${color_border}`,
+                background: color_white,
+                p: 2,
+                display: "flex",
+                flexDirection: "column",
+                gap: 1.25,
+                overflowY: "auto",
+              }}
+              data-testid="viewer-story-details"
+            >
+              <Typography sx={VIEWER_SECTION_TITLE_SX}>Story Details</Typography>
+              {[
+                ["Achiever Story Identified", currentDoc.achiever_story_identified],
+                ["Google", currentDoc.google_details],
+                ["Newspapers.com", currentDoc.newspapers_details],
+                ["Ancestry", currentDoc.ancestry_details],
+              ].map(([label, value]) =>
+                value ? (
+                  <Box key={label}>
+                    <Typography variant="caption" sx={{ display: "block", fontWeight: 800, color: color_text_primary }}>
+                      {label}
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", color: color_text_light }}>
+                      {value}
+                    </Typography>
+                  </Box>
+                ) : null
+              )}
+              {!!currentDoc.derivation_sources?.length && (
+                <Box>
+                  <Typography variant="caption" sx={{ display: "block", fontWeight: 800, color: color_text_primary }}>
+                    Sources used
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: color_text_light }}>
+                    {currentDoc.derivation_sources.join(", ")}
+                  </Typography>
+                </Box>
+              )}
+              {currentDoc.original_story_url && (
+                <Link href={currentDoc.original_story_url} target="_blank" rel="noopener noreferrer" variant="body2">
+                  Open original story document
+                </Link>
+              )}
+            </Box>
+          )}
 
           {showReviewerCommentField && currentDoc && (
             <Box
