@@ -53,6 +53,7 @@ import CommunityFilterPanel from "./CommunityFilterPanel";
 import LinksDialog from "./LinksDialog";
 import DataGridStyles from "./DataGridStyles";
 import DailyHonourDialog from "./DailyHonourDialog";
+import AchieverStoriesModal, { type AchieverStory } from "./AchieverStoriesModal";
 
 /** utils / hooks */
 import { extractUrls, isDocumentUrl, linkLabel, normalizeUrl, openInNewTab } from "../../lib/urlUtils";
@@ -235,12 +236,17 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [docModalOpen, setDocModalOpen] = useState(false);
+  const [achieverStoriesModalOpen, setAchieverStoriesModalOpen] = useState(false);
+  const [achieverStoryDocModalOpen, setAchieverStoryDocModalOpen] = useState(false);
+  const [activeAchieverStoryDocument, setActiveAchieverStoryDocument] = useState<any>(null);
 
   const [pendingPhotoRowId, setPendingPhotoRowId] = useState<number | null>(null);
   const [pendingDocRowId, setPendingDocRowId] = useState<number | null>(null);
+  const [pendingAchieverStoriesRowId, setPendingAchieverStoriesRowId] = useState<number | null>(null);
 
   const [photos, setPhotos] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
+  const [achieverStories, setAchieverStories] = useState<AchieverStory[]>([]);
 
   const [hasQuickFilterResults, setHasQuickFilterResults] = useState(true);
 
@@ -267,6 +273,13 @@ export default function DataGrid({ rowData }: DataGridProps) {
     loading: docsLoading,
     error: docsError,
   } = useFetch(`${API_BASE}/file/docs`, "GET", false);
+
+  const {
+    data: achieverStoriesData,
+    fetchData: loadAchieverStories,
+    loading: achieverStoriesLoading,
+    error: achieverStoriesError,
+  } = useFetch(`${API_BASE}/file/achiever-stories`, "GET", false);
 
   const {
     data: honourData,
@@ -374,7 +387,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const openPhotoViewer = async (row: any) => {
     const rowId = row?.id;
     if (!rowId) return;
-    if (pendingPhotoRowId || pendingDocRowId) return;
+    if (pendingPhotoRowId || pendingDocRowId || pendingAchieverStoriesRowId) return;
 
     setPendingPhotoRowId(rowId);
     setPhotos([]);
@@ -386,13 +399,34 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const openDocumentsViewer = async (row: any) => {
     const rowId = row?.id;
     if (!rowId) return;
-    if (pendingPhotoRowId || pendingDocRowId) return;
+    if (pendingPhotoRowId || pendingDocRowId || pendingAchieverStoriesRowId) return;
 
     setPendingDocRowId(rowId);
     setDocs([]);
     setDocModalOpen(false);
 
     await loadDocs(undefined, undefined, false, { path: rowId });
+  };
+
+  const openAchieverStoriesViewer = async (row: any) => {
+    const rowId = row?.id;
+    if (!rowId) return;
+    if (pendingPhotoRowId || pendingDocRowId || pendingAchieverStoriesRowId) return;
+
+    setPendingAchieverStoriesRowId(rowId);
+    setAchieverStories([]);
+    setAchieverStoriesModalOpen(false);
+
+    await loadAchieverStories(undefined, undefined, false, { path: rowId });
+  };
+
+  const openAchieverStoryDocument = (story: AchieverStory) => {
+    setActiveAchieverStoryDocument({
+      ...story,
+      file_name: story.file_name || "achiever-story.pdf",
+      mime_type: story.content_type || "application/pdf",
+    });
+    setAchieverStoryDocModalOpen(true);
   };
 
   /* -------- Viewer loaders (same behavior) -------- */
@@ -419,6 +453,18 @@ export default function DataGrid({ rowData }: DataGridProps) {
     setModalOpen: setDocModalOpen,
     pickList: (d: any) => (Array.isArray(d) ? d : (d as any)?.docs ?? []),
     onError: (e: any) => console.error("Failed to fetch documents:", e),
+  });
+
+  useViewerLoader<any>({
+    loading: achieverStoriesLoading,
+    error: achieverStoriesError,
+    data: achieverStoriesData,
+    pendingRowId: pendingAchieverStoriesRowId,
+    setPendingRowId: setPendingAchieverStoriesRowId,
+    setItems: setAchieverStories,
+    setModalOpen: setAchieverStoriesModalOpen,
+    pickList: (d: any) => (Array.isArray(d) ? d : (d as any)?.achiever_stories ?? []),
+    onError: (e: any) => console.error("Failed to fetch achiever stories:", e),
   });
 
   /* -------- layout & overlay calculations -------- */
@@ -692,6 +738,41 @@ export default function DataGrid({ rowData }: DataGridProps) {
           };
         }
 
+        if (c?.type === "achiever_stories_view") {
+          return {
+            field: `__achiever_stories_view__${name}`,
+            colId: `__achiever_stories_view__${name}`,
+            headerName: headerDisplay(header, 25),
+            headerTooltip: header,
+            width: 165,
+            minWidth: 165,
+            sortable: false,
+            filter: false,
+            cellRenderer: (params: any) => (
+              <button
+                style={{
+                  padding: "6px 10px",
+                  background: color_secondary,
+                  color: color_white,
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  width: "100%",
+                  height: "32px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  params.context.openAchieverStoriesView(params.data);
+                }}
+              >
+                View Stories
+              </button>
+            ),
+          };
+        }
+
 
         if (c?.type === "form") {
           const formKey = String(c?.key || "");
@@ -958,6 +1039,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const viewerLoading =
     (pendingPhotoRowId !== null && photosLoading) ||
     (pendingDocRowId !== null && docsLoading) ||
+    (pendingAchieverStoriesRowId !== null && achieverStoriesLoading) ||
     describeInFlight ||
     describeDocumentsInFlight;
 
@@ -966,6 +1048,8 @@ export default function DataGrid({ rowData }: DataGridProps) {
       ? "Loading photos..."
       : pendingDocRowId !== null
         ? "Loading documents..."
+        : pendingAchieverStoriesRowId !== null
+          ? "Loading achiever stories..."
         : describeDocumentsInFlight
           ? "Loading documents..."
         : describeInFlight
@@ -981,7 +1065,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
       const baseCols = cols.filter((c: any) => {
         if (c?.add_only) return false;
         if (c?.additional_field) return false;
-        if (c?.type === "photo_view" || c?.type === "doc_view" || c?.type === "form") return false;
+        if (c?.type === "photo_view" || c?.type === "doc_view" || c?.type === "achiever_stories_view" || c?.type === "form") return false;
         return !!c?.name;
       });
 
@@ -1020,12 +1104,13 @@ export default function DataGrid({ rowData }: DataGridProps) {
       },
       openPhotoView: (row: any) => openPhotoViewer(row),
       openDocumentsView: (row: any) => openDocumentsViewer(row),
+      openAchieverStoriesView: (row: any) => openAchieverStoriesViewer(row),
       openWebsite: openInNewTab,
       openDocumentUrl,
       openLinksModal,
       ...describeContext,
     }),
-    [addInfoEnabled, openDocumentUrl, openLinksModal, openPhotoViewer, openDocumentsViewer]
+    [addInfoEnabled, openDocumentUrl, openLinksModal, openPhotoViewer, openDocumentsViewer, openAchieverStoriesViewer]
   );
 
   return (
@@ -1257,6 +1342,29 @@ export default function DataGrid({ rowData }: DataGridProps) {
               apiBase={API_BASE}
               blobEndpointPath="/file/doc"
               only_approved={true}
+            />
+          </Suspense>
+        )}
+
+        <AchieverStoriesModal
+          open={achieverStoriesModalOpen}
+          onClose={() => setAchieverStoriesModalOpen(false)}
+          stories={achieverStories}
+          onViewDocument={openAchieverStoryDocument}
+        />
+
+        {achieverStoryDocModalOpen && activeAchieverStoryDocument && (
+          <Suspense fallback={null}>
+            <DocumentViewerModal
+              open={achieverStoryDocModalOpen}
+              onClose={() => setAchieverStoryDocModalOpen(false)}
+              docs={[activeAchieverStoryDocument]}
+              startIndex={0}
+              mode="view"
+              apiBase={API_BASE}
+              blobEndpointPath="/file/achiever-stories/download"
+              only_approved={true}
+              showBottomBar={false}
             />
           </Suspense>
         )}
