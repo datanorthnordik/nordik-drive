@@ -53,7 +53,6 @@ import CommunityFilterPanel from "./CommunityFilterPanel";
 import LinksDialog from "./LinksDialog";
 import DataGridStyles from "./DataGridStyles";
 import DailyHonourDialog from "./DailyHonourDialog";
-import AchieverStoriesModal, { type AchieverStory } from "./AchieverStoriesModal";
 
 /** utils / hooks */
 import { extractUrls, isDocumentUrl, linkLabel, normalizeUrl, openInNewTab } from "../../lib/urlUtils";
@@ -236,9 +235,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [docModalOpen, setDocModalOpen] = useState(false);
-  const [achieverStoriesModalOpen, setAchieverStoriesModalOpen] = useState(false);
-  const [achieverStoryDocModalOpen, setAchieverStoryDocModalOpen] = useState(false);
-  const [activeAchieverStoryDocument, setActiveAchieverStoryDocument] = useState<any>(null);
+  const [achieverStoryViewerOpen, setAchieverStoryViewerOpen] = useState(false);
 
   const [pendingPhotoRowId, setPendingPhotoRowId] = useState<number | null>(null);
   const [pendingDocRowId, setPendingDocRowId] = useState<number | null>(null);
@@ -246,7 +243,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
   const [photos, setPhotos] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
-  const [achieverStories, setAchieverStories] = useState<AchieverStory[]>([]);
+  const [achieverStories, setAchieverStories] = useState<any[]>([]);
 
   const [hasQuickFilterResults, setHasQuickFilterResults] = useState(true);
 
@@ -415,18 +412,9 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
     setPendingAchieverStoriesRowId(rowId);
     setAchieverStories([]);
-    setAchieverStoriesModalOpen(false);
+    setAchieverStoryViewerOpen(false);
 
     await loadAchieverStories(undefined, undefined, false, { path: rowId });
-  };
-
-  const openAchieverStoryDocument = (story: AchieverStory) => {
-    setActiveAchieverStoryDocument({
-      ...story,
-      file_name: story.file_name || "achiever-story.pdf",
-      mime_type: story.content_type || "application/pdf",
-    });
-    setAchieverStoryDocModalOpen(true);
   };
 
   /* -------- Viewer loaders (same behavior) -------- */
@@ -462,8 +450,21 @@ export default function DataGrid({ rowData }: DataGridProps) {
     pendingRowId: pendingAchieverStoriesRowId,
     setPendingRowId: setPendingAchieverStoriesRowId,
     setItems: setAchieverStories,
-    setModalOpen: setAchieverStoriesModalOpen,
-    pickList: (d: any) => (Array.isArray(d) ? d : (d as any)?.achiever_stories ?? []),
+    setModalOpen: setAchieverStoryViewerOpen,
+    pickList: (d: any) => {
+      const stories = Array.isArray(d) ? d : (d as any)?.achiever_stories ?? [];
+      return stories.map((story: any) => ({
+        ...story,
+        mime_type: story.content_type || "",
+        file_name:
+          story.file_name ||
+          (story.story_type === "text"
+            ? "Achiever Story (Text)"
+            : story.story_type === "video"
+              ? "Achiever Story (Video)"
+              : "Achiever Story"),
+      }));
+    },
     onError: (e: any) => console.error("Failed to fetch achiever stories:", e),
   });
 
@@ -1346,25 +1347,18 @@ export default function DataGrid({ rowData }: DataGridProps) {
           </Suspense>
         )}
 
-        <AchieverStoriesModal
-          open={achieverStoriesModalOpen}
-          onClose={() => setAchieverStoriesModalOpen(false)}
-          stories={achieverStories}
-          onViewDocument={openAchieverStoryDocument}
-        />
-
-        {achieverStoryDocModalOpen && activeAchieverStoryDocument && (
+        {achieverStoryViewerOpen && (
           <Suspense fallback={null}>
             <DocumentViewerModal
-              open={achieverStoryDocModalOpen}
-              onClose={() => setAchieverStoryDocModalOpen(false)}
-              docs={[activeAchieverStoryDocument]}
+              open={achieverStoryViewerOpen}
+              onClose={() => setAchieverStoryViewerOpen(false)}
+              docs={achieverStories}
               startIndex={0}
               mode="view"
               apiBase={API_BASE}
               blobEndpointPath="/file/achiever-stories/download"
               only_approved={true}
-              showBottomBar={false}
+              tipText="Use Previous and Next to view this person's achiever stories."
             />
           </Suspense>
         )}

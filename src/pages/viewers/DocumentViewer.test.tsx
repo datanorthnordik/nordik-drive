@@ -234,6 +234,55 @@ describe("DocumentViewerModal (lightweight unit tests)", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  test("renders a text achiever story and its source details without downloading a file", async () => {
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[
+          {
+            id: 1,
+            story_type: "text",
+            story_text: "A written survivor story.",
+            google_details: "Google research detail",
+            ancestry_details: "Ancestry research detail",
+            derivation_sources: ["google", "ancestry"],
+          },
+        ]}
+        startIndex={0}
+        apiBase={API_BASE}
+      />
+    );
+
+    expect(await screen.findByTestId("viewer-story-text")).toHaveTextContent("A written survivor story.");
+    expect(screen.getByTestId("viewer-story-details")).toHaveTextContent("Google research detail");
+    expect(screen.getByTestId("viewer-story-details")).toHaveTextContent("Ancestry research detail");
+    expect(screen.getByTestId("viewer-story-details")).toHaveTextContent("google, ancestry");
+    expect(fileFetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("navigates from a text story to an embedded video story", async () => {
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[
+          { id: 1, story_type: "text", story_text: "First story" },
+          { id: 2, story_type: "video", video_url: "https://www.youtube.com/watch?v=story123" },
+        ]}
+        startIndex={0}
+        apiBase={API_BASE}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("bottom-next"));
+
+    const video = await screen.findByTitle("achiever-story-video");
+    expect(video).toHaveAttribute("src", "https://www.youtube.com/embed/story123");
+    expect(screen.getByTestId("viewer-meta")).toHaveTextContent("2/2");
+    expect(fileFetchSpy).not.toHaveBeenCalled();
+  });
+
   test("empty docs show a no documents state and disable actions", () => {
     render(
       <DocumentViewerModal
