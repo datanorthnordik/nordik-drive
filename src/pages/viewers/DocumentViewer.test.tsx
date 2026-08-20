@@ -305,4 +305,23 @@ describe("DocumentViewerModal (lightweight unit tests)", () => {
     expect(screen.getByTestId("bottom-next")).toBeDisabled();
     expect(screen.getByTestId("download-all")).toBeDisabled();
   });
+
+  test("opens the achiever story submission form inside the existing viewer", () => {
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[]}
+        startIndex={0}
+        apiBase={API_BASE}
+        storySubmission={{ fileId: 49, rowId: 120739 }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("add-achiever-story"));
+
+    expect(screen.getByTestId("achiever-story-submission-form")).toBeInTheDocument();
+    expect(screen.getByText("Submit an Achiever Story")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit for approval" })).toBeInTheDocument();
+  });
 });

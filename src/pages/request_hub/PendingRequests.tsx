@@ -16,6 +16,8 @@ import {
   Tooltip,
   Typography,
   InputAdornment,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import SearchIcon from "@mui/icons-material/Search";
@@ -32,6 +34,11 @@ import Loader from "../../components/Loader";
 import RequestDetailsModal from "./RequestDetailsModal";
 import { apiUrl } from "../../config/api";
 
+const isStoryRequest = (request: any) => String(request?.request_type || "").toLowerCase() === "achiever_story";
+const requestFileLabel = (request: any) => isStoryRequest(request)
+  ? request?.stories?.[0]?.file_name || "Achiever Story"
+  : request?.file_name || request?.details?.[0]?.filename || "—";
+
 const PendingRequests: React.FC = () => {
   const { data, fetchData, loading } = useFetch(
     apiUrl("file/edit/request"),
@@ -41,6 +48,7 @@ const PendingRequests: React.FC = () => {
 
   const [requests, setRequests] = useState<any[]>([]);
   const [searchText, setSearchText] = useState("");
+  const [storyRequestsOnly, setStoryRequestsOnly] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
   useEffect(() => {
@@ -53,15 +61,16 @@ const PendingRequests: React.FC = () => {
 
   const filtered = useMemo(() => {
     const search = searchText.toLowerCase().trim();
-    if (!search) return requests;
+    const scopedRequests = storyRequestsOnly ? requests.filter(isStoryRequest) : requests;
+    if (!search) return scopedRequests;
 
-    return requests.filter((r) => {
+    return scopedRequests.filter((r) => {
       const createdBy = `${r.firstname || ""} ${r.lastname || ""}`.toLowerCase();
       const userName = `${r.efirstname || ""} ${r.elastname || ""}`.toLowerCase();
-      const filename = String(r.details?.[0]?.filename || "").toLowerCase();
+      const filename = requestFileLabel(r).toLowerCase();
       return createdBy.includes(search) || userName.includes(search) || filename.includes(search);
     });
-  }, [requests, searchText]);
+  }, [requests, searchText, storyRequestsOnly]);
 
   const headCellSx = {
     fontWeight: 800,
@@ -142,7 +151,7 @@ const PendingRequests: React.FC = () => {
               fontSize: "0.95rem",
             }}
           >
-            Pending Edit Requests
+            Pending Requests
           </Typography>
 
           <TextField
@@ -179,6 +188,22 @@ const PendingRequests: React.FC = () => {
                   <SearchIcon sx={{ fontSize: 18, color: color_text_light }} />
                 </InputAdornment>
               ),
+            }}
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={storyRequestsOnly}
+                onChange={(event) => setStoryRequestsOnly(event.target.checked)}
+                inputProps={{ "aria-label": "Only show story requests" }}
+              />
+            }
+            label="Story requests only"
+            sx={{
+              ml: 0,
+              color: color_text_primary,
+              "& .MuiFormControlLabel-label": { fontWeight: 800, fontSize: "0.78rem" },
             }}
           />
         </Box>
@@ -241,11 +266,13 @@ const PendingRequests: React.FC = () => {
                       {`${req.firstname ?? ""} ${req.lastname ?? ""}`.trim()}
                     </TableCell>
 
-                    <TableCell sx={fileCellSx}>{req.details?.[0]?.filename}</TableCell>
+                    <TableCell sx={fileCellSx}>{requestFileLabel(req)}</TableCell>
 
                     <TableCell sx={bodyCellSx}>
                       <Chip
-                        label={`${req.details?.length || 0} changes`}
+                        label={isStoryRequest(req)
+                          ? `${req.stories?.length || 0} ${(req.stories?.length || 0) === 1 ? "story" : "stories"}`
+                          : `${req.details?.length || 0} changes`}
                         size="small"
                         sx={{
                           height: 18,

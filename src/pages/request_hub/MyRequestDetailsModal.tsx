@@ -110,6 +110,11 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
   // Doc viewer
   const [docViewerOpen, setDocViewerOpen] = useState(false);
   const [docViewerIndex, setDocViewerIndex] = useState(0);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyViewerIndex, setStoryViewerIndex] = useState(0);
+
+  const isStoryRequest = String(request?.request_type || "").toLowerCase() === "achiever_story";
+  const stories = Array.isArray(request?.stories) ? request.stories : [];
 
   const { data: photoData, fetchData: loadPhotos, loading: photosLoading } = useFetch(
     `${API_ORIGIN}/api/file/edit/photos/${requestId}`,
@@ -423,6 +428,43 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
             )}
           </Box>
 
+          {isStoryRequest && (
+            <Box
+              sx={{
+                backgroundColor: color_white,
+                border: `1px solid ${color_border}`,
+                borderRadius: 2,
+                p: 1.5,
+                mb: 2,
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
+                <Typography sx={REQUEST_DETAILS_SECTION_TITLE_SX}>Achiever Story</Typography>
+                <Chip label={`${stories.length} ${stories.length === 1 ? "story" : "stories"}`} size="small" />
+              </Box>
+
+              {stories.length === 0 ? (
+                <Typography sx={{ color: color_text_light, fontWeight: 800 }}>No story content was found for this request.</Typography>
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  {stories.map((story: any, index: number) => (
+                    <Box key={story.id || index} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, border: `1px solid ${color_border}`, borderRadius: 1.5, p: 1.25 }}>
+                      <Box>
+                        <Typography sx={{ color: color_text_primary, fontWeight: 900 }}>
+                          {story.file_name || (story.story_type === "text" ? "Written story" : story.story_type === "video" ? "Video story" : "Story document")}
+                        </Typography>
+                        <Typography sx={{ color: color_text_light, fontSize: "0.78rem", fontWeight: 700 }}>
+                          {String(story.story_type || "document").toUpperCase()} • {getReviewStatusUppercaseLabel(normalizeReviewStatus(story.status))}
+                        </Typography>
+                      </Box>
+                      <Button onClick={() => { setStoryViewerIndex(index); setStoryViewerOpen(true); }} variant="outlined" sx={viewBtnSx}>View</Button>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
+
           {/* Photos */}
           <PhotoGrid
             title={REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE}
@@ -524,6 +566,21 @@ const MyRequestDetailsModal: React.FC<MyRequestDetailsModalProps> = ({ open, req
         bottomOpenLabel="View"
         only_approved={false}
       />
+
+      {isStoryRequest && (
+        <DocumentViewerModal
+          open={storyViewerOpen}
+          onClose={() => setStoryViewerOpen(false)}
+          docs={stories.map((story: any) => ({ ...story, mime_type: story.content_type || "" }))}
+          startIndex={storyViewerIndex}
+          mode="view"
+          apiBase={API_ORIGIN}
+          blobEndpointPath="/api/file/achiever-stories/request/download"
+          showApproveReject={false}
+          only_approved={false}
+          tipText="This is your submitted story. It will be visible to other users only after approval."
+        />
+      )}
     </>
   );
 };

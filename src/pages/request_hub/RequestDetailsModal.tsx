@@ -95,6 +95,17 @@ interface RequestDoc {
   reviewer_comment?: string;
 }
 
+interface RequestStory {
+  id: number;
+  story_type: "document" | "text" | "video" | string;
+  story_text?: string;
+  video_url?: string;
+  file_name?: string;
+  content_type?: string;
+  status?: ReviewStatus;
+  reviewer_comment?: string;
+}
+
 type PhotoReviewInput = {
   photo_id: number;
   status: ReviewDecisionStatus;
@@ -188,6 +199,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   const [editableDetails, setEditableDetails] = useState<any[]>([]);
   const [photos, setPhotos] = useState<RequestPhoto[]>([]);
   const [docs, setDocs] = useState<RequestDoc[]>([]);
+  const [stories, setStories] = useState<RequestStory[]>([]);
 
   // request-level review
   const [requestReviewComment, setRequestReviewComment] = useState("");
@@ -199,6 +211,8 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
   // Doc viewer
   const [docViewerOpen, setDocViewerOpen] = useState(false);
   const [docViewerIndex, setDocViewerIndex] = useState(0);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyViewerIndex, setStoryViewerIndex] = useState(0);
 
   // keep last created blob URL so we can revoke it safely
   const [lastBlobUrl, setLastBlobUrl] = useState<string>("");
@@ -297,6 +311,18 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     );
   };
 
+  const handleApproveStoryById = (id: number) => {
+    setStories((prev) => prev.map((story) => story.id === id ? { ...story, status: REVIEW_STATUS_VALUES.APPROVED } : story));
+  };
+
+  const handleRejectStoryById = (id: number) => {
+    setStories((prev) => prev.map((story) => story.id === id ? { ...story, status: REVIEW_STATUS_VALUES.REJECTED } : story));
+  };
+
+  const setStoryReviewCommentById = (id: number, value: string) => {
+    setStories((prev) => prev.map((story) => story.id === id ? { ...story, reviewer_comment: value } : story));
+  };
+
   // ---------------------------------------
   // Derived current doc (NO hooks)
   // ---------------------------------------
@@ -314,6 +340,11 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     loadPhotos();
     loadDocs();
     setEditableDetails((request.details || []).map(normalizeEditableDetail));
+    setStories((request.stories || []).map((story: RequestStory) => ({
+      ...story,
+      status: normalizeInitialReviewStatus(story.status),
+      reviewer_comment: String(story.reviewer_comment || ""),
+    })));
     setRequestReviewComment(String(request?.reviewer_comment || ""));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, request?.request_id, request?.reviewer_comment]);
@@ -514,6 +545,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
     const hasPendingDetail = editableDetails.some((d) => d.status === null);
     const hasPendingPhoto = photos.some((p) => p.status === null);
     const hasPendingDoc = docs.some((d) => d.status === null);
+    const hasPendingStory = stories.some((story) => story.status === null);
 
     if (editableDetails.length > 0 && hasPendingDetail) {
       toast.error("Please approve or reject all field changes before submitting the review.");
@@ -522,6 +554,11 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
 
     if ((photos.length > 0 && hasPendingPhoto) || (docs.length > 0 && hasPendingDoc)) {
       toast.error("Please approve or reject all uploaded photos and documents before submitting the review.");
+      return false;
+    }
+
+    if (stories.length > 0 && hasPendingStory) {
+      toast.error("Please approve or reject every submitted story before completing the review.");
       return false;
     }
 
@@ -555,6 +592,16 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
       return false;
     }
 
+    const rejectedStoryWithoutComment = stories.find(
+      (story) =>
+        story.status === REVIEW_STATUS_VALUES.REJECTED &&
+        !String(story.reviewer_comment || "").trim()
+    );
+    if (rejectedStoryWithoutComment) {
+      toast.error("Review comment is required for rejected stories.");
+      return false;
+    }
+
     return true;
   };
 
@@ -581,7 +628,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         await submitReview({ reviews });
       }
 
-      await reviewRequest({
+      const requestReviewPayload: any = {
         request_id: request.request_id,
         status: REQUEST_STATUS_VALUES.COMPLETED,
         reviewer_comment: requestReviewComment.trim(),
@@ -589,7 +636,15 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
           ...detail,
           reviewer_comment: String(detail.reviewer_comment || "").trim(),
         })),
-      });
+      };
+      if (stories.length > 0) {
+        requestReviewPayload.story_reviews = stories.map((story) => ({
+          story_id: story.id,
+          status: story.status,
+          reviewer_comment: String(story.reviewer_comment || "").trim(),
+        }));
+      }
+      await reviewRequest(requestReviewPayload);
     } finally {
       submitLockRef.current = false;
     }
@@ -721,7 +776,7 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             <Box sx={{ ...infoRowSx, mt: 0.6 }}>
               <Typography sx={labelSx}>File:</Typography>
               <Typography sx={{ ...valueSx, fontWeight: 800 }}>
-                {request.details?.[0]?.filename || "(unknown file)"}
+                {request.file_name || request.details?.[0]?.filename || "(unknown file)"}
               </Typography>
             </Box>
 
@@ -937,6 +992,45 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
             )}
           </Box>
 
+          {stories.length > 0 && (
+            <Box
+              sx={{
+                backgroundColor: color_white,
+                border: `1px solid ${color_border}`,
+                borderRadius: 2,
+                p: 1.5,
+                mb: 2,
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1.25 }}>
+                <Typography sx={REQUEST_DETAILS_SECTION_TITLE_SX}>Achiever Stories</Typography>
+                <Chip
+                  size="small"
+                  label={`${stories.length} ${stories.length === 1 ? "story" : "stories"}`}
+                  sx={{ backgroundColor: color_background, color: color_text_secondary, border: `1px solid ${color_border}`, fontWeight: 900 }}
+                />
+              </Box>
+              <Typography sx={{ color: color_text_light, fontWeight: 700, mb: 1.25 }}>
+                Review each story before completing this request. Approved stories become visible on the student's record.
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {stories.map((story, index) => (
+                  <Box key={story.id} sx={{ border: `1px solid ${color_border}`, borderRadius: 1.5, p: 1.25, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <Box>
+                      <Typography sx={{ color: color_text_primary, fontWeight: 900 }}>
+                        {story.file_name || (story.story_type === "text" ? "Written story" : story.story_type === "video" ? "Video story" : "Story document")}
+                      </Typography>
+                      <Typography sx={{ color: color_text_light, fontSize: "0.78rem", fontWeight: 700 }}>
+                        {String(story.story_type || "document").toUpperCase()} • {story.status === REVIEW_STATUS_VALUES.APPROVED ? "APPROVED" : story.status === REVIEW_STATUS_VALUES.REJECTED ? "REJECTED" : "PENDING"}
+                      </Typography>
+                    </Box>
+                    <Button onClick={() => { setStoryViewerIndex(index); setStoryViewerOpen(true); }} variant="outlined" sx={viewBtnSx}>Review</Button>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
           {/* PHOTOS SECTION */}
           <PhotoGrid
             title={REQUEST_DETAILS_UPLOADED_PHOTOS_TITLE}
@@ -1091,6 +1185,25 @@ const ApproveRequestModal: React.FC<ApproveRequestModalProps> = ({
         showReviewerCommentField={true}
         bottomOpenLabel="View"
       />
+
+      {stories.length > 0 && (
+        <DocumentViewerModal
+          open={storyViewerOpen}
+          onClose={() => setStoryViewerOpen(false)}
+          docs={stories.map((story) => ({ ...story, mime_type: story.content_type || "" }))}
+          startIndex={storyViewerIndex}
+          mode="review"
+          apiBase={API_ORIGIN}
+          blobEndpointPath="/api/file/achiever-stories/request/download"
+          showApproveReject={true}
+          onApprove={handleApproveStoryById}
+          onReject={handleRejectStoryById}
+          onReviewerCommentChange={(story, value) => setStoryReviewCommentById(Number(story.id), value)}
+          showReviewerCommentField={true}
+          bottomOpenLabel="View"
+          tipText="Approve or reject this submitted achiever story."
+        />
+      )}
     </>
   );
 };
