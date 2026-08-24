@@ -283,7 +283,7 @@ describe("PendingRequests (100% coverage)", () => {
 
   await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
 
-  expect(screen.getByText("Pending Edit Requests")).toBeInTheDocument();
+  expect(screen.getByText("Pending Requests")).toBeInTheDocument();
   expect(screen.getByText("Kavya G")).toBeInTheDocument();
   expect(screen.getByText("Athul N")).toBeInTheDocument();
   expect(screen.getByText("0 changes")).toBeInTheDocument();
