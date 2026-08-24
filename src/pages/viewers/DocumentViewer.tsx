@@ -10,6 +10,7 @@ import {
   DialogContent,
   Divider,
   Link,
+  MenuItem,
   TextField,
   Typography,
 } from "@mui/material";
@@ -19,7 +20,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import CloseIcon from "@mui/icons-material/Close";
 import FolderZipIcon from "@mui/icons-material/FolderZip";
 
-import useFetch from "../../hooks/useFetch";
+import useFetch, { apiRequest } from "../../hooks/useFetch";
 import { type ReviewStatusValue } from "../../constants/statuses";
 import {
   DOCUMENT_DEFAULT_TIP_TEXT,
@@ -92,6 +93,14 @@ export interface ViewerDoc {
   ancestry_details?: string;
   derivation_sources?: string[];
 }
+
+export type AchieverStorySubmissionContext = {
+  fileId: number;
+  rowId: number;
+  firstName?: string;
+  lastName?: string;
+  onSubmitted?: () => void;
+};
 
 function safeFilename(name: string) {
   return (name || "download.zip")
@@ -223,6 +232,189 @@ const toEmbeddableVideoURL = (raw?: string) => {
 
 const isDirectVideoURL = (raw?: string) => /\.(mp4|webm|ogg)(?:$|[?#])/i.test(String(raw || ""));
 
+const fileToDataURL = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Unable to read the selected file."));
+    reader.readAsDataURL(file);
+  });
+
+const allowedStoryDocument = (file: File) => /\.(pdf|doc|docx)$/i.test(file.name);
+
+function AchieverStorySubmissionForm({
+  apiBase,
+  context,
+  onCancel,
+}: {
+  apiBase: string;
+  context: AchieverStorySubmissionContext;
+  onCancel: () => void;
+}) {
+  const [storyType, setStoryType] = useState<"text" | "video" | "document">("text");
+  const [storyText, setStoryText] = useState("");
+  const [videoURL, setVideoURL] = useState("");
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const submit = async () => {
+    if (submitting) return;
+    setError("");
+
+    if (storyType === "text" && !storyText.trim()) {
+      setError("Enter the written story before submitting.");
+      return;
+    }
+    if (storyType === "video" && !videoURL.trim()) {
+      setError("Enter a link to the video before submitting.");
+      return;
+    }
+    if (storyType === "document" && !documentFile) {
+      setError("Select a PDF or Word document before submitting.");
+      return;
+    }
+    if (documentFile && !allowedStoryDocument(documentFile)) {
+      setError("Story documents must be PDF, DOC, or DOCX files.");
+      return;
+    }
+    if (documentFile && documentFile.size > 25 * 1024 * 1024) {
+      setError("Story documents must be 25 MB or smaller.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const document = documentFile
+        ? {
+            document_type: "document",
+            document_category: "achiever_story",
+            filename: documentFile.name,
+            mime_type: documentFile.type || guessMimeFromFilename(documentFile.name),
+            size: documentFile.size,
+            data_base64: await fileToDataURL(documentFile),
+          }
+        : undefined;
+
+      await apiRequest(`${apiBase}/file/achiever-stories/request`, "POST", {
+        file_id: context.fileId,
+        row_id: context.rowId,
+        firstname: context.firstName || "",
+        lastname: context.lastName || "",
+        story_type: storyType,
+        story_text: storyType === "text" ? storyText.trim() : "",
+        video_url: storyType === "video" ? videoURL.trim() : "",
+        document,
+      });
+      setSubmitted(true);
+      context.onSubmitted?.();
+    } catch (submissionError: any) {
+      setError(submissionError?.message || "Unable to submit the story.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: 760,
+        mx: "auto",
+        p: { xs: 1, sm: 3 },
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+      }}
+      data-testid="achiever-story-submission-form"
+    >
+      <Box>
+        <Typography sx={{ ...VIEWER_TITLE_SX, fontSize: 22 }}>Submit an Achiever Story</Typography>
+        <Typography sx={{ mt: 0.75, color: color_text_light }}>
+          Submit written text, a video link, or a PDF/Word document. It will be visible after an administrator approves it.
+        </Typography>
+      </Box>
+
+      {submitted ? (
+        <Box sx={{ p: 2, borderRadius: 2, border: "1px solid rgba(39,174,96,0.35)", background: "rgba(39,174,96,0.10)" }}>
+          <Typography sx={{ fontWeight: 900, color: "#166534" }}>Story submitted for review.</Typography>
+          <Typography sx={{ mt: 0.5, color: color_text_primary }}>It will appear in this person's stories once an administrator approves it.</Typography>
+        </Box>
+      ) : (
+        <>
+          <TextField
+            select
+            label="Story format"
+            value={storyType}
+            onChange={(event) => setStoryType(event.target.value as "text" | "video" | "document")}
+            fullWidth
+          >
+            <MenuItem value="text">Written story</MenuItem>
+            <MenuItem value="video">Video link</MenuItem>
+            <MenuItem value="document">PDF or Word document</MenuItem>
+          </TextField>
+
+          {storyType === "text" && (
+            <TextField
+              label="Story"
+              value={storyText}
+              onChange={(event) => setStoryText(event.target.value)}
+              fullWidth
+              multiline
+              minRows={10}
+              placeholder="Write the story here..."
+            />
+          )}
+
+          {storyType === "video" && (
+            <TextField
+              label="Video link"
+              value={videoURL}
+              onChange={(event) => setVideoURL(event.target.value)}
+              fullWidth
+              type="url"
+              placeholder="https://www.youtube.com/watch?v=..."
+              helperText="YouTube, Vimeo, or a direct video link can be used."
+            />
+          )}
+
+          {storyType === "document" && (
+            <Box>
+              <Button component="label" variant="outlined" sx={{ fontWeight: 900 }}>
+                {documentFile ? "Choose a different document" : "Choose PDF or Word document"}
+                <input
+                  hidden
+                  type="file"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(event) => setDocumentFile(event.target.files?.[0] || null)}
+                />
+              </Button>
+              <Typography sx={{ mt: 1, color: color_text_light }}>
+                {documentFile ? `${documentFile.name} (${Math.ceil(documentFile.size / 1024)} KB)` : "PDF, DOC, or DOCX; maximum 25 MB."}
+              </Typography>
+            </Box>
+          )}
+
+          {error && <Typography role="alert" sx={{ color: color_primary, fontWeight: 800 }}>{error}</Typography>}
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, flexWrap: "wrap" }}>
+            <Button onClick={onCancel} disabled={submitting} variant="outlined">Cancel</Button>
+            <Button
+              onClick={submit}
+              disabled={submitting}
+              variant="contained"
+              sx={{ background: color_secondary, fontWeight: 900, "&:hover": { background: color_secondary_dark } }}
+            >
+              {submitting ? "Submitting..." : "Submit for approval"}
+            </Button>
+          </Box>
+        </>
+      )}
+    </Box>
+  );
+}
+
 export type DocumentViewerMode = "view" | "review";
 
 export interface DocumentViewerModalProps {
@@ -262,6 +454,7 @@ export interface DocumentViewerModalProps {
   maxTextChars?: number;
   only_approved?: boolean;
   showReviewerCommentField?: boolean;
+  storySubmission?: AchieverStorySubmissionContext;
 }
 
 const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
@@ -296,6 +489,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   maxTextChars = 200000,
   only_approved = false,
   showReviewerCommentField = false,
+  storySubmission,
 }) => {
   const [index, setIndex] = useState<number>(startIndex || 0);
   const [docBlob, setDocBlob] = useState<Blob | null>(null);
@@ -303,6 +497,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   const [blobMime, setBlobMime] = useState<string>("");
   const [docTextPreview, setDocTextPreview] = useState<string>("");
   const [docxPreviewError, setDocxPreviewError] = useState<string>("");
+  const [submissionOpen, setSubmissionOpen] = useState(false);
 
   const lastBlobUrlRef = useRef<string>("");
   const docxPreviewRef = useRef<HTMLDivElement | null>(null);
@@ -639,6 +834,23 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {storySubmission && (
+            <Button
+              onClick={() => setSubmissionOpen((current) => !current)}
+              variant="contained"
+              data-testid="add-achiever-story"
+              sx={{
+                fontWeight: 900,
+                textTransform: "uppercase",
+                px: 2,
+                background: color_primary,
+                "&:hover": { background: color_primary_dark },
+              }}
+            >
+              {submissionOpen ? "View Stories" : "Add a Story"}
+            </Button>
+          )}
+
           {showOpenButton && (
             <Button
               onClick={openInNewTab}
@@ -719,7 +931,9 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         }}
         data-testid="viewer-tip"
       >
-        {tipText}
+        {submissionOpen
+          ? "Submitted stories are reviewed by an administrator before they are visible to other users."
+          : tipText}
       </Box>
 
       <Divider />
@@ -732,6 +946,13 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
           background: color_white,
         }}
       >
+        {submissionOpen && storySubmission ? (
+          <AchieverStorySubmissionForm
+            apiBase={apiBase}
+            context={storySubmission}
+            onCancel={() => setSubmissionOpen(false)}
+          />
+        ) : (
         <Box
           sx={{
             display: "flex",
@@ -1144,8 +1365,9 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
             </Box>
           )}
         </Box>
+        )}
 
-        {showBottomBar && (
+        {showBottomBar && !submissionOpen && (
           <Box
             sx={{
               position: "fixed",

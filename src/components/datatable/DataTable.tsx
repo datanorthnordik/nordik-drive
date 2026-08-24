@@ -112,6 +112,18 @@ const AddInfoRenderer = React.memo((props: any) => {
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const storyPersonName = (row: any) => {
+  const values = Object.entries(row || {}).reduce<Record<string, string>>((all, [key, value]) => {
+    all[key.toLowerCase().replace(/[^a-z]/g, "")] = String(value || "").trim();
+    return all;
+  }, {});
+
+  return {
+    firstName: values.firstname || values.firstnamegiven || values.givenname || "",
+    lastName: values.lastname || values.surname || values.familyname || "",
+  };
+};
+
 const HighlightCell = React.memo(
   ({ value, searchText, fontSize }: { value: any; searchText: string; fontSize: number }) => {
     if (value === null || value === undefined) return null;
@@ -244,6 +256,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
   const [photos, setPhotos] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
   const [achieverStories, setAchieverStories] = useState<any[]>([]);
+  const [activeAchieverStoryRow, setActiveAchieverStoryRow] = useState<any>(null);
 
   const [hasQuickFilterResults, setHasQuickFilterResults] = useState(true);
 
@@ -412,6 +425,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
 
     setPendingAchieverStoriesRowId(rowId);
     setAchieverStories([]);
+    setActiveAchieverStoryRow(row);
     setAchieverStoryViewerOpen(false);
 
     await loadAchieverStories(undefined, undefined, false, { path: rowId });
@@ -768,7 +782,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                   params.context.openAchieverStoriesView(params.data);
                 }}
               >
-                View Stories
+                Add / View Stories
               </button>
             ),
           };
@@ -1359,6 +1373,15 @@ export default function DataGrid({ rowData }: DataGridProps) {
               blobEndpointPath="/file/achiever-stories/download"
               only_approved={true}
               tipText="Use Previous and Next to view this person's achiever stories."
+              storySubmission={
+                selectedFile?.id && activeAchieverStoryRow?.id
+                  ? {
+                      fileId: Number(selectedFile.id),
+                      rowId: Number(activeAchieverStoryRow.id),
+                      ...storyPersonName(activeAchieverStoryRow),
+                    }
+                  : undefined
+              }
             />
           </Suspense>
         )}

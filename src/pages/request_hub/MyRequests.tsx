@@ -10,7 +10,9 @@ import {
   Button,
   Chip,
   Divider,
+  FormControlLabel,
   Stack,
+  Switch,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 
@@ -42,7 +44,12 @@ import RequestStatusSummary from "./RequestStatusSummary";
 
 const API_BASE = API_ORIGIN;
 
-const getFilename = (req: any) => String(req?.details?.[0]?.filename || "—");
+const isStoryRequest = (req: any) => String(req?.request_type || "").toLowerCase() === "achiever_story";
+const getFilename = (req: any) => String(
+  isStoryRequest(req)
+    ? req?.stories?.[0]?.file_name || "Achiever Story"
+    : req?.file_name || req?.details?.[0]?.filename || "—"
+);
 const getChangeCount = (req: any) => (Array.isArray(req?.details) ? req.details.length : 0);
 
 const formatWhen = (iso?: string) => {
@@ -97,6 +104,7 @@ const getStatusCount = (requests: any[], status: string) =>
 const MyRequests: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>(REQUEST_STATUS_VALUES.PENDING);
   const [searchText, setSearchText] = useState("");
+  const [storyRequestsOnly, setStoryRequestsOnly] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
   const user = useSelector((state: any) => state.auth.user);
@@ -170,7 +178,10 @@ const MyRequests: React.FC = () => {
     ],
     [allRequests, requestTotal]
   );
-  const activeList = allRequests;
+  const activeList = useMemo(
+    () => storyRequestsOnly ? allRequests.filter(isStoryRequest) : allRequests,
+    [allRequests, storyRequestsOnly]
+  );
   const statusFilteredList = useMemo(
     () =>
       activeList.filter(
@@ -277,6 +288,22 @@ const MyRequests: React.FC = () => {
                   <SearchIcon sx={{ fontSize: 18, color: color_text_light }} />
                 </InputAdornment>
               ),
+            }}
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={storyRequestsOnly}
+                onChange={(event) => setStoryRequestsOnly(event.target.checked)}
+                inputProps={{ "aria-label": "Only show story requests" }}
+              />
+            }
+            label="Story requests only"
+            sx={{
+              ml: 0,
+              color: color_text_primary,
+              "& .MuiFormControlLabel-label": { fontWeight: 800, fontSize: "0.82rem" },
             }}
           />
         </Box>
@@ -389,7 +416,9 @@ const MyRequests: React.FC = () => {
                           }}
                         >
                           Request #{req.request_id} • Created {formatWhen(req.created_at)} •{" "}
-                          {getChangeCount(req)} changes
+                          {isStoryRequest(req)
+                            ? `${req?.stories?.length || 0} ${(req?.stories?.length || 0) === 1 ? "story" : "stories"}`
+                            : `${getChangeCount(req)} changes`}
                         </Typography>
                       </Box>
 
