@@ -124,6 +124,7 @@ const normalizeBlob = (x: any): Blob | null => {
 
 const isImageMime = (m?: string) => !!m && m.startsWith("image/");
 const isPdfMime = (m?: string) => m === "application/pdf";
+const isVideoMime = (m?: string) => !!m && m.startsWith("video/");
 
 const isDocxMime = (m?: string) =>
   m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -161,6 +162,10 @@ function guessMimeFromFilename(name?: string) {
   if (n.endsWith(".txt")) return "text/plain";
   if (n.endsWith(".csv")) return "text/csv";
   if (n.endsWith(".json")) return "application/json";
+  if (n.endsWith(".mp4") || n.endsWith(".m4v")) return "video/mp4";
+  if (n.endsWith(".webm")) return "video/webm";
+  if (n.endsWith(".ogg") || n.endsWith(".ogv")) return "video/ogg";
+  if (n.endsWith(".mov")) return "video/quicktime";
   return "";
 }
 
@@ -181,6 +186,10 @@ function extensionFromMime(mime?: string) {
   )
     return ".xlsx";
   if (mime.startsWith("text/")) return ".txt";
+  if (mime === "video/mp4") return ".mp4";
+  if (mime === "video/webm") return ".webm";
+  if (mime === "video/ogg") return ".ogv";
+  if (mime === "video/quicktime") return ".mov";
   return "";
 }
 
@@ -200,7 +209,13 @@ const readBlobAsText = (blob: Blob) =>
   });
 
 const storyTypeOf = (doc?: ViewerDoc) => String(doc?.story_type || "document").trim().toLowerCase();
-const isInlineStory = (doc?: ViewerDoc) => storyTypeOf(doc) === "text" || storyTypeOf(doc) === "video";
+const isInlineStory = (doc?: ViewerDoc) => {
+  const storyType = storyTypeOf(doc);
+  const mime = doc?.mime_type || guessMimeFromFilename(doc?.file_name);
+  if (storyType === "text") return !isPdfMime(mime);
+  if (storyType === "video") return !!String(doc?.video_url || "").trim() || !isVideoMime(mime);
+  return false;
+};
 
 const storyFallbackTitle = (doc?: ViewerDoc) => {
   if (storyTypeOf(doc) === "text") return "Achiever Story (Text)";
@@ -230,8 +245,6 @@ const toEmbeddableVideoURL = (raw?: string) => {
   return "";
 };
 
-const isDirectVideoURL = (raw?: string) => /\.(mp4|webm|ogg)(?:$|[?#])/i.test(String(raw || ""));
-
 const fileToDataURL = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -241,6 +254,7 @@ const fileToDataURL = (file: File) =>
   });
 
 const allowedStoryDocument = (file: File) => /\.(pdf|doc|docx)$/i.test(file.name);
+const allowedStoryVideo = (file: File) => /\.(mp4|m4v|webm|ogg|ogv|mov)$/i.test(file.name);
 
 function AchieverStorySubmissionForm({
   apiBase,
@@ -253,7 +267,9 @@ function AchieverStorySubmissionForm({
 }) {
   const [storyType, setStoryType] = useState<"text" | "video" | "document">("text");
   const [storyText, setStoryText] = useState("");
+  const [videoSource, setVideoSource] = useState<"link" | "upload">("link");
   const [videoURL, setVideoURL] = useState("");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -267,20 +283,32 @@ function AchieverStorySubmissionForm({
       setError("Enter the written story before submitting.");
       return;
     }
-    if (storyType === "video" && !videoURL.trim()) {
+    if (storyType === "video" && videoSource === "link" && !videoURL.trim()) {
       setError("Enter a link to the video before submitting.");
+      return;
+    }
+    if (storyType === "video" && videoSource === "upload" && !videoFile) {
+      setError("Select a video before submitting.");
       return;
     }
     if (storyType === "document" && !documentFile) {
       setError("Select a PDF or Word document before submitting.");
       return;
     }
-    if (documentFile && !allowedStoryDocument(documentFile)) {
+    if (storyType === "document" && documentFile && !allowedStoryDocument(documentFile)) {
       setError("Story documents must be PDF, DOC, or DOCX files.");
       return;
     }
-    if (documentFile && documentFile.size > 25 * 1024 * 1024) {
+    if (storyType === "document" && documentFile && documentFile.size > 25 * 1024 * 1024) {
       setError("Story documents must be 25 MB or smaller.");
+      return;
+    }
+    if (storyType === "video" && videoSource === "upload" && videoFile && !allowedStoryVideo(videoFile)) {
+      setError("Videos must be MP4, WebM, OGG, or MOV files.");
+      return;
+    }
+    if (storyType === "video" && videoSource === "upload" && videoFile && videoFile.size > 20 * 1024 * 1024) {
+      setError("Videos must be 20 MB or smaller.");
       return;
     }
 
@@ -296,6 +324,16 @@ function AchieverStorySubmissionForm({
             data_base64: await fileToDataURL(documentFile),
           }
         : undefined;
+      const video = storyType === "video" && videoSource === "upload" && videoFile
+        ? {
+            document_type: "video",
+            document_category: "achiever_story",
+            filename: videoFile.name,
+            mime_type: videoFile.type || guessMimeFromFilename(videoFile.name),
+            size: videoFile.size,
+            data_base64: await fileToDataURL(videoFile),
+          }
+        : undefined;
 
       await apiRequest(`${apiBase}/file/achiever-stories/request`, "POST", {
         file_id: context.fileId,
@@ -304,8 +342,9 @@ function AchieverStorySubmissionForm({
         lastname: context.lastName || "",
         story_type: storyType,
         story_text: storyType === "text" ? storyText.trim() : "",
-        video_url: storyType === "video" ? videoURL.trim() : "",
-        document,
+        video_url: storyType === "video" && videoSource === "link" ? videoURL.trim() : "",
+        video,
+        document: storyType === "document" ? document : undefined,
       });
       setSubmitted(true);
       context.onSubmitted?.();
@@ -332,7 +371,7 @@ function AchieverStorySubmissionForm({
       <Box>
         <Typography sx={{ ...VIEWER_TITLE_SX, fontSize: 22 }}>Submit an Achiever Story</Typography>
         <Typography sx={{ mt: 0.75, color: color_text_light }}>
-          Submit written text, a video link, or a PDF/Word document. It will be visible after an administrator approves it.
+          Submit written text, upload a video or add its link, or upload a PDF/Word document. Written text is saved as a PDF. The story will be visible after an administrator approves it.
         </Typography>
       </Box>
 
@@ -351,7 +390,7 @@ function AchieverStorySubmissionForm({
             fullWidth
           >
             <MenuItem value="text">Written story</MenuItem>
-            <MenuItem value="video">Video link</MenuItem>
+            <MenuItem value="video">Video</MenuItem>
             <MenuItem value="document">PDF or Word document</MenuItem>
           </TextField>
 
@@ -368,15 +407,45 @@ function AchieverStorySubmissionForm({
           )}
 
           {storyType === "video" && (
-            <TextField
-              label="Video link"
-              value={videoURL}
-              onChange={(event) => setVideoURL(event.target.value)}
-              fullWidth
-              type="url"
-              placeholder="https://www.youtube.com/watch?v=..."
-              helperText="YouTube, Vimeo, or a direct video link can be used."
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                select
+                label="Video source"
+                value={videoSource}
+                onChange={(event) => setVideoSource(event.target.value as "link" | "upload")}
+                fullWidth
+              >
+                <MenuItem value="link">Add a video link</MenuItem>
+                <MenuItem value="upload">Upload a video</MenuItem>
+              </TextField>
+
+              {videoSource === "link" ? (
+                <TextField
+                  label="Video link"
+                  value={videoURL}
+                  onChange={(event) => setVideoURL(event.target.value)}
+                  fullWidth
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  helperText="The viewer will play YouTube, Vimeo, and playable direct links. Other links can be opened in a new tab."
+                />
+              ) : (
+                <Box>
+                  <Button component="label" variant="outlined" sx={{ fontWeight: 900 }}>
+                    {videoFile ? "Choose a different video" : "Choose video"}
+                    <input
+                      hidden
+                      type="file"
+                      accept=".mp4,.m4v,.webm,.ogg,.ogv,.mov,video/mp4,video/webm,video/ogg,video/quicktime"
+                      onChange={(event) => setVideoFile(event.target.files?.[0] || null)}
+                    />
+                  </Button>
+                  <Typography sx={{ mt: 1, color: color_text_light }}>
+                    {videoFile ? `${videoFile.name} (${Math.ceil(videoFile.size / 1024)} KB)` : "MP4, WebM, OGG, or MOV; maximum 20 MB."}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           )}
 
           {storyType === "document" && (
@@ -498,6 +567,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   const [docTextPreview, setDocTextPreview] = useState<string>("");
   const [docxPreviewError, setDocxPreviewError] = useState<string>("");
   const [submissionOpen, setSubmissionOpen] = useState(false);
+  const [linkedVideoFailed, setLinkedVideoFailed] = useState(false);
 
   const lastBlobUrlRef = useRef<string>("");
   const docxPreviewRef = useRef<HTMLDivElement | null>(null);
@@ -531,9 +601,15 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   const currentDocMime = useMemo(() => {
     if (!currentDoc) return "";
     if (resolveMime) return resolveMime(currentDoc) || "";
+    const storedMime = currentDoc.mime_type || guessMimeFromFilename(currentDoc.file_name) || "";
+    if (storedMime) return storedMime;
     if (isTextStory) return "text/plain";
-    return currentDoc.mime_type || guessMimeFromFilename(currentDoc.file_name) || "";
+    return "";
   }, [currentDoc, isTextStory, resolveMime]);
+
+  useEffect(() => {
+    setLinkedVideoFailed(false);
+  }, [currentDoc?.id, currentDoc?.video_url]);
 
   const activeDocMime = useMemo(
     () => pickPreviewMime(currentDocMime, blobMime),
@@ -993,7 +1069,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </Box>
             )}
 
-            {isTextStory && currentDoc && (
+            {isTextStory && hasInlineStoryContent && currentDoc && (
               <Box sx={{ height: "100%", overflow: "auto", p: { xs: 2, sm: 3 } }} data-testid="viewer-story-text">
                 <Typography component="div" sx={{ whiteSpace: "pre-wrap", color: color_text_primary, lineHeight: 1.7 }}>
                   {currentDoc.story_text || "No written story has been added yet."}
@@ -1001,7 +1077,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </Box>
             )}
 
-            {isVideoStory && currentDoc && (
+            {isVideoStory && hasInlineStoryContent && currentDoc && (
               <Box
                 sx={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 2, p: { xs: 2, sm: 3 } }}
                 data-testid="viewer-story-video"
@@ -1014,9 +1090,14 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                     allowFullScreen
                     style={{ width: "100%", minHeight: 360, border: 0, background: "#000" }}
                   />
-                ) : isDirectVideoURL(currentDoc.video_url) ? (
-                  <video controls style={{ width: "100%", maxHeight: "100%", background: "#000" }}>
-                    <source src={currentDoc.video_url} />
+                ) : currentDoc.video_url && !linkedVideoFailed ? (
+                  <video
+                    controls
+                    src={currentDoc.video_url}
+                    onError={() => setLinkedVideoFailed(true)}
+                    style={{ width: "100%", maxHeight: "100%", background: "#000" }}
+                    data-testid="viewer-linked-video"
+                  >
                     Your browser does not support this video format.
                   </video>
                 ) : currentDoc.video_url ? (
@@ -1100,6 +1181,19 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   </Box>
                 )}
 
+                {isVideoMime(activeDocMime) && (
+                  <Box sx={{ width: "100%", height: "100%", display: "flex", alignItems: "center", background: "#000" }}>
+                    <video
+                      controls
+                      src={docBlobUrl}
+                      style={{ width: "100%", maxHeight: "100%", background: "#000" }}
+                      data-testid="viewer-uploaded-video"
+                    >
+                      Your browser does not support this video format.
+                    </video>
+                  </Box>
+                )}
+
                 {isDocxMime(activeDocMime) && !!docxPreviewError && (
                   <Box
                     sx={{
@@ -1179,6 +1273,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   !isDocxMime(activeDocMime) &&
                   !isLegacyWordMime(activeDocMime) &&
                   !isExcelMime(activeDocMime) &&
+                  !isVideoMime(activeDocMime) &&
                   docTextPreview && (
                     <Box sx={{ p: 2 }} data-testid="viewer-text-wrap">
                       <pre
@@ -1203,6 +1298,7 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
                   !isDocxMime(activeDocMime) &&
                   !isLegacyWordMime(activeDocMime) &&
                   !isExcelMime(activeDocMime) &&
+                  !isVideoMime(activeDocMime) &&
                   !docTextPreview && (
                     <Box
                       sx={{
