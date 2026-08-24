@@ -283,6 +283,86 @@ describe("DocumentViewerModal (lightweight unit tests)", () => {
     expect(fileFetchSpy).not.toHaveBeenCalled();
   });
 
+  test("loads a generated text-story PDF through the existing viewer", async () => {
+    mockFileData = new Blob(["%PDF"], { type: "application/pdf" });
+
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[
+          {
+            id: 11,
+            story_type: "text",
+            story_text: "The original submitted text remains available as metadata.",
+            file_name: "Jane_Doe_story.pdf",
+            mime_type: "application/pdf",
+          },
+        ]}
+        startIndex={0}
+        apiBase={API_BASE}
+      />
+    );
+
+    await waitFor(() => expect(fileFetchSpy).toHaveBeenCalledWith(undefined, undefined, false, {
+      path: 11,
+      responseType: "blob",
+    }));
+    expect(await screen.findByTitle("pdf-viewer")).toHaveAttribute("src", "blob:mock");
+    expect(screen.queryByTestId("viewer-story-text")).not.toBeInTheDocument();
+  });
+
+  test("loads and plays an uploaded story video through the existing viewer", async () => {
+    mockFileData = new Blob(["video"], { type: "video/mp4" });
+
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[
+          {
+            id: 12,
+            story_type: "video",
+            file_name: "story.mp4",
+            mime_type: "video/mp4",
+          },
+        ]}
+        startIndex={0}
+        apiBase={API_BASE}
+      />
+    );
+
+    await waitFor(() => expect(fileFetchSpy).toHaveBeenCalledWith(undefined, undefined, false, {
+      path: 12,
+      responseType: "blob",
+    }));
+    expect(await screen.findByTestId("viewer-uploaded-video")).toHaveAttribute("src", "blob:mock");
+  });
+
+  test("tries to play a non-embed video link inside the viewer", async () => {
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[
+          {
+            id: 13,
+            story_type: "video",
+            video_url: "https://media.example.org/play/13",
+          },
+        ]}
+        startIndex={0}
+        apiBase={API_BASE}
+      />
+    );
+
+    expect(await screen.findByTestId("viewer-linked-video")).toHaveAttribute(
+      "src",
+      "https://media.example.org/play/13"
+    );
+    expect(fileFetchSpy).not.toHaveBeenCalled();
+  });
+
   test("empty docs show a no documents state and disable actions", () => {
     render(
       <DocumentViewerModal
