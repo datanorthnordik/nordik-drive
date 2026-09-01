@@ -27,9 +27,7 @@ import useFetch from "../../hooks/useFetch";
 
 //  ONLY use colors from your constants file (adjust import path)
 import {
-  color_primary,
   color_secondary,
-  color_primary_dark,
   color_secondary_dark,
   color_border,
   color_white,
@@ -37,7 +35,6 @@ import {
   color_white_smoke,
   color_text_primary,
   color_text_secondary,
-  color_text_light,
   color_warning_light,
   color_black_light,
 } from "../../constants/colors";
@@ -67,7 +64,7 @@ export type Clause = {
   end?: string; // YYYY-MM-DD
 };
 
-type MediaType = "all" | "photos" | "document";
+type MediaType = "all" | "photos" | "document" | "stories";
 
 type Props = {
   open: boolean;
@@ -96,6 +93,8 @@ function buildZipName(mediaType: MediaType) {
       ? "photos"
       : mediaType === "document"
       ? "documents"
+      : mediaType === "stories"
+      ? "stories"
       : "all_media";
   return safeFilename(`media_${kind}_${ts}.zip`);
 }
@@ -160,11 +159,16 @@ export default function DownloadMediaModal({
 
     //  As requested: "download all first" -> use clauses (requestId later)
     const body: any = {
-      document_type: mediaType, // "all" | "photos" | "document"
+      document_type: mediaType, // "all" | "photos" | "document" | "stories"
       categorize_by_user: groupByUser,
       categorize_by_type: groupByType,
-      only_approved: onlyApproved,
     };
+
+    // Omitting the optional filter means "all statuses". Sending false would
+    // explicitly ask the API for non-approved files only.
+    if (onlyApproved) {
+      body.only_approved = true;
+    }
 
     if (useRequest) {
       body.request_ids = [requestId];
@@ -367,6 +371,7 @@ export default function DownloadMediaModal({
               <MenuItem value="all">All (photos + documents)</MenuItem>
               <MenuItem value="photos">Photos only</MenuItem>
               <MenuItem value="document">Documents only</MenuItem>
+              <MenuItem value="stories">Survivor stories only</MenuItem>
             </Select>
           </FormControl>
 

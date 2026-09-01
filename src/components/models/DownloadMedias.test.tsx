@@ -224,6 +224,7 @@ describe("DownloadMediaModal", () => {
     expect(screen.getByText("Group by type: Yes")).toBeInTheDocument();
     expect(screen.getByText("Only approved: No")).toBeInTheDocument();
     expect(screen.getByText("Filters: 0")).toBeInTheDocument();
+    expect(screen.getByText("Survivor stories only")).toBeInTheDocument();
 
     // warning shown when no requestId and 0 filters
     expect(
@@ -315,9 +316,9 @@ describe("DownloadMediaModal", () => {
       document_type: "document",
       categorize_by_user: false,
       categorize_by_type: true,
-      only_approved: false,
       clauses,
     });
+    expect(call[0].only_approved).toBeUndefined();
     expect(call[1]).toBeUndefined();
     expect(call[2]).toBe(false);
     expect(call[3]).toMatchObject({ responseType: "blob" });
@@ -367,6 +368,61 @@ describe("DownloadMediaModal", () => {
     expect(anchorClickSpy).toHaveBeenCalledTimes(1);
   });
 
+  test("downloads survivor stories only with a stories ZIP filename", async () => {
+    const clauses: Clause[] = [
+      { id: "c1", field: "request_type", op: "EQ", value: "achiever_story" },
+    ];
+
+    const { rerender } = render(
+      <DownloadMediaModal
+        open
+        onClose={onClose}
+        apiBase="https://example.com/api"
+        clauses={clauses}
+      />
+    );
+
+    fireEvent.change(screen.getByTestId("media-type-select"), {
+      target: { value: "stories" },
+    });
+    expect(screen.getByText("Media: stories")).toBeInTheDocument();
+
+    const switches = screen.getAllByTestId("switch");
+    fireEvent.click(switches[2]);
+    expect(screen.getByText("Only approved: Yes")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Download ZIP"));
+    await flush();
+
+    expect(hookState.fetchData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        document_type: "stories",
+        categorize_by_user: true,
+        categorize_by_type: true,
+        only_approved: true,
+        clauses,
+      }),
+      undefined,
+      false,
+      expect.objectContaining({ responseType: "blob" })
+    );
+
+    hookState.data = new Blob(["stories-zip"], { type: "application/zip" });
+    rerender(
+      <DownloadMediaModal
+        open
+        onClose={onClose}
+        apiBase="https://example.com/api"
+        clauses={clauses}
+      />
+    );
+
+    expect(anchorClickSpy).toHaveBeenCalledTimes(1);
+    expect(lastAnchor).not.toBeNull();
+    expect(lastAnchor!.download).toContain("stories");
+    expect(lastAnchor!.download.endsWith(".zip")).toBe(true);
+  });
+
   test("download flow (requestId path): body includes request_ids and summary shows Request: <id>; supports {blob: Blob} shape", async () => {
     const requestId = 77;
 
@@ -390,9 +446,9 @@ describe("DownloadMediaModal", () => {
       document_type: "all",
       categorize_by_user: true,
       categorize_by_type: true,
-      only_approved: false,
       request_ids: [requestId],
     });
+    expect(body.only_approved).toBeUndefined();
     expect(body.clauses).toBeUndefined();
 
     // blob response as object { blob: Blob }
