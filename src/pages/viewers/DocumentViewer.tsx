@@ -94,11 +94,26 @@ export interface ViewerDoc {
   derivation_sources?: string[];
 }
 
+export type AchieverStoryTemplateValues = {
+  dateOfBirth: string;
+  dateOfDeath: string;
+  community: string;
+  parents: string;
+  siblings: string;
+  spouse: string;
+  education: string;
+  residentialSchoolHistory: string;
+  note: string;
+  achieversStory: string;
+  sources: string;
+};
+
 export type AchieverStorySubmissionContext = {
   fileId: number;
   rowId: number;
   firstName?: string;
   lastName?: string;
+  templateDefaults?: Partial<AchieverStoryTemplateValues>;
   onSubmitted?: () => void;
 };
 
@@ -256,6 +271,20 @@ const fileToDataURL = (file: File) =>
 const allowedStoryDocument = (file: File) => /\.(pdf|doc|docx)$/i.test(file.name);
 const allowedStoryVideo = (file: File) => /\.(mp4|m4v|webm|ogg|ogv|mov)$/i.test(file.name);
 
+const emptyStoryTemplate: AchieverStoryTemplateValues = {
+  dateOfBirth: "",
+  dateOfDeath: "",
+  community: "",
+  parents: "",
+  siblings: "",
+  spouse: "",
+  education: "",
+  residentialSchoolHistory: "",
+  note: "",
+  achieversStory: "",
+  sources: "",
+};
+
 function AchieverStorySubmissionForm({
   apiBase,
   context,
@@ -266,7 +295,10 @@ function AchieverStorySubmissionForm({
   onCancel: () => void;
 }) {
   const [storyType, setStoryType] = useState<"text" | "video" | "document">("text");
-  const [storyText, setStoryText] = useState("");
+  const [template, setTemplate] = useState<AchieverStoryTemplateValues>({
+    ...emptyStoryTemplate,
+    ...(context.templateDefaults || {}),
+  });
   const [videoSource, setVideoSource] = useState<"link" | "upload">("link");
   const [videoURL, setVideoURL] = useState("");
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -275,12 +307,16 @@ function AchieverStorySubmissionForm({
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  const updateTemplateField = (field: keyof AchieverStoryTemplateValues, value: string) => {
+    setTemplate((current) => ({ ...current, [field]: value }));
+  };
+
   const submit = async () => {
     if (submitting) return;
     setError("");
 
-    if (storyType === "text" && !storyText.trim()) {
-      setError("Enter the written story before submitting.");
+    if (storyType === "text" && !template.achieversStory.trim()) {
+      setError("Enter the achiever's story before submitting.");
       return;
     }
     if (storyType === "video" && videoSource === "link" && !videoURL.trim()) {
@@ -341,7 +377,25 @@ function AchieverStorySubmissionForm({
         firstname: context.firstName || "",
         lastname: context.lastName || "",
         story_type: storyType,
-        story_text: storyType === "text" ? storyText.trim() : "",
+        story_text: storyType === "text" ? template.achieversStory.trim() : "",
+        template: storyType === "text"
+          ? {
+              date_of_birth: template.dateOfBirth.trim(),
+              date_of_death: template.dateOfDeath.trim(),
+              community: template.community.trim(),
+              parents: template.parents.trim(),
+              siblings: template.siblings.trim(),
+              spouse: template.spouse.trim(),
+              education: template.education.trim(),
+              residential_school_history: template.residentialSchoolHistory.trim(),
+              note: template.note.trim(),
+              achievers_story: template.achieversStory.trim(),
+              sources: template.sources
+                .split(/\r?\n/)
+                .map((source) => source.trim())
+                .filter(Boolean),
+            }
+          : undefined,
         video_url: storyType === "video" && videoSource === "link" ? videoURL.trim() : "",
         video,
         document: storyType === "document" ? document : undefined,
@@ -371,7 +425,7 @@ function AchieverStorySubmissionForm({
       <Box>
         <Typography sx={{ ...VIEWER_TITLE_SX, fontSize: 22 }}>Submit an Achiever Story</Typography>
         <Typography sx={{ mt: 0.75, color: color_text_light }}>
-          Submit written text, upload a video or add its link, or upload a PDF/Word document. Written text is saved as a PDF. The story will be visible after an administrator approves it.
+          Have a document or video ready? Upload it here or add a video link. Otherwise, use the recommended guided template and we will create a consistently formatted PDF. The story will be visible after an administrator approves it.
         </Typography>
       </Box>
 
@@ -384,26 +438,72 @@ function AchieverStorySubmissionForm({
         <>
           <TextField
             select
-            label="Story format"
+            label="How would you like to add the story?"
             value={storyType}
             onChange={(event) => setStoryType(event.target.value as "text" | "video" | "document")}
             fullWidth
           >
-            <MenuItem value="text">Written story</MenuItem>
-            <MenuItem value="video">Video</MenuItem>
-            <MenuItem value="document">PDF or Word document</MenuItem>
+            <MenuItem value="text">Use the guided template (recommended)</MenuItem>
+            <MenuItem value="document">Upload a PDF or Word document</MenuItem>
+            <MenuItem value="video">Add or upload a video</MenuItem>
           </TextField>
 
           {storyType === "text" && (
-            <TextField
-              label="Story"
-              value={storyText}
-              onChange={(event) => setStoryText(event.target.value)}
-              fullWidth
-              multiline
-              minRows={10}
-              placeholder="Write the story here..."
-            />
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, border: "1px solid rgba(35,82,133,0.28)", background: "rgba(35,82,133,0.07)" }}>
+                <Typography sx={{ fontWeight: 900, color: color_secondary }}>Recommended common format</Typography>
+                <Typography sx={{ mt: 0.5, color: color_text_primary }}>
+                  Add what is known and leave anything else blank. Blank biography fields will appear as “Not recorded” in the generated document.
+                </Typography>
+              </Box>
+
+              <Typography sx={VIEWER_SECTION_TITLE_SX}>Biographical details</Typography>
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                <TextField
+                  label="Date of birth"
+                  value={template.dateOfBirth}
+                  onChange={(event) => updateTemplateField("dateOfBirth", event.target.value)}
+                  helperText="Enter an exact date or descriptive text."
+                  fullWidth
+                />
+                <TextField
+                  label="Date of death"
+                  value={template.dateOfDeath}
+                  onChange={(event) => updateTemplateField("dateOfDeath", event.target.value)}
+                  helperText="Enter an exact date or descriptive text."
+                  fullWidth
+                />
+                <TextField label="Community" value={template.community} onChange={(event) => updateTemplateField("community", event.target.value)} fullWidth />
+                <TextField label="Parents" value={template.parents} onChange={(event) => updateTemplateField("parents", event.target.value)} fullWidth />
+                <TextField label="Siblings" value={template.siblings} onChange={(event) => updateTemplateField("siblings", event.target.value)} fullWidth />
+                <TextField label="Spouse" value={template.spouse} onChange={(event) => updateTemplateField("spouse", event.target.value)} fullWidth />
+              </Box>
+              <TextField label="Education" value={template.education} onChange={(event) => updateTemplateField("education", event.target.value)} fullWidth multiline minRows={2} />
+              <TextField label="Residential school history" value={template.residentialSchoolHistory} onChange={(event) => updateTemplateField("residentialSchoolHistory", event.target.value)} fullWidth multiline minRows={3} />
+              <TextField label="Note" value={template.note} onChange={(event) => updateTemplateField("note", event.target.value)} fullWidth multiline minRows={3} />
+
+              <Divider />
+              <Typography sx={VIEWER_SECTION_TITLE_SX}>Story and sources</Typography>
+              <TextField
+                required
+                label="Achiever's story"
+                value={template.achieversStory}
+                onChange={(event) => updateTemplateField("achieversStory", event.target.value)}
+                fullWidth
+                multiline
+                minRows={8}
+                placeholder="Write the achiever's story here..."
+              />
+              <TextField
+                label="Sources"
+                value={template.sources}
+                onChange={(event) => updateTemplateField("sources", event.target.value)}
+                helperText="Optional. Enter one source or link per line."
+                fullWidth
+                multiline
+                minRows={3}
+              />
+            </Box>
           )}
 
           {storyType === "video" && (

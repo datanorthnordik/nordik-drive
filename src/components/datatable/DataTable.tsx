@@ -65,6 +65,7 @@ import { useDescribeEntry } from "../models/DescribeEntry";
 import { apiEnsure } from "../../store/api/apiSlice";
 import { FormCfg } from "./config-form-modal.tsx/shared";
 import { readOnlyAgGridModules, registerAgGridModules } from "../../lib/agGridModules";
+import type { AchieverStoryTemplateValues } from "../../pages/viewers/DocumentViewer";
 
 const NIAChat = lazy(() => import("../NIAChat"));
 const AddInfoForm = lazy(() => import("./add-info-dialog/AddInfoForm"));
@@ -121,6 +122,31 @@ const storyPersonName = (row: any) => {
   return {
     firstName: values.firstname || values.firstnamegiven || values.givenname || "",
     lastName: values.lastname || values.surname || values.familyname || "",
+  };
+};
+
+const storyTemplateDefaults = (row: any): Partial<AchieverStoryTemplateValues> => {
+  const values = Object.entries(row || {}).reduce<Record<string, string>>((all, [key, value]) => {
+    const normalizedKey = key.toLowerCase().replace(/[^a-z]/g, "");
+    all[normalizedKey] = Array.isArray(value)
+      ? value.map((item) => String(item || "").trim()).filter(Boolean).join("\n")
+      : String(value || "").trim();
+    return all;
+  }, {});
+  const pick = (...keys: string[]) => keys.map((key) => values[key]).find(Boolean) || "";
+
+  return {
+    dateOfBirth: pick("dateofbirth", "birthdate", "dob"),
+    dateOfDeath: pick("dateofdeath", "deathdate", "dod"),
+    community: pick("firstnationcommunity", "community", "firstnation"),
+    parents: pick("parents", "parent"),
+    siblings: pick("siblings", "sibling"),
+    spouse: pick("spouse"),
+    education: pick("education"),
+    residentialSchoolHistory: pick("residentialschoolhistory", "residentialschools", "schoolhistory"),
+    note: pick("note", "notes"),
+    achieversStory: pick("achieversstory", "achieverstory"),
+    sources: pick("sources", "source"),
   };
 };
 
@@ -1379,6 +1405,7 @@ export default function DataGrid({ rowData }: DataGridProps) {
                       fileId: Number(selectedFile.id),
                       rowId: Number(activeAchieverStoryRow.id),
                       ...storyPersonName(activeAchieverStoryRow),
+                      templateDefaults: storyTemplateDefaults(activeAchieverStoryRow),
                     }
                   : undefined
               }
