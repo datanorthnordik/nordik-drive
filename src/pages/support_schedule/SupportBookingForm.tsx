@@ -6,15 +6,29 @@ import {
 } from "@mui/material";
 import toast from "react-hot-toast";
 import SupportCalendar from "./SupportCalendar";
-import { SupportAvailability, SupportCalendarDay, SupportSettings, SupportStaff, supportScheduleApi } from "./api";
+import { SupportAvailability, SupportCalendarDay, SupportRequest, SupportSettings, SupportStaff, supportScheduleApi } from "./api";
+import { displayTorontoDate as displayDate, displayTorontoTime as timeLabel, SUPPORT_TIME_ZONE_LABEL } from "./supportTime";
 
-type Props = { onRequested?: () => void; compact?: boolean };
+type Props = { onRequested?: () => void; compact?: boolean; existingRequest?: SupportRequest | null };
 
-const displayDate = (value?: string) => value ? new Intl.DateTimeFormat("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "America/Toronto" }).format(new Date(`${value.slice(0, 10)}T12:00:00`)) : "No date selected";
-const timeLabel = (value: string) => new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "America/Toronto" }).format(new Date(value));
 const staffName = (staff?: { firstname: string; lastname: string }) => staff ? `${staff.firstname} ${staff.lastname}`.trim() : "No support person assigned";
+const ACTIVE_REQUEST_STATUSES = new Set(["pending", "awaiting_assignee_approval", "approved", "alternative_time_proposed"]);
+const FALLBACK_CALL_REASONS = ["Technical support", "Account or access help", "Records or document assistance", "Training or general guidance", "Other"];
+const requestStart = (request?: SupportRequest | null) => request?.call?.scheduled_start_time || request?.preferred_start_time || "";
+const requestDuration = (request: SupportRequest, fallback: number) => {
+  const start = requestStart(request);
+  const end = request.call?.scheduled_end_time || request.preferred_end_time;
+  if (!start || !end) return fallback;
+  const minutes = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000);
+  return minutes > 0 ? minutes : fallback;
+};
+const sameInstant = (first?: string, second?: string) => {
+  if (!first || !second) return false;
+  return new Date(first).getTime() === new Date(second).getTime();
+};
 
-export default function SupportBookingForm({ onRequested, compact = false }: Props) {
+
+export default function SupportBookingForm({ onRequested, compact = false, existingRequest }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [settings, setSettings] = useState<SupportSettings>();
@@ -27,6 +41,9 @@ export default function SupportBookingForm({ onRequested, compact = false }: Pro
   const [availability, setAvailability] = useState<SupportAvailability>();
   const [selectedStart, setSelectedStart] = useState("");
   const [subject, setSubject] = useState("");
+  const [reasonChoice, setReasonChoice] = useState("");
+  const [otherReason, setOtherReason] = useState("");
+  const [activeRequest, setActiveRequest] = useState<SupportRequest | null>(existingRequest || null);
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
@@ -41,17 +58,40 @@ export default function SupportBookingForm({ onRequested, compact = false }: Pro
 
   useEffect(() => {
     let live = true;
-    Promise.all([supportScheduleApi.settings(), supportScheduleApi.team()])
-      .then(([loadedSettings, loadedStaff]) => {
+    const requestsPromise = existingRequest !== undefined
+      ? Promise.resolve(existingRequest ? [existingRequest] : [])
+      : supportScheduleApi.requests("mine");
+    Promise.all([supportScheduleApi.settings(), supportScheduleApi.team(), requestsPromise])
+      .then(([loadedSettings, loadedStaff, loadedRequests]) => {
         if (!live) return;
+        const current = loadedRequests.find((request) => ACTIVE_REQUEST_STATUSES.has(request.status)) || null;
+        const reasons = loadedSettings.call_reasons?.length ? loadedSettings.call_reasons : FALLBACK_CALL_REASONS;
         setSettings(loadedSettings);
         setStaff(loadedStaff);
-        setDuration(loadedSettings.default_duration_minutes);
+        setActiveRequest(current);
+        if (current) {
+          const persistedReason = current.reason || current.subject;
+          const chosenReason = current.reason === "Other" || !reasons.includes(persistedReason)
+            ? "Other"
+            : persistedReason;
+          const start = requestStart(current);
+          const currentDuration = requestDuration(current, loadedSettings.default_duration_minutes);
+          setDuration(currentDuration);
+          setReasonChoice(chosenReason);
+          setOtherReason(current.other_reason || (chosenReason === "Other" ? current.subject : ""));
+          setDescription(current.description || "");
+          setRequestSpecificPerson(current.request_type === "specific_support_person" ? "yes" : "no");
+          setRequestedStaff(current.requested_staff_id ? String(current.requested_staff_id) : "");
+          setDate(current.requested_date || "");
+          setSelectedStart(start);
+        } else {
+          setDuration(loadedSettings.default_duration_minutes);
+        }
       })
       .catch((error: Error) => toast.error(error.message || "Unable to load support scheduling."))
       .finally(() => live && setLoading(false));
     return () => { live = false; };
-  }, []);
+  }, [existingRequest]);
 
   useEffect(() => {
     if (!settings || (isSpecificRequest && !requestedStaff)) {

@@ -4,12 +4,13 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import "@testing-library/jest-dom";
 
 import DocumentViewerModal, { ViewerDoc } from "./DocumentViewer";
-import useFetch from "../../hooks/useFetch";
+import useFetch, { apiRequest } from "../../hooks/useFetch";
 import { renderDocxPreview } from "../../lib/docxPreview";
 
 jest.mock("../../hooks/useFetch", () => ({
   __esModule: true,
   default: jest.fn(),
+  apiRequest: jest.fn(),
 }));
 
 jest.mock("../../lib/docxPreview", () => ({
@@ -18,6 +19,7 @@ jest.mock("../../lib/docxPreview", () => ({
 }));
 
 const useFetchMock = useFetch as unknown as jest.Mock;
+const apiRequestMock = apiRequest as jest.MockedFunction<typeof apiRequest>;
 const renderDocxPreviewMock = renderDocxPreview as jest.MockedFunction<typeof renderDocxPreview>;
 
 const API_BASE = "https://example.com";
@@ -403,5 +405,61 @@ describe("DocumentViewerModal (lightweight unit tests)", () => {
     expect(screen.getByTestId("achiever-story-submission-form")).toBeInTheDocument();
     expect(screen.getByText("Submit an Achiever Story")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit for approval" })).toBeInTheDocument();
+  });
+
+  test("submits the recommended guided template with free-text dates", async () => {
+    apiRequestMock.mockResolvedValue({});
+
+    render(
+      <DocumentViewerModal
+        open={true}
+        onClose={jest.fn()}
+        docs={[]}
+        startIndex={0}
+        apiBase={API_BASE}
+        storySubmission={{
+          fileId: 49,
+          rowId: 120739,
+          firstName: "Thelma",
+          lastName: "Fair",
+          templateDefaults: {
+            dateOfBirth: "1956-02-15",
+            dateOfDeath: "Not recorded. Would be 70 in 2026 if living.",
+            community: "Shoal Lake #126",
+          },
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId("add-achiever-story"));
+    expect(screen.getByLabelText("Date of birth")).toHaveValue("1956-02-15");
+    expect(screen.getByLabelText("Date of death")).toHaveValue("Not recorded. Would be 70 in 2026 if living.");
+
+    fireEvent.change(screen.getByLabelText(/Achiever's story/i), {
+      target: { value: "Thelma served her community as a traditional healer." },
+    });
+    fireEvent.change(screen.getByLabelText("Sources"), {
+      target: { value: "https://example.org/source\nCommunity archive" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Submit for approval" }));
+
+    await waitFor(() => expect(apiRequestMock).toHaveBeenCalledWith(
+      `${API_BASE}/file/achiever-stories/request`,
+      "POST",
+      expect.objectContaining({
+        file_id: 49,
+        row_id: 120739,
+        story_type: "text",
+        story_text: "Thelma served her community as a traditional healer.",
+        template: expect.objectContaining({
+          date_of_birth: "1956-02-15",
+          date_of_death: "Not recorded. Would be 70 in 2026 if living.",
+          community: "Shoal Lake #126",
+          achievers_story: "Thelma served her community as a traditional healer.",
+          sources: ["https://example.org/source", "Community archive"],
+        }),
+      }),
+    ));
+    expect(await screen.findByText("Story submitted for review.")).toBeInTheDocument();
   });
 });

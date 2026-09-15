@@ -8,6 +8,7 @@ export type SupportSettings = {
   allowed_durations: number[];
   default_duration_minutes: number;
   booking_horizon_days: number;
+  call_reasons?: string[];
 };
 
 export type SupportPerson = { id: number; firstname: string; lastname: string; email?: string };
@@ -80,6 +81,8 @@ export type SupportRequest = {
   assigned_staff_id?: number;
   status: SupportRequestStatus;
   subject: string;
+  reason?: string;
+  other_reason?: string;
   description: string;
   rejection_reason: string;
   alternative_start_time?: string;
@@ -132,16 +135,19 @@ const base = "support-schedule";
 export const supportScheduleApi = {
   settings: () => apiRequest<SupportSettings>(apiUrl(`${base}/settings`), "GET"),
   team: () => apiRequest<SupportStaff[]>(apiUrl(`${base}/team`), "GET"),
-  availability: (date: string, duration: number, staffId?: number) => {
+  availability: (date: string, duration: number, staffId?: number, requestId?: number) => {
     const staffParam = staffId ? `&staff_id=${staffId}` : "";
-    return apiRequest<SupportAvailability>(apiUrl(`${base}/availability?date=${encodeURIComponent(date)}&duration_minutes=${duration}${staffParam}`), "GET");
+    const requestParam = requestId ? `&request_id=${requestId}` : "";
+    return apiRequest<SupportAvailability>(apiUrl(`${base}/availability?date=${encodeURIComponent(date)}&duration_minutes=${duration}${staffParam}${requestParam}`), "GET");
   },
-  calendar: (duration: number, staffId?: number) => {
+  calendar: (duration: number, staffId?: number, requestId?: number) => {
     const staffParam = staffId ? `&staff_id=${staffId}` : "";
-    return apiRequest<SupportCalendar>(apiUrl(`${base}/calendar?duration_minutes=${duration}${staffParam}`), "GET");
+    const requestParam = requestId ? `&request_id=${requestId}` : "";
+    return apiRequest<SupportCalendar>(apiUrl(`${base}/calendar?duration_minutes=${duration}${staffParam}${requestParam}`), "GET");
   },
   requests: (scope = "mine") => apiRequest<SupportRequest[]>(apiUrl(`${base}/requests?scope=${scope}`), "GET"),
   createRequest: (body: Record<string, unknown>) => apiRequest<SupportRequest>(apiUrl(`${base}/requests`), "POST", body),
+  updateRequest: (id: number, body: Record<string, unknown>) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}`), "PUT", body),
   decideRequest: (id: number, body: Record<string, unknown>) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/decision`), "PUT", body),
   acceptAlternative: (id: number) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/accept-alternative`), "PUT"),
   cancelRequest: (id: number) => apiRequest<SupportRequest>(apiUrl(`${base}/requests/${id}/cancel`), "PUT"),
