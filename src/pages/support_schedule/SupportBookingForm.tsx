@@ -40,6 +40,7 @@ export default function SupportBookingForm({ onRequested, compact = false, exist
   const [requestedStaff, setRequestedStaff] = useState("");
   const [availability, setAvailability] = useState<SupportAvailability>();
   const [selectedStart, setSelectedStart] = useState("");
+  const [subject, setSubject] = useState("");
   const [reasonChoice, setReasonChoice] = useState("");
   const [otherReason, setOtherReason] = useState("");
   const [activeRequest, setActiveRequest] = useState<SupportRequest | null>(existingRequest || null);

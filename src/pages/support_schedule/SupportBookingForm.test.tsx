@@ -8,8 +8,26 @@ const mockSettings = jest.fn();
 const mockTeam = jest.fn();
 const mockAvailability = jest.fn();
 const mockCalendar = jest.fn();
+const mockRequests = jest.fn();
 const mockCreateRequest = jest.fn();
 const mockSuccess = jest.fn();
+const originalMatchMedia = window.matchMedia;
+
+const setSmallScreen = (matches: boolean) => {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: jest.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+};
 
 jest.mock("./api", () => ({
   supportScheduleApi: {
@@ -17,6 +35,7 @@ jest.mock("./api", () => ({
     team: (...args: any[]) => mockTeam(...args),
     availability: (...args: any[]) => mockAvailability(...args),
     calendar: (...args: any[]) => mockCalendar(...args),
+    requests: (...args: any[]) => mockRequests(...args),
     createRequest: (...args: any[]) => mockCreateRequest(...args),
   },
 }));
@@ -29,6 +48,7 @@ jest.mock("react-hot-toast", () => ({
 describe("SupportBookingForm", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setSmallScreen(false);
     mockSettings.mockResolvedValue({ time_zone: "America/Toronto", workday_start: "08:30", workday_end: "16:30", allowed_durations: [30, 60], default_duration_minutes: 30, booking_horizon_days: 14 });
     mockTeam.mockResolvedValue([{ user_id: 7, firstname: "Alex", lastname: "Support" }]);
     mockAvailability.mockResolvedValue({ date: "2026-08-05", duration_minutes: 30, assigned_staff: { id: 7, firstname: "Alex", lastname: "Support" }, slots: [{ start_at: "2026-08-05T13:00:00Z", end_at: "2026-08-05T13:30:00Z" }] });
@@ -36,7 +56,12 @@ describe("SupportBookingForm", () => {
       { date: "2026-08-05", assigned_staff: { id: 7, firstname: "Alex", lastname: "Support" }, status: "available", status_message: "4 available times", is_bookable: true, available_slot_count: 4, scheduled_call_count: 0, is_assigned_to_viewer: false },
       { date: "2026-08-08", status: "weekend", status_message: "No support on weekends", is_bookable: false, available_slot_count: 0, scheduled_call_count: 0, is_assigned_to_viewer: false },
     ] });
+    mockRequests.mockResolvedValue([]);
     mockCreateRequest.mockResolvedValue({ id: 11, status: "awaiting_assignee_approval" });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   });
 
   test("submits a specific-person request that awaits approval", async () => {
@@ -65,11 +90,7 @@ describe("SupportBookingForm", () => {
   });
 
   test("uses separate date and time steps on a small screen", async () => {
-    const originalMatchMedia = window.matchMedia;
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: jest.fn().mockImplementation(() => ({ matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn(), addListener: jest.fn(), removeListener: jest.fn() })),
-    });
+    setSmallScreen(true);
     const user = userEvent.setup();
     render(<SupportBookingForm />);
 
@@ -78,7 +99,5 @@ describe("SupportBookingForm", () => {
     expect(await screen.findByText(/2\. choose an available time/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /9:00/i }));
     expect(screen.getByText(/at 9:00/i)).toBeInTheDocument();
-
-    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   }, 30_000);
 });
